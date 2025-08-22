@@ -1,0 +1,1 @@
+This directory contains images for posts. In a production environment, these would be actual post images uploaded by users.

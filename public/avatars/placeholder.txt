@@ -1,0 +1,1 @@
+This directory contains avatar images for users. In a production environment, these would be actual user profile images.
