@@ -385,10 +385,10 @@ const MediaGallery = memo(({ items, onOpen }: {
         <button
           onClick={scrollLeft}
           data-no-nav="true"
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200 border border-white/10 backdrop-blur-sm"
           aria-label="Scroll left"
         >
-          ‹
+          <span className="text-xl font-bold leading-none flex items-center justify-center w-full h-full">‹</span>
         </button>
       )}
       
@@ -396,10 +396,10 @@ const MediaGallery = memo(({ items, onOpen }: {
         <button
           onClick={scrollRight}
           data-no-nav="true"
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200 border border-white/10 backdrop-blur-sm"
           aria-label="Scroll right"
         >
-          ›
+          <span className="text-xl font-bold leading-none flex items-center justify-center w-full h-full">›</span>
         </button>
       )}
 
@@ -626,20 +626,20 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
         {items.length > 1 && (
           <>
             <button 
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10" 
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200" 
               onClick={onPrev} 
               aria-label="Previous" 
               data-no-nav="true"
             >
-              ‹
+              <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">‹</span>
             </button>
             <button 
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10" 
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200" 
               onClick={onNext} 
               aria-label="Next" 
               data-no-nav="true"
             >
-              ›
+              <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">›</span>
             </button>
           </>
         )}
