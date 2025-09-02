@@ -1363,15 +1363,6 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       {/* Hover effects */}
       <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       
-      {/* Animation dots */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-30 transition-opacity duration-300">
-        <div className="flex gap-1">
-          <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-          <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '200ms' }} />
-          <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '400ms' }} />
-        </div>
-      </div>
-      
       {/* Lightbox */}
       {uiState.lightboxOpen && post.media && (
         <Lightbox

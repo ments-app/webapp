@@ -64,12 +64,12 @@ export const Sidebar = React.memo(function Sidebar() {
   const mainNavItems = [
     { 
       href: '/', 
-      icon: () => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className="w-5 h-5" />, 
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />, 
       label: 'Home' 
     },
     { 
       href: '/search', 
-      icon: () => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className="w-5 h-5" />, 
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />, 
       label: 'Search' 
     },
     { 
@@ -79,7 +79,7 @@ export const Sidebar = React.memo(function Sidebar() {
     },
     { 
       href: '/projects', 
-      icon: () => <Image src="/icons/project.svg" alt="Projects" width={20} height={20} className="w-5 h-5" />, 
+      icon: ({ className }: { className?: string }) => <Image src="/icons/project.svg" alt="Projects" width={20} height={20} className={className || "w-5 h-5"} />, 
       label: 'Projects' 
     },
     { 
@@ -115,7 +115,13 @@ export const Sidebar = React.memo(function Sidebar() {
             : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
         }`}
       >
-        <Icon className="h-5 w-5" />
+        <div className={`${
+          isActive 
+            ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white' 
+            : '[&_svg]:text-current text-current group-hover:[&_img]:brightness-0 group-hover:[&_img]:invert group-hover:[&_svg]:text-white group-hover:text-white'
+        }`}>
+          <Icon className="h-5 w-5" />
+        </div>
         <span className="flex-1">{label}</span>
         {count && count > 0 && (
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-xs text-white font-semibold animate-pulse">
@@ -216,12 +222,12 @@ export function MobileSidebar() {
   const mobileNavItems = [
     { 
       href: '/', 
-      icon: () => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className="w-4 h-4" />, 
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />, 
       label: 'Home' 
     },
     { 
       href: '/search', 
-      icon: () => <Image src="/icons/serach.svg" alt="Search" width={16} height={16} className="w-4 h-4" />, 
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />, 
       label: 'Search' 
     },
     { 
@@ -231,7 +237,7 @@ export function MobileSidebar() {
     },
     { 
       href: '/projects', 
-      icon: () => <Image src="/icons/project.svg" alt="Projects" width={16} height={16} className="w-4 h-4" />, 
+      icon: ({ className }: { className?: string }) => <Image src="/icons/project.svg" alt="Projects" width={16} height={16} className={className || "w-4 h-4"} />, 
       label: 'Projects' 
     },
     { 
@@ -265,7 +271,13 @@ export function MobileSidebar() {
                 : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
             }`}
           >
-            <item.icon className="h-4 w-4" />
+            <div className={`${
+              isActive 
+                ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white' 
+                : '[&_svg]:text-current text-current group-hover:[&_img]:brightness-0 group-hover:[&_img]:invert group-hover:[&_svg]:text-white group-hover:text-white'
+            }`}>
+              <item.icon className="h-4 w-4" />
+            </div>
             <span className="text-xs">{item.label}</span>
           </Link>
         );
