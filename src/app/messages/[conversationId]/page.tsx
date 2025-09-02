@@ -67,8 +67,8 @@ export default function ConversationPage() {
       fetch(`/api/messages?conversationId=${String(conversationId)}`).then(res => res.json()),
       fetch(`/api/messages/reactions?conversationId=${String(conversationId)}`).then(res => res.json()),
     ])
-      .then(([msgs, reacts]) => {
-        setMessages(msgs);
+      .then(([messagesResponse, reacts]) => {
+        setMessages(messagesResponse.messages || []);
         setReactions(reacts || []);
       })
       .catch(e => setError(e.message))

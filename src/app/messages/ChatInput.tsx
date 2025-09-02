@@ -55,14 +55,16 @@ export default function ChatInput({ conversationId, userId, onSent }: ChatInputP
       
       if (res.ok) {
         setContent('');
-        onSent(data);
+        onSent(data.message);
         
         // Send push notification if we have recipient ID
         if (recipientId) {
           try {
-            await fetch('https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/push-on-message', {
+            await fetch('/api/push-notification', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json'
+              },
               body: JSON.stringify({
                 senderId: userId,
                 recipientId: recipientId,

@@ -344,7 +344,9 @@ export default function MessagesPage() {
   );
 
   // Stats
-  const totalUnread = conversations.reduce((sum, c) => sum + getUnreadCount(c, userId || ''), 0);
+  const totalUnread = Array.isArray(conversations) 
+    ? conversations.reduce((sum, c) => sum + getUnreadCount(c, userId || ''), 0)
+    : 0;
 
   // Fetch categories
   useEffect(() => {
@@ -360,28 +362,38 @@ export default function MessagesPage() {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    fetch(`/api/messages?userId=${userId}`)
+    fetch(`/api/conversations?userId=${userId}`)
       .then(res => res.json())
       .then(data => {
-        setConversations(data);
+        // Ensure data is an array, if it's an error object, handle it
+        if (Array.isArray(data)) {
+          setConversations(data);
+        } else if (data.error) {
+          setError(data.error);
+          setConversations([]);
+        } else {
+          setConversations([]);
+        }
         setLoading(false);
       })
       .catch(e => {
         setError(e.message);
+        setConversations([]);
         setLoading(false);
       });
   }, [userId]);
 
   // Filter for unique conversations by conversation_id
-  const uniqueConversations: Conversation[] = Array.from(
-    new Map(conversations.map((c) => [c.conversation_id, c])).values()
-  );
+  const uniqueConversations: Conversation[] = Array.isArray(conversations) 
+    ? Array.from(new Map(conversations.map((c) => [c.conversation_id, c])).values())
+    : [];
   const filteredConversations = selectedCategory
     ? uniqueConversations.filter((c) => c.categories && c.categories.includes(selectedCategory))
     : uniqueConversations;
 
   // Category unread counts
   function getUnreadForCategory(catId: string) {
+    if (!Array.isArray(conversations)) return 0;
     return conversations
       .filter(c => c.categories && c.categories.includes(catId))
       .reduce((sum, c) => sum + getUnreadCount(c, userId || ''), 0);
@@ -661,9 +673,15 @@ export default function MessagesPage() {
             onCreated={() => { 
               setShowNewChat(false); 
               if (userId) {
-                fetch(`/api/messages?userId=${userId}`)
+                fetch(`/api/conversations?userId=${userId}`)
                   .then(res => res.json())
-                  .then(setConversations)
+                  .then(data => {
+                    if (Array.isArray(data)) {
+                      setConversations(data);
+                    } else {
+                      setConversations([]);
+                    }
+                  })
                   .catch(console.error);
               }
             }}
