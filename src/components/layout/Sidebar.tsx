@@ -7,8 +7,9 @@ import { Plus, User, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/utils/supabase';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -34,27 +35,45 @@ export const Sidebar = React.memo(function Sidebar() {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
   const [profileHref, setProfileHref] = useState<string>('/profile');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<{avatar_url?: string | null, full_name?: string, username?: string} | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
       if (!user) {
-        if (!cancelled) setProfileHref('/profile');
+        if (!cancelled) {
+          setProfileHref('/profile');
+          setUserProfile(null);
+        }
         return;
       }
       try {
         let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
+        const { data } = await supabase
+          .from('users')
+          .select('username, avatar_url, full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+          
         if (!username) {
-          const { data } = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', user.id)
-            .maybeSingle();
           username = data?.username?.toLowerCase();
         }
-        if (!cancelled) setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
+        
+        if (!cancelled) {
+          setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
+          setUserProfile({
+            avatar_url: data?.avatar_url,
+            full_name: data?.full_name || user.user_metadata?.full_name,
+            username: data?.username || username
+          });
+        }
       } catch {
-        if (!cancelled) setProfileHref('/profile');
+        if (!cancelled) {
+          setProfileHref('/profile');
+          setUserProfile(null);
+        }
       }
     };
     run();
@@ -136,6 +155,44 @@ export const Sidebar = React.memo(function Sidebar() {
     <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-4" />
   );
 
+  const toggleDropdown = useCallback(() => {
+    setIsDropdownOpen(prev => !prev);
+  }, []);
+
+  const handleDropdownItemClick = useCallback((action: () => void) => {
+    return (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDropdownOpen(false);
+      action();
+    };
+  }, []);
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isDropdownOpen]);
+
   return (
     <div className="flex h-full flex-col">        
       {/* Navigation */}
@@ -154,34 +211,79 @@ export const Sidebar = React.memo(function Sidebar() {
       {user && (
         <>
           <SectionDivider />
-          <div className="p-3">
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/50 hover:from-muted/70 hover:to-muted/50 transition-all duration-200">
-              <div className="relative">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-lg">
-                  <span className="text-base font-bold text-primary-foreground">
-                    {user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || '?'}
-                  </span>
+          <div className="p-3 relative" ref={dropdownRef}>
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
+                <div className="py-1">
+                  <Link 
+                    href={profileHref}
+                    className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/50 transition-colors"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <User className="h-4 w-4 opacity-80" />
+                    <span>View Profile</span>
+                  </Link>
+                  <Link 
+                    href="/settings"
+                    className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/50 transition-colors"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <Settings className="h-4 w-4 opacity-80" />
+                    <span>Settings</span>
+                  </Link>
+                  <div className="h-px bg-border/60 my-1" />
+                  <button 
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 hover:text-red-500 transition-colors text-left"
+                    onClick={handleDropdownItemClick(signOut)}
+                  >
+                    <LogOut className="h-4 w-4 opacity-80" />
+                    <span>Sign out</span>
+                  </button>
                 </div>
+              </div>
+            )}
+            
+            {/* User Profile Button */}
+            <button 
+              onClick={toggleDropdown}
+              className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/50 hover:from-muted/70 hover:to-muted/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <div className="relative">
+                {userProfile?.avatar_url ? (
+                  <div className="h-12 w-12 rounded-xl overflow-hidden shadow-lg">
+                    <Image
+                      src={toProxyUrl(userProfile.avatar_url, { width: 48, quality: 82 })}
+                      alt={userProfile.full_name || 'Profile'}
+                      width={48}
+                      height={48}
+                      className="h-full w-full object-cover"
+                      sizes="48px"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-lg">
+                    <span className="text-base font-bold text-primary-foreground">
+                      {userProfile?.full_name?.charAt(0) || user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || '?'}
+                    </span>
+                  </div>
+                )}
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 text-left">
                 <p className="truncate text-[15px] font-semibold">
-                  {user.user_metadata?.full_name || 'User'}
+                  {userProfile?.full_name || user.user_metadata?.full_name || 'User'}
                 </p>
                 <p className="truncate text-[13px] text-muted-foreground">
                   {user.email}
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => signOut()}
-                className="h-9 w-9 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all duration-200 active:scale-95"
-                title="Sign out"
-              >
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
+              <div className="text-muted-foreground transition-transform duration-200 group-hover:rotate-180">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
           </div>
         </>
       )}

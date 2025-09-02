@@ -164,6 +164,7 @@ const VideoThumbnail = memo(({
 
 VideoThumbnail.displayName = 'VideoThumbnail';
 
+
 // Optimized ResponsiveVideo component with lazy loading
 const ResponsiveVideo = memo(({ src, poster, width, height }: { 
   src: string; 
@@ -991,86 +992,89 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
   // Memoized JSX elements to prevent unnecessary re-renders (keeping your existing profileSection and tagsSection)
   const profileSection = useMemo(() => (
-    <div className="flex items-center gap-4 flex-1 min-w-0">
-      {/* Profile Picture */}
-      <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
-        <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
-          {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !uiState.imageError ? (
-            <div className="relative w-full h-full">
-              <Image
-                src={toProxyUrl(post.author.avatar_url, { width: 56, quality: 82 })}
-                alt={post.author.username || 'User'}
-                fill
-                sizes="56px"
-                className="object-cover transition-transform duration-300 group-hover:scale-110"
-                onError={handleImageError}
-                priority={false}
-                loading="lazy"
-              />
-            </div>
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center">
-              <span className="text-xl font-bold text-primary">
-                {post.author?.username?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            </div>
-          )}
-        </div>
-        {isVerified && (
-          <div className="absolute -bottom-1 -right-1 w-6 h-6" aria-label="Verified">
-            <svg viewBox="0 0 40 40" width="24" height="24" className="block" aria-hidden="true">
-              <path
-                d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Zm7.415 11.225 2.254 2.287-11.43 11.5-6.835-6.93 2.244-2.258 4.587 4.581 9.18-9.18Z"
-                fill="#0095F6"
-                fillRule="evenodd"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        )}
-      </div>
-      
-      {/* User Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3 mb-1">
-          <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors duration-200 cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
-            {post.author?.full_name || post.author?.username || 'Anonymous'}
-          </h3>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-          <span className="font-medium cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
-            @{post.author?.handle || post.author?.username?.toLowerCase() || 'anonymous'}
-          </span>
-          <span className="opacity-60">•</span>
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span title={timeAgoFull}>{timeAgo}</span>
-          </div>
-        </div>
-        
-        {/* Environment info */}
-        {post.environment && (
-          <div className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit">
-            {post.environment.picture && !uiState.envImageError ? (
-              <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-[#3C4049]">
+    <div className="flex-1 min-w-0">
+      {/* User profile and name section - horizontally aligned */}
+      <div className="flex items-start gap-4 mb-3">
+        {/* Profile Picture */}
+        <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
+          <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
+            {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !uiState.imageError ? (
+              <div className="relative w-full h-full">
                 <Image
-                  src={toProxyUrl(post.environment.picture, { width: 24, quality: 82 })}
-                  alt={post.environment.name}
-                  width={24}
-                  height={24}
-                  className="object-cover w-full h-full"
-                  onError={handleEnvImageError}
-                  sizes="24px"
+                  src={toProxyUrl(post.author.avatar_url, { width: 56, quality: 82 })}
+                  alt={post.author.username || 'User'}
+                  fill
+                  sizes="56px"
+                  className="object-cover transition-transform duration-300 group-hover:scale-110"
+                  onError={handleImageError}
+                  priority={false}
                   loading="lazy"
                 />
               </div>
             ) : (
-              <Users className="h-5 w-5 text-gray-400" />
+              <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center">
+                <span className="text-xl font-bold text-primary">
+                  {post.author?.username?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </div>
             )}
-            <span className="text-white font-semibold">{post.environment.name}</span>
           </div>
-        )}
+        </div>
+        
+        {/* Name and Username section - vertically stacked */}
+        <div className="flex-1 min-w-0">
+          {/* Name + Verification Badge */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors duration-200 cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
+              {post.author?.full_name || post.author?.username || 'Anonymous'}
+            </h3>
+            {isVerified && (
+              <div className="flex-shrink-0">
+                <Image
+                  src="/icons/verify_badge.svg"
+                  alt="Verified"
+                  width={14}
+                  height={14}
+                  className="w-3.5 h-3.5"
+                  title="Verified user"
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Username/Handle and Time */}
+          <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+            <span className="font-medium cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
+              @{post.author?.handle || post.author?.username?.toLowerCase() || 'anonymous'}
+            </span>
+            <span className="opacity-60">•</span>
+            <span title={timeAgoFull}>{timeAgo}</span>
+          </div>
+        </div>
       </div>
+      
+      {/* Environment Badge - Full width below user info */}
+      {post.environment && (
+        <div className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit">
+          {post.environment.picture && !uiState.envImageError ? (
+            <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-[#3C4049]">
+              <Image
+                src={toProxyUrl(post.environment.picture, { width: 24, quality: 82 })}
+                alt={post.environment.name}
+                width={24}
+                height={24}
+                className="object-cover w-full h-full"
+                onError={handleEnvImageError}
+                sizes="24px"
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <Users className="h-5 w-5 text-gray-400" />
+          )}
+          <span className="text-white font-semibold">{post.environment.name}</span>
+        </div>
+      )}
     </div>
   ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull, post.environment, uiState.envImageError, handleEnvImageError]);
 
