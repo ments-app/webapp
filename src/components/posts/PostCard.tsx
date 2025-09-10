@@ -1052,7 +1052,18 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       
       {/* Environment Badge - Full width below user info */}
       {post.environment && (
-        <div className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit">
+        <div
+          className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit hover:bg-[#222733] transition-colors cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (post.environment?.id) {
+              router.push(`/environments/${post.environment.id}`);
+            }
+          }}
+          role="link"
+          aria-label={`Open environment ${post.environment?.name || ''}`}
+          data-no-nav="true"
+        >
           {post.environment.picture && !uiState.envImageError ? (
             <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-[#3C4049]">
               <Image
@@ -1073,7 +1084,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
         </div>
       )}
     </div>
-  ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull, post.environment, uiState.envImageError, handleEnvImageError]);
+  ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull, post.environment, uiState.envImageError, handleEnvImageError, router]);
 
   const tagsSection = useMemo(() => {
     if (!post.tags || post.tags.length === 0) return null;

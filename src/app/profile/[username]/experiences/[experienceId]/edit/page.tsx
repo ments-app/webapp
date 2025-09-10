@@ -99,15 +99,20 @@ export default function EditOneExperiencePage() {
       }
 
       // positions patches (only changed fields)
+      // normalize helper so '' and undefined are treated as null for comparisons
+      const norm = (v: string | null | undefined) => {
+        const s = (v ?? '').toString().trim();
+        return s.length ? s : null;
+      };
       for (const p of positions) {
         const base = origPositions[p.id];
         if (!base) continue;
         const patch: { id: string; position?: string; description?: string | null; startDate?: string | null; endDate?: string | null } = { id: p.id };
         let changed = false;
-        if ((p.position || '') !== (base.position || '')) { patch.position = p.position || ''; changed = true; }
-        if ((p.description || '') !== (base.description || '')) { patch.description = p.description ?? null; changed = true; }
-        if ((p.start_date || '') !== (base.start_date || '')) { patch.startDate = p.start_date ?? null; changed = true; }
-        if ((p.end_date || '') !== (base.end_date || '')) { patch.endDate = p.end_date ?? null; changed = true; }
+        if ((p.position || '').trim() !== (base.position || '').trim()) { patch.position = (p.position || '').trim(); changed = true; }
+        if ((p.description || '').trim() !== (base.description || '').trim()) { patch.description = norm(p.description); changed = true; }
+        if (norm(p.start_date) !== norm(base.start_date)) { patch.startDate = norm(p.start_date); changed = true; }
+        if (norm(p.end_date) !== norm(base.end_date)) { patch.endDate = norm(p.end_date); changed = true; }
         if (changed) {
           tasks.push(fetch(`/api/users/${encodeURIComponent(username)}/positions`, {
             method: 'PATCH',
@@ -223,7 +228,7 @@ export default function EditOneExperiencePage() {
                               <input
                                 type="checkbox"
                                 checked={!p.end_date}
-                                onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, end_date: e.target.checked ? '' : (x.end_date || '') } : x))}
+                                onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, end_date: e.target.checked ? null : (x.end_date || '') } : x))}
                               />
                               I currently work here
                             </label>

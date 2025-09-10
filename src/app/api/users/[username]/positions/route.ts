@@ -50,8 +50,8 @@ export async function GET(
     }
 
     // Create an authenticated Supabase client bound to cookies (so RLS applies)
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore });
+    // Use the same cookie binding style as other endpoints to avoid subtle session issues
+    const supabase = createRouteHandlerClient({ cookies });
 
     // First, get the user ID from username
     const { data: userRow, error: userError } = await supabase
@@ -168,38 +168,47 @@ export async function PATCH(
     const id = body.id || '';
     if (!username || !id) return NextResponse.json({ error: 'Username and id are required' }, { status: 400 });
 
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore });
+    const supabase = createRouteHandlerClient({ cookies });
 
     // Resolve owner and auth
     const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
     const { data: auth } = await supabase.auth.getUser();
-    if (!userRow || !auth?.user?.id || auth.user.id !== userRow.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!auth?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!userRow || auth.user.id !== userRow.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Ensure the position belongs to a work_experience for this user
     const { data: posRow, error: posErr } = await supabase
       .from('positions')
-      .select('id, experience_id, work_experiences(user_id)')
+      .select('id, experience_id, work_experiences!inner(user_id)')
       .eq('id', id)
+      .eq('work_experiences.user_id', userRow.id)
       .maybeSingle();
     if (posErr) return NextResponse.json({ error: 'Failed to read position' }, { status: 500 });
     const ownerId = (posRow as { work_experiences?: { user_id: string }[] } | null)?.work_experiences?.[0]?.user_id || null;
     if (!posRow || ownerId !== userRow.id) return NextResponse.json({ error: 'Position not found' }, { status: 404 });
 
     const patch: Partial<{ position: string; description: string | null; start_date: string | null; end_date: string | null }> = {};
-    if (typeof body.position === 'string') patch.position = body.position;
-    if (typeof body.description !== 'undefined') patch.description = body.description;
-    if (typeof body.startDate !== 'undefined') patch.start_date = body.startDate;
-    if (typeof body.endDate !== 'undefined') patch.end_date = body.endDate;
+    if (typeof body.position === 'string') patch.position = body.position.trim();
+    if (typeof body.description !== 'undefined') patch.description = (body.description ?? '').toString().trim() || null;
+    if (typeof body.startDate !== 'undefined') {
+      const sd = (body.startDate ?? '').toString().trim();
+      patch.start_date = sd ? sd : null;
+    }
+    if (typeof body.endDate !== 'undefined') {
+      const ed = (body.endDate ?? '').toString().trim();
+      patch.end_date = ed ? ed : null;
+    }
     if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
-    const { error: updErr } = await supabase
+    const { data: updated, error: updErr } = await supabase
       .from('positions')
       .update(patch)
-      .eq('id', id);
+      .eq('id', id)
+      .select('id, experience_id, position, description, start_date, end_date, sort_order')
+      .single();
     if (updErr) return NextResponse.json({ error: 'Failed to update position' }, { status: 500 });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ data: updated });
   } catch (error) {
     console.error('Error updating position:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -220,12 +229,12 @@ export async function POST(
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     if (!experienceId || !position) return NextResponse.json({ error: 'experienceId and position are required' }, { status: 400 });
 
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore });
+    const supabase = createRouteHandlerClient({ cookies });
 
     // requester
     const { data: auth } = await supabase.auth.getUser();
     const requesterId = auth?.user?.id || null;
+    if (!requesterId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     // profile owner
     const { data: userRow, error: userError } = await supabase
@@ -259,21 +268,21 @@ export async function POST(
 
     const payload = {
       experience_id: experienceId,
-      position,
-      description: description ?? null,
-      start_date: startDate ?? null,
-      end_date: endDate ?? null,
+      position: String(position).trim(),
+      description: (description ?? '').toString().trim() || null,
+      start_date: (startDate ?? '').toString().trim() || null,
+      end_date: (endDate ?? '').toString().trim() || null,
       sort_order: nextOrder,
     };
 
     const { data: inserted, error: insErr } = await supabase
       .from('positions')
       .insert(payload)
-      .select('id')
+      .select('id, experience_id, position, description, start_date, end_date, sort_order')
       .single();
     if (insErr) return NextResponse.json({ error: 'Failed to create position', details: insErr.message }, { status: 500 });
 
-    return NextResponse.json({ data: { id: inserted?.id } }, { status: 201 });
+    return NextResponse.json({ data: inserted }, { status: 201 });
   } catch (error) {
     console.error('Error creating position:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
