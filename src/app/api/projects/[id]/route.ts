@@ -4,17 +4,17 @@ import { NextResponse } from "next/server";
 // You can replace this with your real implementation later.
 export async function GET(
   _request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = context.params;
+  const { id } = await context.params;
   return NextResponse.json({ ok: true, id, message: "Projects route placeholder" }, { status: 200 });
 }
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = context.params;
+  const { id } = await context.params;
   // Echo back any JSON for now
   let body: unknown = null;
   try {
