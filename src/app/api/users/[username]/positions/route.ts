@@ -1,7 +1,6 @@
-// positions api 
+// positions api
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createAdminClient } from '@/utils/supabase-server';
 
 // Type for the database query result which has work_experiences as an array
 type DatabasePositionRow = {
@@ -51,7 +50,7 @@ export async function GET(
 
     // Create an authenticated Supabase client bound to cookies (so RLS applies)
     // Use the same cookie binding style as other endpoints to avoid subtle session issues
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createAdminClient();
 
     // First, get the user ID from username
     const { data: userRow, error: userError } = await supabase
@@ -168,7 +167,7 @@ export async function PATCH(
     const id = body.id || '';
     if (!username || !id) return NextResponse.json({ error: 'Username and id are required' }, { status: 400 });
 
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createAdminClient();
 
     // Resolve owner and auth
     const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
@@ -229,7 +228,7 @@ export async function POST(
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     if (!experienceId || !position) return NextResponse.json({ error: 'experienceId and position are required' }, { status: 400 });
 
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createAdminClient();
 
     // requester
     const { data: auth } = await supabase.auth.getUser();

@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Plus, User, Settings, LogOut } from 'lucide-react';
+import { Plus, User, Settings, LogOut, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -96,10 +96,10 @@ export const Sidebar = React.memo(function Sidebar() {
       icon: Plus, 
       label: 'Create Post' 
     },
-    { 
-      href: '/projects', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/project.svg" alt="Projects" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Projects' 
+    {
+      href: '/startups',
+      icon: Rocket,
+      label: 'Startups'
     },
     { 
       href: '/hub', 
@@ -343,10 +343,10 @@ export function MobileSidebar() {
       icon: Plus, 
       label: 'Create' 
     },
-    { 
-      href: '/projects', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/project.svg" alt="Projects" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Projects' 
+    {
+      href: '/startups',
+      icon: Rocket,
+      label: 'Startups'
     },
     { 
       href: '/hub', 

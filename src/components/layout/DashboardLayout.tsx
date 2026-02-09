@@ -63,27 +63,15 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
           {/* Right side actions */}
           <div className="flex items-center gap-2">
             {/* 1. Messages */}
-            <Link href="/messages" passHref legacyBehavior>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="relative rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border/50"
-              >
-                <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className="h-5 w-5" />
-                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full ring-2 ring-background"></div>
-              </Button>
+            <Link href="/messages" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border/50">
+              <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className="h-5 w-5" />
+              <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full ring-2 ring-background"></div>
             </Link>
             
             {/* 2. Notifications */}
-            <Link href="/notifications" passHref legacyBehavior>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="relative rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border/50"
-              >
-                <Image src="/icons/notification.svg" alt="Notifications" width={20} height={20} className="h-5 w-5" />
-                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
-              </Button>
+            <Link href="/notifications" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border/50">
+              <Image src="/icons/notification.svg" alt="Notifications" width={20} height={20} className="h-5 w-5" />
+              <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
             </Link>
           </div>
         </div>
@@ -114,10 +102,8 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
 
         {/* Enhanced Right Side Components */}
         {pathname === '/' && (
-          <aside className="hidden lg:flex w-80 flex-col gap-6 pt-6 pb-6 pl-6 min-h-[500px]">
-            <div className="space-y-6">
-              <DashboardSidebarWidgets />
-            </div>
+          <aside className="hidden lg:block w-80 pt-6 pb-6 pl-6">
+            <DashboardSidebarWidgets />
           </aside>
         )}
       </div>

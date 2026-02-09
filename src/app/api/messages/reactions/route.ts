@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/messages/reactions?conversationId=...
 export async function GET(req: NextRequest) {
+  const supabase = await createAuthClient();
   const url = new URL(req.url);
   const conversationId = url.searchParams.get('conversationId');
   if (!conversationId) {
-    return NextResponse.json([], { status: 200 }); // Return empty array if no conversationId
+    return NextResponse.json([], { status: 200 });
   }
   try {
-    // Get all message IDs for this conversation
     const { data: messages, error: msgError } = await supabase
       .from('messages')
       .select('id')
@@ -23,10 +19,9 @@ export async function GET(req: NextRequest) {
 
     const messageIds = (messages ?? []).map((m: { id: string }) => m.id);
     if (messageIds.length === 0) {
-      return NextResponse.json([], { status: 200 }); // No messages, so no reactions
+      return NextResponse.json([], { status: 200 });
     }
 
-    // Get all reactions for those message IDs
     const { data: reactions, error: reactError } = await supabase
       .from('message_reactions')
       .select('*')
@@ -41,7 +36,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ReactionBody interface for type safety
 interface ReactionBody {
   message_id: string;
   user_id: string;
@@ -50,13 +44,13 @@ interface ReactionBody {
 
 // POST /api/messages/reactions
 export async function POST(req: NextRequest) {
+  const supabase = await createAuthClient();
   try {
     const body = (await req.json()) as ReactionBody;
     const { message_id, user_id, reaction } = body;
     if (!message_id || !user_id || !reaction) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    // Upsert (unique_user_message_reaction)
     const { data, error } = await supabase
       .from('message_reactions')
       .upsert([{ message_id, user_id, reaction }], { onConflict: 'user_id,message_id' })
@@ -71,6 +65,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/messages/reactions
 export async function DELETE(req: NextRequest) {
+  const supabase = await createAuthClient();
   try {
     const body = (await req.json()) as ReactionBody;
     const { message_id, user_id } = body;

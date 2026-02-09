@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import type { 
-  Message, 
-  SendMessageRequest, 
+import { createAuthClient } from '@/utils/supabase-server';
+import type {
+  Message,
+  SendMessageRequest,
   SendMessageResponse,
-  PaginatedMessages 
+  PaginatedMessages
 } from '@/types/messaging';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // GET /api/messages - Fetch messages for a conversation with pagination
 export async function GET(req: NextRequest) {
+  const supabase = await createAuthClient();
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
   const limit = parseInt(searchParams.get('limit') || '20');
@@ -38,7 +35,7 @@ export async function GET(req: NextRequest) {
         .select('created_at')
         .eq('id', beforeMessageId)
         .single();
-      
+
       if (beforeMessage) {
         query = query.lt('created_at', beforeMessage.created_at);
       }
@@ -50,7 +47,7 @@ export async function GET(req: NextRequest) {
         .select('created_at')
         .eq('id', afterMessageId)
         .single();
-      
+
       if (afterMessage) {
         query = query.gt('created_at', afterMessage.created_at);
       }
@@ -62,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     const messages = data || [];
     const hasMore = messages.length > limit;
-    
+
     // Remove the extra message if we fetched limit + 1
     if (hasMore) {
       messages.pop();
@@ -116,6 +113,7 @@ export async function GET(req: NextRequest) {
 
 // DELETE /api/messages/reactions - remove a reaction
 export async function DELETE(req: NextRequest) {
+  const supabase = await createAuthClient();
   const url = new URL(req.url);
   if (url.pathname.endsWith('/reactions')) {
     try {
@@ -140,8 +138,9 @@ export async function DELETE(req: NextRequest) {
 
 // POST /api/messages - create a new message with enhanced features
 export async function POST(req: NextRequest) {
+  const supabase = await createAuthClient();
   const url = new URL(req.url);
-  
+
   // Handle reactions: POST /api/messages/reactions
   if (url.pathname.endsWith('/reactions')) {
     try {
@@ -179,7 +178,7 @@ export async function POST(req: NextRequest) {
 
     if (!conversation_id || !sender_id || !content) {
       console.error('Missing required fields:', { conversation_id, sender_id: !!sender_id, content: !!content });
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Missing required fields',
         details: { conversation_id: !!conversation_id, sender_id: !!sender_id, content: !!content }
       }, { status: 400 });
@@ -195,9 +194,9 @@ export async function POST(req: NextRequest) {
 
     if (convError || !conversation) {
       console.error('Conversation error:', convError, 'conversation:', conversation);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Conversation not found or access denied',
-        details: convError?.message 
+        details: convError?.message
       }, { status: 403 });
     }
 

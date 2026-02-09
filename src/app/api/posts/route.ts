@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createAdminClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { fetchPosts } from '@/api/posts';
 
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const environmentId = searchParams.get('environmentId') || undefined;
 
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createAdminClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

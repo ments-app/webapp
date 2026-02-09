@@ -1,33 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // Base URL for Supabase public assets
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
 // Try to produce a browser-usable URL for a storage object reference.
-// Strategy:
-// 1) If already https, return as-is.
-// 2) If looks like "bucket/path/to.obj", try to create a signed URL (works for public or private buckets).
-// 3) Fallback to public URL pattern using NEXT_PUBLIC_SUPABASE_URL.
+// Handles: https URLs, s3:// URLs, Supabase storage paths, bucket/key paths.
 async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClient): Promise<string | null> {
   if (!u) return null;
   const s = u.trim();
   if (!s) return null;
+  // Already a valid HTTP(S) URL — use as-is
   if (/^https?:\/\//i.test(s)) return s;
-  // If it's already a storage public path, prefix with base URL
-  if (/^\/?storage\/v1\/object\/public\//i.test(s) || /^\/storage\/v1\/object\/public\//i.test(s)) {
+  // S3 protocol URLs: s3://bucket-name/path → https://bucket-name.s3.amazonaws.com/path
+  const s3Match = s.match(/^s3:\/\/([^/]+)\/(.+)$/i);
+  if (s3Match) {
+    const [, bucket, key] = s3Match;
+    return `https://${bucket}.s3.amazonaws.com/${key}`;
+  }
+  // Supabase storage public path
+  if (/^\/?storage\/v1\/object\/public\//i.test(s)) {
     const pathOnly = s.replace(/^\/+/, '');
     return supabaseUrl ? `${supabaseUrl}/${pathOnly}` : `/${pathOnly}`;
   }
-  // If it's like 'public/avatars/...' treat as storage object public path
+  // Shorthand public path (e.g. 'public/avatars/...')
   if (/^public\//i.test(s)) {
     const pathOnly = s.replace(/^\/+/, '');
     return supabaseUrl ? `${supabaseUrl}/storage/v1/object/${pathOnly}` : `/storage/v1/object/${pathOnly}`;
   }
-  // Do not return s3:// to clients; generate a signed URL if possible.
-  const path = s.replace(/^\/+/, ''); // normalize leading slash
+  // Bucket/key path — try signed URL, fallback to public URL pattern
+  const path = s.replace(/^\/+/, '');
   const firstSlash = path.indexOf('/');
   if (firstSlash > 0) {
     const bucket = path.slice(0, firstSlash);
@@ -36,7 +38,6 @@ async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClien
       const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60);
       if (!error && data?.signedUrl) return data.signedUrl as string;
     } catch {}
-    // Fallback to public URL pattern
     if (supabaseUrl) {
       return `${supabaseUrl}/storage/v1/object/public/${path}`;
     }
@@ -57,6 +58,8 @@ type UserRow = {
   about: string | null;
 };
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/users/[username]/profile?viewerId=...
 export async function GET(
   req: NextRequest,
@@ -72,8 +75,10 @@ export async function GET(
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    // Bind Supabase to cookies so RLS applies (Next.js 15: pass cookies function directly)
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
     // 1) Fetch user by username (exact, case-sensitive match as stored)
     const { data: userRow, error: userError } = await supabase
@@ -92,16 +97,16 @@ export async function GET(
 
     // Normalize user payload to expose `bio` expected by client
     const u = userRow as UserRow;
-    const avatar_url = await toUsableUrl(u.avatar_url, supabase);
-    const banner_image = await toUsableUrl(u.banner_image, supabase);
+    // Return raw URLs — the frontend uses toProxyUrl() to route through the
+    // Supabase get-image edge function which has backend S3 access.
+    const avatar_url = u.avatar_url?.trim() || null;
+    const banner_image = u.banner_image?.trim() || null;
     const user = {
       id: u.id,
       username: u.username,
       full_name: u.full_name,
       avatar_url,
-      // new field
       banner_image: banner_image ?? null,
-      // legacy alias kept for backward compatibility
       cover_url: banner_image ?? null,
       tagline: u.tagline,
       current_city: u.current_city,
@@ -211,6 +216,32 @@ export async function GET(
       portfoliosCount = 0;
     }
 
+    // 4c) Startups owned by this user
+    // Show all startups (including unpublished) if the viewer is the owner
+    type StartupBrief = { id: string; brand_name: string; stage: string | null; is_actively_raising: boolean | null };
+    let startups: StartupBrief[] = [];
+    let startupsCount = 0;
+    try {
+      const isOwnerViewing = viewerId === user.id;
+      let query = supabase
+        .from('startup_profiles')
+        .select('id, brand_name, stage, is_actively_raising')
+        .eq('owner_id', user.id);
+      if (!isOwnerViewing) {
+        query = query.eq('is_published', true);
+      }
+      const { data: sData, error: sErr } = await query
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (!sErr && sData) {
+        startups = sData as StartupBrief[];
+        startupsCount = sData.length;
+      }
+    } catch {
+      startups = [];
+      startupsCount = 0;
+    }
+
     // 5) Whether the viewer follows this user
     let is_following = false;
     if (viewerId && viewerId !== user.id) {
@@ -237,8 +268,10 @@ export async function GET(
           following,
           projects: projectsCount,
           portfolios: portfoliosCount,
+          startups: startupsCount,
         },
         experiences,
+        startups,
         viewer: {
           is_following,
         },

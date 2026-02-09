@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/notifications?userId=...&page=...&limit=...&unreadOnly=...&type=...
 export async function GET(request: NextRequest) {
@@ -21,40 +17,51 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Fetch legacy notifications
-    let legacyQuery = supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId);
-    if (unreadOnly) legacyQuery = legacyQuery.eq('read', false);
-    if (type) legacyQuery = legacyQuery.eq('type', type);
-    legacyQuery = legacyQuery.order('created_at', { ascending: false });
-    const { data: legacyNotifications, error: legacyError } = await legacyQuery;
-    if (legacyError) {
-      return NextResponse.json({ error: 'Failed to fetch legacy notifications' }, { status: 500 });
+    const supabase = await createAuthClient();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    type NotifRow = Record<string, any>;
+
+    // Fetch legacy notifications (graceful if table missing)
+    let legacyNotifications: NotifRow[] = [];
+    try {
+      let legacyQuery = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId);
+      if (unreadOnly) legacyQuery = legacyQuery.eq('read', false);
+      if (type) legacyQuery = legacyQuery.eq('type', type);
+      legacyQuery = legacyQuery.order('created_at', { ascending: false });
+      const { data, error: legacyError } = await legacyQuery;
+      if (!legacyError && data) legacyNotifications = data;
+    } catch {
+      // Ignore — table may not exist
     }
 
-    // Fetch in-app notifications
-    let inappQuery = supabase
-      .from('inapp_notification')
-      .select('*')
-      .eq('recipient_id', userId);
-    if (unreadOnly) inappQuery = inappQuery.eq('is_read', false);
-    if (type) inappQuery = inappQuery.eq('type', type);
-    inappQuery = inappQuery.order('created_at', { ascending: false });
-    const { data: inappNotifications, error: inappError } = await inappQuery;
-    if (inappError) {
-      return NextResponse.json({ error: 'Failed to fetch in-app notifications' }, { status: 500 });
+    // Fetch in-app notifications (graceful if table missing)
+    let inappNotifications: NotifRow[] = [];
+    try {
+      let inappQuery = supabase
+        .from('inapp_notification')
+        .select('*')
+        .eq('recipient_id', userId);
+      if (unreadOnly) inappQuery = inappQuery.eq('is_read', false);
+      if (type) inappQuery = inappQuery.eq('type', type);
+      inappQuery = inappQuery.order('created_at', { ascending: false });
+      const { data, error: inappError } = await inappQuery;
+      if (!inappError && data) inappNotifications = data;
+    } catch {
+      // Ignore — table may not exist
     }
 
     // Normalize both notification sources to a common shape for frontend
-    const legacyList = (legacyNotifications || []).map(n => ({
+    const legacyList: NotifRow[] = (legacyNotifications || []).map(n => ({
       ...n,
       notification_source: 'legacy',
       is_read: n.read,
       recipient_id: n.user_id,
     }));
-    const inappList = (inappNotifications || []).map(n => ({
+    const inappList: NotifRow[] = (inappNotifications || []).map(n => ({
       ...n,
       notification_source: 'inapp',
       read: n.is_read,
@@ -90,6 +97,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
+    const supabase = await createAuthClient();
+
     let query = supabase
       .from('notifications')
       .update({ read: true })
@@ -124,6 +133,8 @@ export async function HEAD(request: NextRequest) {
     if (!userId) {
       return new NextResponse(null, { status: 400, headers: { 'X-Error': 'userId parameter is required' } });
     }
+
+    const supabase = await createAuthClient();
 
     const { count, error } = await supabase
       .from('notifications')

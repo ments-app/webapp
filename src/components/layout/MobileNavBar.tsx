@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
+import { Rocket } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
@@ -93,15 +94,15 @@ export function MobileNavBar() {
           <span className="text-xs mt-1">Search</span>
         </Link>
         
-        <Link 
-          href="/projects"
-          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/project') ? 'text-primary' : 'text-muted-foreground'}`}
+        <Link
+          href="/startups"
+          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/startups') ? 'text-primary' : 'text-muted-foreground'}`}
         >
-          <Image src="/icons/project.svg" alt="Project" width={20} height={20} />
-          <span className="text-xs mt-1">Project</span>
+          <Rocket className="h-5 w-5" />
+          <span className="text-xs mt-1">Startups</span>
         </Link>
-        
-        <Link 
+
+        <Link
           href="/hub"
           className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/hub') ? 'text-primary' : 'text-muted-foreground'}`}
         >

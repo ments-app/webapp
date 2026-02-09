@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // PATCH /api/messages/read - Mark messages as read
 export async function PATCH(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const body = await req.json();
     const { conversation_id, message_ids } = body;
-    
+
     // Get user from headers (set by middleware) or body (fallback)
     let user_id = req.headers.get('x-user-id');
     if (!user_id && body.user_id) {
       user_id = body.user_id; // Fallback for backward compatibility
     }
-    
+
     if (!user_id) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -58,10 +55,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       updated_count: data?.length || 0,
-      updated_messages: data 
+      updated_messages: data
     });
 
   } catch (error: unknown) {
@@ -74,6 +71,7 @@ export async function PATCH(req: NextRequest) {
 // GET /api/messages/read - Get unread count for user
 export async function GET(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get('userId');
     const conversation_id = searchParams.get('conversationId');
@@ -93,9 +91,9 @@ export async function GET(req: NextRequest) {
 
       if (error) throw error;
 
-      return NextResponse.json({ 
-        conversation_id, 
-        unread_count: data?.length || 0 
+      return NextResponse.json({
+        conversation_id,
+        unread_count: data?.length || 0
       });
     } else {
       // Get total unread count using the RPC function from documentation
@@ -105,8 +103,8 @@ export async function GET(req: NextRequest) {
 
       if (error) throw error;
 
-      return NextResponse.json({ 
-        total_unread_count: data || 0 
+      return NextResponse.json({
+        total_unread_count: data || 0
       });
     }
 

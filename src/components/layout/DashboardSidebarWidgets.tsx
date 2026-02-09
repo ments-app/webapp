@@ -1,168 +1,348 @@
 "use client";
 
-import { TrendingUp, Users, Bell, MessageCircle, Target, Eye, Heart, UserPlus } from "lucide-react";
-import { useTheme } from '@/context/theme/ThemeContext';
+import { TrendingUp, Users, Bell, MessageCircle, Heart, UserPlus, CheckCircle } from "lucide-react";
+import { useSidebarData } from '@/hooks/useSidebarData';
+import { useAuth } from '@/context/AuthContext';
+import Image from 'next/image';
+import Link from 'next/link';
+import { toProxyUrl } from '@/utils/imageUtils';
 
-import React from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const diff = now - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function truncateText(text: string | null, max: number): string {
+  if (!text) return '';
+  return text.length > max ? text.slice(0, max) + '...' : text;
+}
 
 const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
-  const { isDarkMode } = useTheme();
-  // User's recent activity/notifications
-  const recentActivity = [
-    { type: "like", user: "Sarah Chen", content: "liked your startup pitch", time: "2m ago", avatar: "SC" },
-    { type: "comment", user: "Mike Johnson", content: "commented on your post", time: "15m ago", avatar: "MJ" },
-    { type: "follow", user: "Jessica Liu", content: "started following you", time: "1h ago", avatar: "JL" },
-    { type: "mention", user: "David Park", content: "mentioned you in a post", time: "3h ago", avatar: "DP" }
-  ];
+  const { user } = useAuth();
+  const { environments, recentConversations, notifications, myPosts, suggestedUsers, refetch } = useSidebarData();
+  const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
+  const [loadingFollow, setLoadingFollow] = useState<Set<string>>(new Set());
 
-  // User's post performance
-  const myPosts = [
-    { title: "Building MVP in 30 days", views: 2847, likes: 156, comments: 23, engagement: "+32%" },
-    { title: "Fundraising lessons learned", views: 1923, likes: 89, comments: 31, engagement: "+18%" },
-    { title: "Remote team scaling tips", views: 1456, likes: 67, comments: 12, engagement: "+25%" }
-  ];
+  const handleFollow = useCallback(async (username: string, userId: string) => {
+    if (!user || loadingFollow.has(userId)) return;
 
-  // Suggested connections
-  const suggestedConnections = [
-    { name: "Alex Rodriguez", title: "Y Combinator Founder", mutualConnections: 12, avatar: "AR" },
-    { name: "Emma Thompson", title: "SaaS Marketing Expert", mutualConnections: 8, avatar: "ET" },
-    { name: "Ryan Kim", title: "Angel Investor", mutualConnections: 15, avatar: "RK" }
-  ];
+    setLoadingFollow(prev => new Set(prev).add(userId));
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(username)}/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followerId: user.id, follow: true }),
+      });
+      if (res.ok) {
+        setFollowingSet(prev => new Set(prev).add(userId));
+        refetch();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingFollow(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+  }, [user, loadingFollow, refetch]);
 
-  // Personal goals/bookmarks
-  const myGoals = [
-    { goal: "Reach 1K followers", current: 847, target: 1000, progress: 85 },
-    { goal: "Monthly revenue $10K", current: 7200, target: 10000, progress: 72 },
-    { goal: "Launch new feature", current: 80, target: 100, progress: 80, unit: "%" },
-    { goal: "Hire 2 developers", current: 1, target: 2, progress: 50 }
-  ];
+  const containerRef = useRef<HTMLDivElement>(null);
+  const baseTopRef = useRef(80);
+  const scrollOffsetRef = useRef(0);
+  const [stickyTop, setStickyTop] = useState(80);
+
+  // Calculate base sticky top from content height
+  useEffect(() => {
+    const update = () => {
+      if (!containerRef.current) return;
+      const sidebarHeight = containerRef.current.offsetHeight;
+      const viewportHeight = window.innerHeight;
+      const headerHeight = 80;
+      const bottomPadding = 24;
+      const calculated = viewportHeight - sidebarHeight - bottomPadding;
+      baseTopRef.current = Math.min(headerHeight, calculated);
+      scrollOffsetRef.current = 0;
+      setStickyTop(baseTopRef.current);
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    const observer = new ResizeObserver(update);
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => {
+      window.removeEventListener('resize', update);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Independent wheel scroll on sidebar — adjusts the sticky top to reveal different widgets
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      const baseTop = baseTopRef.current;
+      const maxOffset = 80 - baseTop; // total scrollable range
+      if (maxOffset <= 0) return; // sidebar fits in viewport, nothing to do
+
+      const currentOffset = scrollOffsetRef.current;
+      // At top of sidebar and scrolling up → let page scroll
+      const atTop = currentOffset >= maxOffset && e.deltaY < 0;
+      // At bottom of sidebar and scrolling down → let page scroll
+      const atBottom = currentOffset <= 0 && e.deltaY > 0;
+
+      if (atTop || atBottom) return;
+
+      e.preventDefault();
+      const newOffset = Math.max(0, Math.min(maxOffset, currentOffset - e.deltaY));
+      scrollOffsetRef.current = newOffset;
+      setStickyTop(baseTop + newOffset);
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'like': return <Heart className="w-3 h-3 text-red-500" />;
-      case 'comment': return <MessageCircle className="w-3 h-3 text-gray-400" />;
+      case 'comment': case 'reply': return <MessageCircle className="w-3 h-3 text-muted-foreground" />;
       case 'follow': return <UserPlus className="w-3 h-3 text-green-500" />;
-      case 'mention': return <Bell className="w-3 h-3 text-gray-400" />;
-      default: return <Bell className="w-3 h-3 text-gray-400" />;
+      default: return <Bell className="w-3 h-3 text-muted-foreground" />;
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Recent Activity Widget */}
-      <div className={`p-4 border rounded-lg ${isDarkMode ? 'bg-gray-950/90 border-gray-900/50' : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-2 mb-3">
-          <Bell className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`} />
-          <h2 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Recent Activity</h2>
+    <div ref={containerRef} className="sticky space-y-4" style={{ top: `${stickyTop}px` }}>
+      {/* Communities / Environments Widget */}
+      {environments.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Communities</h2>
+          </div>
+          <div className="space-y-1">
+            {environments.map((env) => (
+              <Link
+                key={env.id}
+                href={`/environments/${env.id}`}
+                className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground transition-colors"
+              >
+                {env.picture ? (
+                  <Image
+                    src={toProxyUrl(env.picture, { width: 24, quality: 80 })}
+                    alt={env.name}
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-muted text-xs font-bold text-muted-foreground">
+                    {env.name.charAt(0)}
+                  </div>
+                )}
+                <span className="truncate">{env.name}</span>
+              </Link>
+            ))}
+          </div>
         </div>
-        <div className="space-y-3">
-          {recentActivity.map((activity, index) => (
-            <div key={index} className={`${isDarkMode ? 'bg-gray-900/40 border-gray-800/30' : 'bg-gray-50 border-gray-100'} flex items-start gap-3 p-2 rounded-md border`}> 
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${isDarkMode ? 'bg-gray-800/60 text-gray-200' : 'bg-gray-200 text-gray-700'}`}>
-                {activity.avatar}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 mb-1">
-                  {getActivityIcon(activity.type)}
-                  <p className={`text-xs ${isDarkMode ? 'text-gray-100' : 'text-slate-900'}`}>
-                    <span className="font-medium">{activity.user}</span> {activity.content}
+      )}
+
+      {/* Recent Chats Widget */}
+      {recentConversations.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-foreground">Recent Chats</h2>
+            </div>
+            <Link href="/messages" className="text-xs text-primary hover:underline">View all</Link>
+          </div>
+          <div className="space-y-1">
+            {recentConversations.map((conv) => (
+              <Link
+                key={conv.conversation_id}
+                href={`/messages/${conv.conversation_id}`}
+                className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground transition-colors"
+              >
+                {conv.other_avatar_url ? (
+                  <Image
+                    src={toProxyUrl(conv.other_avatar_url, { width: 28, quality: 80 })}
+                    alt={conv.other_full_name || conv.other_username}
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground flex-shrink-0">
+                    {(conv.other_full_name || conv.other_username || '?').charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {conv.other_full_name || conv.other_username}
                   </p>
+                  {conv.last_message && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {conv.last_message}
+                    </p>
+                  )}
                 </div>
-                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-500'}`}>{activity.time}</p>
-              </div>
-            </div>
-          ))}
+                {conv.unread_count > 0 && (
+                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground font-semibold">
+                    {conv.unread_count > 9 ? '9+' : conv.unread_count}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Activity Widget — Real notifications */}
+      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+          </div>
+          <Link href="/notifications" className="text-xs text-primary hover:underline">View all</Link>
+        </div>
+        <div className="space-y-2">
+          {notifications.length > 0 ? (
+            notifications.slice(0, 6).map((notif) => (
+              <Link
+                key={notif.id}
+                href="/notifications"
+                className={`flex items-start gap-3 rounded-xl p-2.5 transition-colors ${
+                  !notif.is_read ? 'bg-primary/5 border border-primary/10' : 'bg-muted/40 border border-border/80'
+                } hover:bg-accent/60`}
+              >
+                <div className="mt-0.5">{getActivityIcon(notif.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    {truncateText(notif.content, 80)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(notif.created_at)}</p>
+                </div>
+                {!notif.is_read && (
+                  <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                )}
+              </Link>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-3">No recent activity</p>
+          )}
         </div>
       </div>
 
-      {/* My Posts Performance Widget */}
-      <div className={`p-4 border rounded-lg ${isDarkMode ? 'bg-gray-950/90 border-gray-900/50' : 'bg-white border-gray-200'}`}>
+      {/* My Posts Performance Widget — Real posts */}
+      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`} />
-          <h2 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>My Posts Performance</h2>
+          <TrendingUp className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">My Posts</h2>
         </div>
-        <div className="space-y-3">
-          {myPosts.map((post) => (
-            <div key={post.title} className={`${isDarkMode ? 'bg-gray-900/40 border-gray-800/30' : 'bg-gray-50 border-gray-100'} p-3 rounded-md border`}> 
-              <h3 className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'} mb-2`}>{post.title}</h3>
-              <div className={`flex justify-between items-center text-xs ${isDarkMode ? 'text-gray-300' : 'text-slate-600'} mb-2`}> 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    <span>{post.views.toLocaleString()}</span>
+        <div className="space-y-2">
+          {myPosts.length > 0 ? (
+            myPosts.map((post) => (
+              <Link
+                key={post.id}
+                href={`/post/${post.id}`}
+                className="block rounded-xl bg-muted/40 border border-border/80 p-3 hover:bg-accent/60 transition-colors"
+              >
+                <p className="text-sm text-foreground mb-2 line-clamp-2">
+                  {truncateText(post.content, 60) || 'Untitled post'}
+                </p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <Heart className="w-3 h-3" />
+                      <span>{post.likes}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MessageCircle className="w-3 h-3" />
+                      <span>{post.replies}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Heart className="w-3 h-3" />
-                    <span>{post.likes}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageCircle className="w-3 h-3" />
-                    <span>{post.comments}</span>
-                  </div>
+                  <span>{timeAgo(post.created_at)}</span>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${isDarkMode ? 'bg-gray-700/50 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                  {post.engagement}
-                </span>
-              </div>
-            </div>
-          ))}
+              </Link>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-3">No posts yet</p>
+          )}
         </div>
       </div>
 
-      {/* Suggested Connections Widget */}
-      <div className={`p-4 border rounded-lg ${isDarkMode ? 'bg-gray-950/90 border-gray-900/50' : 'bg-white border-gray-200'}`}>
+      {/* People to Connect Widget */}
+      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-2 mb-3">
-          <Users className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`} />
-          <h2 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>People to Connect</h2>
+          <Users className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">People to Connect</h2>
         </div>
-        <div className="space-y-3">
-          {suggestedConnections.map((person) => (
-            <div key={person.name} className={`${isDarkMode ? 'bg-gray-900/40 border-gray-800/30' : 'bg-gray-50 border-gray-100'} p-3 rounded-md border`}> 
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${isDarkMode ? 'bg-gray-800/60 text-gray-200' : 'bg-gray-200 text-gray-700'}`}>
-                    {person.avatar}
-                  </div>
-                  <div>
-                    <h3 className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{person.name}</h3>
-                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`}>{person.title}</p>
-                  </div>
+        <div className="space-y-2">
+          {suggestedUsers.length > 0 ? (
+            suggestedUsers.map((person) => (
+              <div key={person.id} className="rounded-xl bg-muted/40 border border-border/80 p-3">
+                <div className="flex items-center justify-between">
+                  <Link
+                    href={`/profile/${encodeURIComponent(person.username)}`}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                  >
+                    {person.avatar_url ? (
+                      <Image
+                        src={toProxyUrl(person.avatar_url, { width: 40, quality: 80 })}
+                        alt={person.full_name || person.username}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-muted text-muted-foreground flex-shrink-0">
+                        {(person.full_name || person.username || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <h3 className="font-medium text-sm text-foreground truncate">{person.full_name || person.username}</h3>
+                        {person.is_verified && <CheckCircle className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {person.tagline || `@${person.username}`}
+                      </p>
+                    </div>
+                  </Link>
+                  {followingSet.has(person.id) ? (
+                    <span className="text-xs text-muted-foreground px-3 py-1 rounded-lg border border-border font-medium">
+                      Following
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleFollow(person.username, person.id)}
+                      disabled={loadingFollow.has(person.id)}
+                      className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1 rounded-lg transition-colors font-medium disabled:opacity-50"
+                    >
+                      {loadingFollow.has(person.id) ? '...' : 'Follow'}
+                    </button>
+                  )}
                 </div>
-                <button className={`text-xs ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-800 hover:bg-gray-700 text-white'} px-3 py-1 rounded-md transition-colors`}>
-                  Connect
-                </button>
               </div>
-              <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-slate-500'}`}>{person.mutualConnections} mutual connections</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* My Goals Progress Widget */}
-      <div className={`p-4 border rounded-lg ${isDarkMode ? 'bg-gray-950/90 border-gray-900/50' : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-2 mb-3">
-          <Target className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`} />
-          <h2 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>My Goals</h2>
-        </div>
-        <div className="space-y-3">
-          {myGoals.map((goal) => (
-            <div key={goal.goal} className={`${isDarkMode ? 'bg-gray-900/40 border-gray-800/30' : 'bg-gray-50 border-gray-100'} p-3 rounded-md border`}> 
-              <div className="flex justify-between items-center mb-2">
-                <h3 className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{goal.goal}</h3>
-                <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`}>{goal.progress}%</span>
-              </div>
-              <div className={`w-full ${isDarkMode ? 'bg-gray-800/40' : 'bg-gray-200'} rounded-full h-2 mb-1`}>
-                <div 
-                  className={`bg-gradient-to-r ${isDarkMode ? 'from-gray-500 to-gray-400' : 'from-gray-500 to-gray-600'} h-2 rounded-full transition-all duration-300`}
-                  style={{ width: `${goal.progress}%` }}
-                ></div>
-              </div>
-              <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-600'}`}>
-                {goal.unit === '%' ? `${goal.current}%` : goal.current.toLocaleString()} / {goal.unit === '%' ? '100%' : goal.target.toLocaleString()}
-                {goal.unit && goal.unit !== '%' ? ` ${goal.unit}` : ''}
-              </p>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-3">No suggestions yet</p>
+          )}
         </div>
       </div>
     </div>

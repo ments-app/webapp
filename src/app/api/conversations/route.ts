@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import type { 
-  CreateConversationRequest, 
+import { createAuthClient } from '@/utils/supabase-server';
+import type {
+  CreateConversationRequest,
   CreateConversationResponse
 } from '@/types/messaging';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // GET: List all conversations for a user with optimized query
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
-  // Removed unused variables categoryId, hasUnread, status
   const limit = parseInt(searchParams.get('limit') || '20');
 
   if (!userId) {
@@ -21,8 +16,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log('Fetching conversations for userId:', userId);
-    
+    const supabase = await createAuthClient();
+
     // Get basic conversation data first
     const { data: conversationData, error } = await supabase
       .from('conversations')
@@ -31,15 +26,12 @@ export async function GET(req: NextRequest) {
       .order('updated_at', { ascending: false })
       .limit(limit);
 
-    console.log('Conversations query result:', { conversationData, error });
-
     if (error) {
       console.error('Database error:', error);
       throw error;
     }
 
     if (!conversationData || conversationData.length === 0) {
-      console.log('No conversations found for user:', userId);
       return NextResponse.json([]);
     }
 
@@ -71,7 +63,7 @@ export async function GET(req: NextRequest) {
       const otherUser = userMap.get(otherUserId) || {};
       const user1 = userMap.get(conv.user1_id) || {};
       const user2 = userMap.get(conv.user2_id) || {};
-      
+
       return {
         conversation_id: conv.id,
         other_user_id: otherUserId,
@@ -103,9 +95,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Create a new conversation using safe function
+// POST: Create a new conversation
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const body: CreateConversationRequest = await req.json();
     const { user1_id, user2_id, initial_message } = body;
 
@@ -138,7 +131,7 @@ export async function POST(req: NextRequest) {
         .insert({
           user1_id,
           user2_id,
-          status: 'approved' // Default to approved for now
+          status: 'approved'
         })
         .select()
         .single();
@@ -182,8 +175,8 @@ export async function POST(req: NextRequest) {
       was_created
     };
 
-    return NextResponse.json(response, { 
-      status: was_created ? 201 : 200 
+    return NextResponse.json(response, {
+      status: was_created ? 201 : 200
     });
 
   } catch (error) {
@@ -194,6 +187,7 @@ export async function POST(req: NextRequest) {
 
 // PATCH: Update conversation (e.g., last_message, status)
 export async function PATCH(req: NextRequest) {
+  const supabase = await createAuthClient();
   const body = await req.json();
   const { id, last_message, status } = body;
   if (!id) {
@@ -218,6 +212,7 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE: Remove a conversation by id
 export async function DELETE(req: NextRequest) {
+  const supabase = await createAuthClient();
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) {

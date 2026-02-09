@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createAdminClient } from '@/utils/supabase-server';
 
 // Quick ping to verify route registration
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
@@ -21,6 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     if (!username || !followerId || typeof follow !== 'boolean') {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    const supabase = createAdminClient();
 
     // Resolve target user's ID by username
     const { data: userRow, error: userLookupError } = await supabase
@@ -67,8 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
           },
           body: JSON.stringify({ followerId, followeeId: targetUserId }),
           // do not await; errors are non-fatal

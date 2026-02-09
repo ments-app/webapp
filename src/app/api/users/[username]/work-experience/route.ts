@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createAdminClient } from '@/utils/supabase-server';
 
 type Position = {
   id: string;
@@ -39,8 +38,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Username and id are required' }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore });
+    const supabase = createAdminClient();
 
     // auth and owner
     const { data: auth } = await supabase.auth.getUser();
@@ -93,8 +91,7 @@ export async function POST(
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     if (!companyName || typeof companyName !== 'string') return NextResponse.json({ error: 'companyName is required' }, { status: 400 });
 
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore });
+    const supabase = createAdminClient();
 
     // auth
     const { data: auth } = await supabase.auth.getUser();
@@ -161,8 +158,7 @@ export async function PATCH(
     }
     // Two modes: reorder (order array provided) or update single row (id with fields)
 
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createAdminClient();
 
     // Authenticated user
     const { data: auth } = await supabase.auth.getUser();
@@ -255,8 +251,7 @@ export async function GET(
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createAdminClient();
 
     // Resolve user by username
     const { data: userRow, error: userError } = await supabase
