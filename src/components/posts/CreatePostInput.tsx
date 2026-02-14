@@ -825,7 +825,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                   value={envQuery}
                   onChange={(e) => setEnvQuery(e.target.value)}
                   placeholder="Search environments"
-                  className="h-9 w-full pl-8 pr-3 text-sm rounded-xl border border-border bg-muted focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  className="h-9 w-full pl-8 pr-3 text-sm rounded-xl border border-border bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               {/* Chips */}
@@ -833,7 +833,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                 {envLoading && (
                   <>
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="h-9 w-24 rounded-2xl bg-muted border border-border animate-pulse" />
+                      <div key={i} className="h-9 w-24 rounded-2xl bg-muted/50 border border-border animate-pulse" />
+
                     ))}
                   </>
                 )}
@@ -844,7 +845,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                       key={env.id}
                       type="button"
                       onClick={() => { setSelectedEnvironment(env); setEnvironmentId(env.id); }}
-                      className={`flex items-center gap-2 px-3 h-9 rounded-2xl border whitespace-nowrap transition ${selected ? 'bg-primary/20 border-primary/40 text-primary ring-2 ring-ring/30' : 'bg-muted border-border text-foreground hover:bg-muted/80'}`}
+                      className={`flex items-center gap-2 px-3 h-9 rounded-2xl border whitespace-nowrap transition ${selected ? 'bg-primary/15 border-primary/40 text-primary ring-2 ring-primary/30' : 'bg-muted/50 border-border text-foreground hover:bg-muted'}`}
                     >
                       {env.picture ? (
                         <Image src={env.picture} alt={env.name} width={20} height={20} unoptimized className="h-5 w-5 rounded-full object-cover" />
@@ -877,8 +878,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               type="button"
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
                 postType === 'text'
-                  ? 'bg-primary/20 border-primary/40 text-primary'
-                  : 'bg-muted border-border text-muted-foreground'
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('text')}
             >
@@ -889,8 +890,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               type="button"
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
                 postType === 'media'
-                  ? 'bg-primary/20 border-primary/40 text-primary'
-                  : 'bg-muted border-border text-muted-foreground'
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('media')}
             >
@@ -901,8 +902,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               type="button"
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
                 postType === 'poll'
-                  ? 'bg-primary/20 border-primary/40 text-primary'
-                  : 'bg-muted border-border text-muted-foreground'
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('poll')}
             >
@@ -928,7 +929,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               value={content}
               onChange={handleContentChange}
               placeholder="What's on your mind? Type @ to mention someone"
-              className="w-full rounded-xl bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground min-h-[140px] p-3"
+              className="w-full rounded-xl bg-muted/30 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground min-h-[140px] p-3"
               spellCheck="false"
               autoComplete="off"
             />
@@ -958,9 +959,9 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isSubmitting || isUploading || compressionProgress.isCompressing}
-            className="w-full rounded-2xl border border-border bg-muted hover:bg-muted/80 transition-colors p-6 flex flex-col items-center justify-center text-muted-foreground"
+            className="w-full rounded-2xl border border-border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors p-6 flex flex-col items-center justify-center text-muted-foreground"
           >
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/15 border border-primary/30 mb-2">
+            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 border border-primary/30 mb-2">
               {isUploading || compressionProgress.isCompressing ? (
                 <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
               ) : (
@@ -1128,7 +1129,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         {postType === 'poll' && (
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">Poll Setup</h3>
-            <div className="rounded-2xl border border-border bg-muted p-4 space-y-4">
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
               {/* Poll Question */}
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-2 block">Poll Question</label>
@@ -1137,7 +1138,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                   value={pollData.question}
                   onChange={(e) => updatePollQuestion(e.target.value)}
                   placeholder="Ask a question..."
-                  className="w-full rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground p-3"
+                  className="w-full rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground p-3"
                   maxLength={200}
                 />
                 <div className="text-xs text-muted-foreground mt-1">{pollData.question.length}/200</div>
@@ -1155,7 +1156,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                           value={option}
                           onChange={(e) => updatePollOption(index, e.target.value)}
                           placeholder={`Option ${index + 1}`}
-                          className="w-full rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground p-2.5 pr-10"
+                          className="w-full rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground p-2.5 pr-10"
                           maxLength={100}
                         />
                         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">

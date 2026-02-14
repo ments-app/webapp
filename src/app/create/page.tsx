@@ -24,7 +24,7 @@ function CreatePageContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2.5 rounded-full hover:bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="p-2.5 rounded-full hover:bg-accent text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Back"
             >
               <ArrowLeft className="h-5 w-5" />
