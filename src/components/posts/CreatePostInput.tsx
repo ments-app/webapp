@@ -834,6 +834,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                   <>
                     {Array.from({ length: 6 }).map((_, i) => (
                       <div key={i} className="h-9 w-24 rounded-2xl bg-muted/50 border border-border animate-pulse" />
+
                     ))}
                   </>
                 )}
@@ -1051,7 +1052,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               {selectedImages[hoverPreview.index]?.type?.startsWith('video/') ? (
                 <video src={imagePreviews[hoverPreview.index]} className="w-full h-full object-cover" muted />
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={imagePreviews[hoverPreview.index]} className="w-full h-full object-cover" alt="hover preview" />
               )}
             </div>
@@ -1166,7 +1167,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                         <button
                           type="button"
                           onClick={() => removePollOption(index)}
-                          className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
+                          className="p-2 text-muted-foreground hover:text-destructive transition-colors"
                           aria-label="Remove option"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1175,7 +1176,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                     </div>
                   ))}
                 </div>
-                
+
                 {/* Add Option Button */}
                 {pollData.options.length < 6 && (
                   <button
@@ -1187,7 +1188,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                     Add Option (max 6)
                   </button>
                 )}
-                
+
                 <div className="text-xs text-muted-foreground mt-2">
                   {pollData.options.filter(opt => opt.trim()).length} of {pollData.options.length} options filled
                 </div>

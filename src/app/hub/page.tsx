@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Calendar, CheckCircle, Loader2 } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
@@ -129,7 +129,7 @@ function resolveBannerUrl(raw?: string | null): string | null {
   try {
     const { data } = supabase.storage.from('media').getPublicUrl(raw);
     if (data?.publicUrl) return data.publicUrl;
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -323,178 +323,49 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
   };
 
   return (
-    <Link href={`/hub/${encodeURIComponent(c.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 hover:shadow-md transition-all">
-      <div className="flex gap-4">
-        <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
-          {(() => {
-            const url = resolveBannerUrl(c.banner_image_url);
-            return url ? (
-              <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
-            );
-          })()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{c.title}</h4>
-            {ended ? (
-              <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Ended</span>
-            ) : (
-              <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Open</span>
-            )}
-          </div>
-          {c.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
+    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 flex gap-4 hover:bg-card/80 transition">
+      <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
+        {(() => {
+          const url = resolveBannerUrl(c.banner_image_url);
+          return url ? (
+            <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+          );
+        })()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{c.title}</h4>
+          {ended ? (
+            <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Ended</span>
+          ) : (
+            <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Open</span>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-4">
-            <Stat icon={Clock}>{c.deadline ? format(new Date(c.deadline), 'dd MMM, yyyy') : 'No deadline'}</Stat>
-            {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
-          </div>
         </div>
-        <div className="flex flex-col gap-2 justify-center">
-          <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
-            View
-          </span>
-          <button
-            onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold active:scale-95 transition ${
-              joined
-                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
-                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
-            }`}
-          >
-            {checkingJoin ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : joined ? (
-              <><CheckCircle className="h-3.5 w-3.5" /> Joined</>
-            ) : joining ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              'Join'
-            )}
-          </button>
+        {c.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          <Stat icon={Clock}>{c.deadline ? format(new Date(c.deadline), 'dd MMM, yyyy') : 'No deadline'}</Stat>
+          {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
         </div>
       </div>
-    </Link>
-  );
-};
-
-// --- Event card (new — for items from events table) ---
-
-const eventTypeLabels: Record<string, string> = {
-  online: 'Online',
-  'in-person': 'In-Person',
-  hybrid: 'Hybrid',
-};
-
-const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
-  const past = isEnded(event);
-
-  const [joined, setJoined] = useState(false);
-  const [joining, setJoining] = useState(false);
-  const [checkingJoin, setCheckingJoin] = useState(true);
-
-  useEffect(() => {
-    if (!user) { setCheckingJoin(false); return; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('event_participants')
-          .select('id')
-          .eq('event_id', event.id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (!cancelled) setJoined(!!data);
-      } catch {}
-      if (!cancelled) setCheckingJoin(false);
-    })();
-    return () => { cancelled = true; };
-  }, [event.id, user]);
-
-  const handleJoin = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user || past) return;
-
-    setJoining(true);
-    try {
-      const res = await fetch(`/api/events/${encodeURIComponent(event.id)}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const json = await res.json();
-      if ((res.ok && json.success) || json.alreadyJoined) {
-        setJoined(true);
-      }
-    } catch {}
-    setJoining(false);
-  };
-
-  return (
-    <Link href={`/hub/event/${encodeURIComponent(event.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 hover:shadow-md transition-all">
-      <div className="flex gap-4">
-        <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
-          {(() => {
-            const url = resolveBannerUrl(event.banner_image_url);
-            return url ? (
-              <Image src={url} alt={event.title} fill className="object-cover" sizes="160px" />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
-            );
-          })()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{event.title}</h4>
-            {past ? (
-              <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Past</span>
-            ) : (
-              <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Upcoming</span>
-            )}
-            <span className="text-[11px] md:text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full">
-              {eventTypeLabels[event.event_type] || event.event_type}
-            </span>
-          </div>
-          {event.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{event.description}</p>
-          )}
-          <div className="mt-2 flex flex-wrap items-center gap-4">
-            {event.event_date && (
-              <Stat icon={Calendar}>{format(new Date(event.event_date), 'dd MMM yyyy, hh:mm a')}</Stat>
-            )}
-            {event.location && <Stat icon={MapPin}>{event.location}</Stat>}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 justify-center">
-          <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
-            View
-          </span>
-          {!past && (
-            <button
-              onClick={handleJoin}
-              disabled={joined || joining || checkingJoin || !user}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold active:scale-95 transition ${
-                joined
-                  ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
-                  : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
-              }`}
-            >
-              {checkingJoin ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : joined ? (
-                <><CheckCircle className="h-3.5 w-3.5" /> Joined</>
-              ) : joining ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                'Join'
-              )}
-            </button>
-          )}
-        </div>
+      <div className="flex flex-col gap-2 justify-center">
+        <Link
+          href={`/hub/${encodeURIComponent(c.id)}`}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition"
+        >
+          View
+        </Link>
+        <a
+          href={c.is_external && c.external_url ? c.external_url : '#'}
+          target={c.is_external ? '_blank' : undefined}
+          rel={c.is_external ? 'noopener noreferrer' : undefined}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
+        >
+          Join
+        </a>
       </div>
     </Link>
   );
@@ -902,15 +773,23 @@ export default function HubPage() {
         {tab === 'resources' && (
           <div className="mt-6 space-y-6">
             <div className="flex flex-wrap gap-2">
+              <button
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === 'All'
+                    ? 'bg-primary/15 text-primary border border-primary/30'
+                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
+                  }`}
+                onClick={() => setResourceFilter('All')}
+              >
+                All
+              </button>
               {RESOURCE_CATEGORIES.map(cat => (
                 <button
-                  key={cat.key}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                    resourceFilter === cat.key
+                  key={cat}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === cat
                       ? 'bg-primary/15 text-primary border border-primary/30'
                       : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                  }`}
-                  onClick={() => setResourceFilter(cat.key)}
+                    }`}
+                  onClick={() => setResourceFilter(cat)}
                 >
                   {cat.label}
                 </button>
