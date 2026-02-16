@@ -63,7 +63,7 @@ function resolveBannerUrl(raw?: string | null): string | null {
   try {
     const { data } = supabase.storage.from('media').getPublicUrl(raw);
     if (data?.publicUrl) return data.publicUrl;
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -186,7 +186,7 @@ export default function CompetitionDetailsPage() {
           .eq('submitted_by', user.id)
           .maybeSingle();
         if (!cancelled) setJoined(!!data);
-      } catch {}
+      } catch { }
       if (!cancelled) setCheckingJoin(false);
     })();
     return () => { cancelled = true; };
@@ -220,12 +220,12 @@ export default function CompetitionDetailsPage() {
         const json = await res.json();
         const projects: ProjectLite[] = Array.isArray(json.data)
           ? json.data.map((p: Record<string, unknown>) => ({
-              id: p.id as string,
-              title: p.title as string,
-              tagline: (p.tagline as string) ?? null,
-              logo_url: (p.logo_url as string) ?? null,
-              cover_url: (p.cover_url as string) ?? null,
-            }))
+            id: p.id as string,
+            title: p.title as string,
+            tagline: (p.tagline as string) ?? null,
+            logo_url: (p.logo_url as string) ?? null,
+            cover_url: (p.cover_url as string) ?? null,
+          }))
           : [];
         setUserProjects(projects);
       } else {
@@ -299,9 +299,9 @@ export default function CompetitionDetailsPage() {
   const share = () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     if (navigator.share) {
-      navigator.share({ title: comp?.title || 'Competition', url }).catch(() => {});
+      navigator.share({ title: comp?.title || 'Competition', url }).catch(() => { });
     } else if (url) {
-      navigator.clipboard.writeText(url).catch(() => {});
+      navigator.clipboard.writeText(url).catch(() => { });
     }
   };
 
@@ -322,7 +322,6 @@ export default function CompetitionDetailsPage() {
         {/* Banner */}
         <div className="relative rounded-2xl overflow-hidden border border-border/60 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-[160px] md:min-h-[220px]">
           {bannerUrl && (
-            /* eslint-disable-next-line @next/next/no-img-element */
             <img src={bannerUrl} alt={comp?.title || 'Cover'} className="absolute inset-0 w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-black/35" />

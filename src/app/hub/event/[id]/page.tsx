@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
-import { ArrowLeft, Share2, Users, Clock, MapPin, ExternalLink, ChevronDown, Calendar, User, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown, Calendar, User, CheckCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
@@ -44,7 +44,7 @@ function resolveBannerUrl(raw?: string | null): string | null {
       const path = raw.startsWith(bucket + '/') ? raw.slice(bucket.length + 1) : raw;
       const { data } = supabase.storage.from(bucket).getPublicUrl(path);
       if (data?.publicUrl) return toProxyUrl(data.publicUrl);
-    } catch {}
+    } catch { }
   }
   if (raw.startsWith('/storage/v1/object/public/')) {
     const full = `${location.origin}${raw}`;
@@ -104,7 +104,7 @@ export default function EventDetailsPage() {
             if (!cancelled && userJson?.data) {
               setOrganizerName(userJson.data.full_name || userJson.data.username || null);
             }
-          } catch {}
+          } catch { }
         }
       } catch (e) {
         console.error('Failed to load event details', e);
@@ -176,9 +176,9 @@ export default function EventDetailsPage() {
   const share = () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     if (navigator.share) {
-      navigator.share({ title: event?.title || 'Event', url }).catch(() => {});
+      navigator.share({ title: event?.title || 'Event', url }).catch(() => { });
     } else if (url) {
-      navigator.clipboard.writeText(url).catch(() => {});
+      navigator.clipboard.writeText(url).catch(() => { });
     }
   };
 
@@ -279,11 +279,10 @@ export default function EventDetailsPage() {
                   <button
                     onClick={handleJoin}
                     disabled={joined || joining || checkingJoin || !user}
-                    className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 transition active:scale-95 border ${
-                      joined
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 transition active:scale-95 border ${joined
                         ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 cursor-default'
                         : 'bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white border-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed'
-                    }`}
+                      }`}
                     title={!user ? 'Sign in to join' : undefined}
                   >
                     {checkingJoin ? (
