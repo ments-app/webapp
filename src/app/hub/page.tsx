@@ -3,19 +3,35 @@ import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Wrench } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Calendar, CheckCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-// Local util: determine if a competition has ended
-function isEnded(c: { deadline?: string | null }) {
-  if (!c?.deadline) return false;
-  const t = Date.parse(c.deadline);
-  return isFinite(t) && t < Date.now();
-}
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
+import { useAuth } from '@/context/AuthContext';
 
-type TabKey = 'competitions' | 'jobs' | 'resources';
+// Local util: determine if a competition/event has ended
+function isEnded(c: { deadline?: string | null; event_date?: string | null }) {
+  const raw = c?.deadline || c?.event_date;
+  if (!raw) return false;
+  const t = Date.parse(raw);
+  return isFinite(t) && t < Date.now();
+}
 
+// --- Tab types ---
+type TabKey = 'events' | 'jobs' | 'resources';
+
+// Sub-category keys inside the Events tab
+type EventCategoryKey = 'all' | 'competitions' | 'events' | 'meetups' | 'workshops';
+
+const EVENT_CATEGORIES: { key: EventCategoryKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'competitions', label: 'Competitions' },
+  { key: 'events', label: 'Events' },
+  { key: 'meetups', label: 'Meetups' },
+  { key: 'workshops', label: 'Workshops' },
+];
+
+// --- Data types ---
 type CompetitionItem = {
   id: string;
   title: string;
@@ -25,6 +41,20 @@ type CompetitionItem = {
   external_url?: string | null;
   prize_pool?: string | null;
   banner_image_url?: string | null;
+};
+
+type EventItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  event_date?: string | null;
+  location?: string | null;
+  event_url?: string | null;
+  banner_image_url?: string | null;
+  event_type: string;
+  category?: string | null; // 'event' | 'meetup' | 'workshop'
+  is_active: boolean;
+  created_at: string;
 };
 
 type JobItem = {
@@ -55,118 +85,36 @@ type GigItem = {
 type ResourceItem = {
   id: string;
   title: string;
-  description: string;
-  url: string;
+  description?: string | null;
+  url?: string | null;
+  icon?: string | null;
   category: string;
-  icon: string;
+  provider?: string | null;
+  eligibility?: string | null;
+  deadline?: string | null;
+  tags?: string[];
 };
 
-// Curated resources — can be replaced with an API later
-const RESOURCES: ResourceItem[] = [
-  {
-    id: '1',
-    title: 'Figma',
-    description: 'Collaborative design tool for UI/UX design, prototyping, and design systems.',
-    url: 'https://figma.com',
-    category: 'Design',
-    icon: '🎨',
-  },
-  {
-    id: '2',
-    title: 'GitHub',
-    description: 'Code hosting platform for version control, collaboration, and open-source projects.',
-    url: 'https://github.com',
-    category: 'Development',
-    icon: '💻',
-  },
-  {
-    id: '3',
-    title: 'Notion',
-    description: 'All-in-one workspace for notes, docs, project management, and team wikis.',
-    url: 'https://notion.so',
-    category: 'Productivity',
-    icon: '📝',
-  },
-  {
-    id: '4',
-    title: 'Vercel',
-    description: 'Cloud platform for deploying and hosting frontend frameworks and static sites.',
-    url: 'https://vercel.com',
-    category: 'Development',
-    icon: '🚀',
-  },
-  {
-    id: '5',
-    title: 'Linear',
-    description: 'Issue tracking and project management tool built for modern software teams.',
-    url: 'https://linear.app',
-    category: 'Productivity',
-    icon: '📋',
-  },
-  {
-    id: '6',
-    title: 'Supabase',
-    description: 'Open-source Firebase alternative with Postgres database, auth, and storage.',
-    url: 'https://supabase.com',
-    category: 'Development',
-    icon: '⚡',
-  },
-  {
-    id: '7',
-    title: 'Canva',
-    description: 'Online graphic design tool for creating social media posts, presentations, and more.',
-    url: 'https://canva.com',
-    category: 'Design',
-    icon: '🖼️',
-  },
-  {
-    id: '8',
-    title: 'Slack',
-    description: 'Messaging platform for team communication, channels, and integrations.',
-    url: 'https://slack.com',
-    category: 'Communication',
-    icon: '💬',
-  },
-  {
-    id: '9',
-    title: 'Stripe',
-    description: 'Payment processing platform for internet businesses and online transactions.',
-    url: 'https://stripe.com',
-    category: 'Business',
-    icon: '💳',
-  },
-  {
-    id: '10',
-    title: 'Loom',
-    description: 'Video messaging tool for recording and sharing quick screen recordings.',
-    url: 'https://loom.com',
-    category: 'Communication',
-    icon: '🎥',
-  },
-  {
-    id: '11',
-    title: 'Framer',
-    description: 'Website builder and prototyping tool with powerful animations and interactions.',
-    url: 'https://framer.com',
-    category: 'Design',
-    icon: '✨',
-  },
-  {
-    id: '12',
-    title: 'Railway',
-    description: 'Infrastructure platform for deploying apps, databases, and cron jobs instantly.',
-    url: 'https://railway.app',
-    category: 'Development',
-    icon: '🛤️',
-  },
+const RESOURCE_CATEGORIES = [
+  { key: 'All', label: 'All' },
+  { key: 'govt_scheme', label: 'Govt Schemes' },
+  { key: 'accelerator_incubator', label: 'Accelerators' },
+  { key: 'company_offer', label: 'Company Offers' },
+  { key: 'tool', label: 'Tools' },
+  { key: 'bank_offer', label: 'Bank Offers' },
 ];
 
-const RESOURCE_CATEGORIES = [...new Set(RESOURCES.map(r => r.category))];
+const categoryLabels: Record<string, string> = {
+  govt_scheme: 'Govt Scheme',
+  accelerator_incubator: 'Accelerator / Incubator',
+  company_offer: 'Company Offer',
+  tool: 'Tool',
+  bank_offer: 'Bank Offer',
+};
 
 // Resolve a banner URL that might be a storage path
 function resolveBannerUrl(raw?: string | null): string | null {
   if (!raw) return null;
-  // Convert s3://bucket/key to https URL
   if (raw.startsWith('s3://')) {
     const withoutScheme = raw.slice('s3://'.length);
     const slashIdx = withoutScheme.indexOf('/');
@@ -176,10 +124,8 @@ function resolveBannerUrl(raw?: string | null): string | null {
       return toProxyUrl(`https://${bucket}.s3.amazonaws.com/${key}`);
     }
   }
-  // Supabase Storage public URLs — use directly (no proxy needed)
   if (raw.includes('/storage/v1/object/public/')) return raw;
   if (raw.startsWith('http')) return toProxyUrl(raw);
-  // Treat as storage path in the 'media' bucket by default
   try {
     const { data } = supabase.storage.from('media').getPublicUrl(raw);
     if (data?.publicUrl) return data.publicUrl;
@@ -187,13 +133,16 @@ function resolveBannerUrl(raw?: string | null): string | null {
   return null;
 }
 
+// --- Shared UI components ---
+
 const PillTabs = ({ active, onChange }: { active: TabKey; onChange: (key: TabKey) => void }) => {
   const base = 'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200';
   const inactive = 'text-muted-foreground hover:text-accent-foreground hover:bg-accent/70';
   const activeCls = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40 dark:border-emerald-400/30 shadow-[inset_0_0_0_1px_rgba(16,185,129,.3)]';
   return (
     <div className="inline-flex items-center gap-2 bg-card/60 border border-border/60 p-2 rounded-2xl backdrop-blur-sm">
-      <button className={`${base} ${active === 'competitions' ? activeCls : inactive}`} onClick={() => onChange('competitions')}>Competitions</button>
+      {/* Renamed from "Competitions" to "Events" */}
+      <button className={`${base} ${active === 'events' ? activeCls : inactive}`} onClick={() => onChange('events')}>Events</button>
       <button className={`${base} ${active === 'jobs' ? activeCls : inactive}`} onClick={() => onChange('jobs')}>Jobs & Gigs</button>
       <button className={`${base} ${active === 'resources' ? activeCls : inactive}`} onClick={() => onChange('resources')}>Resources</button>
     </div>
@@ -207,50 +156,66 @@ const Stat = ({ icon: Icon, children }: { icon: typeof Users; children: React.Re
   </div>
 );
 
-function useDaysRemaining(target: Date) {
-  return useMemo(() => {
-    const now = new Date();
-    const diff = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.max(0, diff);
-  }, [target]);
-}
+// --- Competition cards (updated with working Join + click navigation) ---
 
-const MonthlyCompetitionCard = () => {
-  // End of next month for a rolling countdown look
-  const end = useMemo(() => {
-    // September 2025 per screenshot
-    return new Date(2025, 8, 30, 23, 59, 59);
-  }, []);
-  const daysRemaining = useDaysRemaining(end);
-  return (
-    <div className="rounded-2xl bg-card/70 border border-border/60 p-5 md:p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-xl md:text-2xl font-bold text-foreground">{format(new Date(2025, 8, 1), 'MMMM yyyy')}</h3>
-          <p className="text-muted-foreground mt-2 max-w-2xl">
-            Submit your projects to the monthly leaderboard and earn points for upvotes, comments, and engagement!
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <span className="text-[11px] md:text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-400/10 border border-amber-500/30 dark:border-amber-400/30 px-2.5 py-1 rounded-full">Coming soon</span>
-          <button className="mt-1 inline-flex items-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition">
-            Join
-          </button>
-        </div>
-      </div>
-      <div className="mt-4 flex items-center gap-4">
-        <Stat icon={Users}>0 participants</Stat>
-        <Stat icon={Clock}>{daysRemaining} days remaining</Stat>
-      </div>
-    </div>
-  );
-};
-
-const FeaturedCompetitionCard = ({ c }: { c: CompetitionItem }) => {
+const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionItem; user: { id: string } | null; onJoinSuccess?: () => void }) => {
   const ended = isEnded(c);
   const deadlineLabel = c.deadline ? (ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')) : 'Open';
+
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [checkingJoin, setCheckingJoin] = useState(true);
+
+  // Check if user already joined
+  useEffect(() => {
+    if (!user) { setCheckingJoin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('competition_entries')
+          .select('submitted_by')
+          .eq('competition_id', c.id)
+          .eq('submitted_by', user.id)
+          .maybeSingle();
+        if (!cancelled) setJoined(!!data);
+      } catch {}
+      if (!cancelled) setCheckingJoin(false);
+    })();
+    return () => { cancelled = true; };
+  }, [c.id, user]);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || ended) return;
+
+    // External competitions: redirect to external URL
+    if (c.is_external && c.external_url) {
+      window.open(c.external_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/competitions/${encodeURIComponent(c.id)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setJoined(true);
+        onJoinSuccess?.();
+      } else if (json.alreadyJoined) {
+        setJoined(true);
+      }
+    } catch {}
+    setJoining(false);
+  };
+
   return (
-    <div className="rounded-2xl overflow-hidden bg-card/70 border border-border/60 shadow-sm">
+    <Link href={`/hub/${encodeURIComponent(c.id)}`} className="block rounded-2xl overflow-hidden bg-card/70 border border-border/60 shadow-sm hover:shadow-md transition-shadow">
       {/* Banner */}
       <div className="relative h-44 sm:h-56 md:h-64 w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {(() => {
@@ -274,79 +239,268 @@ const FeaturedCompetitionCard = ({ c }: { c: CompetitionItem }) => {
       <div className="p-5 md:p-6">
         <div className="mt-1 text-muted-foreground text-sm truncate">{deadlineLabel}</div>
         <div className="mt-4 flex flex-wrap items-center gap-4">
-          <Stat icon={Users}>Participants: –</Stat>
+          <Stat icon={Users}>Participants: --</Stat>
           <Stat icon={Clock}>{deadlineLabel}</Stat>
           {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
         </div>
         <div className="mt-5 flex items-center gap-3">
-          <Link href={`/hub/${encodeURIComponent(c.id)}`} className="flex-1 md:flex-none md:min-w-[140px] inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
+          <span className="flex-1 md:flex-none md:min-w-[140px] inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
             View Details
-          </Link>
-          <a
-            href={c.is_external && c.external_url ? c.external_url : '#'}
-            target={c.is_external ? '_blank' : undefined}
-            rel={c.is_external ? 'noopener noreferrer' : undefined}
-            className="flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
+          </span>
+          <button
+            onClick={handleJoin}
+            disabled={joined || joining || checkingJoin || !user || ended}
+            className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${
+              joined
+                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+            }`}
           >
-            Join
-            <ArrowRight className="h-4 w-4" />
-          </a>
+            {checkingJoin ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : joined ? (
+              <><CheckCircle className="h-4 w-4" /> Joined</>
+            ) : joining ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Joining...</>
+            ) : (
+              <>Join <ArrowRight className="h-4 w-4" /></>
+            )}
+          </button>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
-const CompetitionRowCard = ({ c }: { c: CompetitionItem }) => {
+const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: string } | null }) => {
   const ended = isEnded(c);
+
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [checkingJoin, setCheckingJoin] = useState(true);
+
+  useEffect(() => {
+    if (!user) { setCheckingJoin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('competition_entries')
+          .select('submitted_by')
+          .eq('competition_id', c.id)
+          .eq('submitted_by', user.id)
+          .maybeSingle();
+        if (!cancelled) setJoined(!!data);
+      } catch {}
+      if (!cancelled) setCheckingJoin(false);
+    })();
+    return () => { cancelled = true; };
+  }, [c.id, user]);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || ended) return;
+
+    if (c.is_external && c.external_url) {
+      window.open(c.external_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/competitions/${encodeURIComponent(c.id)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if ((res.ok && json.success) || json.alreadyJoined) {
+        setJoined(true);
+      }
+    } catch {}
+    setJoining(false);
+  };
+
   return (
-    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 flex gap-4 hover:bg-card/80 transition">
-      <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
-        {(() => {
-          const url = resolveBannerUrl(c.banner_image_url);
-          return url ? (
-            <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
-          ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
-          );
-        })()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{c.title}</h4>
-          {ended ? (
-            <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Ended</span>
-          ) : (
-            <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Open</span>
+    <Link href={`/hub/${encodeURIComponent(c.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 hover:shadow-md transition-all">
+      <div className="flex gap-4">
+        <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
+          {(() => {
+            const url = resolveBannerUrl(c.banner_image_url);
+            return url ? (
+              <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+            );
+          })()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{c.title}</h4>
+            {ended ? (
+              <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Ended</span>
+            ) : (
+              <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Open</span>
+            )}
+          </div>
+          {c.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
           )}
+          <div className="mt-2 flex flex-wrap items-center gap-4">
+            <Stat icon={Clock}>{c.deadline ? format(new Date(c.deadline), 'dd MMM, yyyy') : 'No deadline'}</Stat>
+            {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+          </div>
         </div>
-        {c.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
-        )}
-        <div className="mt-2 flex flex-wrap items-center gap-4">
-          <Stat icon={Clock}>{c.deadline ? format(new Date(c.deadline), 'dd MMM, yyyy') : 'No deadline'}</Stat>
-          {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+        <div className="flex flex-col gap-2 justify-center">
+          <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
+            View
+          </span>
+          <button
+            onClick={handleJoin}
+            disabled={joined || joining || checkingJoin || !user || ended}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold active:scale-95 transition ${
+              joined
+                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+            }`}
+          >
+            {checkingJoin ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : joined ? (
+              <><CheckCircle className="h-3.5 w-3.5" /> Joined</>
+            ) : joining ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              'Join'
+            )}
+          </button>
         </div>
       </div>
-      <div className="flex flex-col gap-2 justify-center">
-        <Link
-          href={`/hub/${encodeURIComponent(c.id)}`}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition"
-        >
-          View
-        </Link>
-        <a
-          href={c.is_external && c.external_url ? c.external_url : '#'}
-          target={c.is_external ? '_blank' : undefined}
-          rel={c.is_external ? 'noopener noreferrer' : undefined}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
-        >
-          Join
-        </a>
-      </div>
-    </div>
+    </Link>
   );
 };
+
+// --- Event card (new — for items from events table) ---
+
+const eventTypeLabels: Record<string, string> = {
+  online: 'Online',
+  'in-person': 'In-Person',
+  hybrid: 'Hybrid',
+};
+
+const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
+  const past = isEnded(event);
+
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [checkingJoin, setCheckingJoin] = useState(true);
+
+  useEffect(() => {
+    if (!user) { setCheckingJoin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('event_participants')
+          .select('id')
+          .eq('event_id', event.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (!cancelled) setJoined(!!data);
+      } catch {}
+      if (!cancelled) setCheckingJoin(false);
+    })();
+    return () => { cancelled = true; };
+  }, [event.id, user]);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || past) return;
+
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/events/${encodeURIComponent(event.id)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if ((res.ok && json.success) || json.alreadyJoined) {
+        setJoined(true);
+      }
+    } catch {}
+    setJoining(false);
+  };
+
+  return (
+    <Link href={`/hub/event/${encodeURIComponent(event.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 hover:shadow-md transition-all">
+      <div className="flex gap-4">
+        <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
+          {(() => {
+            const url = resolveBannerUrl(event.banner_image_url);
+            return url ? (
+              <Image src={url} alt={event.title} fill className="object-cover" sizes="160px" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+            );
+          })()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{event.title}</h4>
+            {past ? (
+              <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Past</span>
+            ) : (
+              <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Upcoming</span>
+            )}
+            <span className="text-[11px] md:text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full">
+              {eventTypeLabels[event.event_type] || event.event_type}
+            </span>
+          </div>
+          {event.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{event.description}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-4">
+            {event.event_date && (
+              <Stat icon={Calendar}>{format(new Date(event.event_date), 'dd MMM yyyy, hh:mm a')}</Stat>
+            )}
+            {event.location && <Stat icon={MapPin}>{event.location}</Stat>}
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 justify-center">
+          <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
+            View
+          </span>
+          {!past && (
+            <button
+              onClick={handleJoin}
+              disabled={joined || joining || checkingJoin || !user}
+              className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold active:scale-95 transition ${
+                joined
+                  ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                  : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+              }`}
+            >
+              {checkingJoin ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : joined ? (
+                <><CheckCircle className="h-3.5 w-3.5" /> Joined</>
+              ) : joining ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                'Join'
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+};
+
+// --- Jobs & Gigs cards (unchanged) ---
 
 const jobTypeLabels: Record<string, string> = {
   'full-time': 'Full-time',
@@ -440,68 +594,115 @@ const GigRowCard = ({ gig }: { gig: GigItem }) => {
   );
 };
 
-const ResourceCard = ({ resource }: { resource: ResourceItem }) => (
-  <a
-    href={resource.url}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="group rounded-2xl bg-card/70 border border-border/60 p-5 hover:bg-card/80 hover:border-primary/30 hover:shadow-lg transition-all duration-200"
-  >
-    <div className="flex items-start gap-4">
-      <div className="text-3xl flex-shrink-0 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
-        {resource.icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">{resource.title}</h4>
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+// --- Resource card (unchanged) ---
+
+const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
+  const ended = isEnded(resource);
+  const Wrapper = resource.url ? 'a' : 'div';
+  const linkProps = resource.url ? { href: resource.url, target: '_blank' as const, rel: 'noopener noreferrer' } : {};
+  return (
+    <Wrapper
+      {...linkProps}
+      className="group rounded-2xl bg-card/70 border border-border/60 p-5 hover:bg-card/80 hover:border-primary/30 hover:shadow-lg transition-all duration-200"
+    >
+      <div className="flex items-start gap-4">
+        <div className="text-3xl flex-shrink-0 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
+          {resource.icon || '\uD83D\uDCE6'}
         </div>
-        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{resource.description}</p>
-        <span className="inline-block mt-2 text-[11px] font-semibold text-primary/80 dark:text-primary/70 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
-          {resource.category}
-        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">{resource.title}</h4>
+            {resource.url && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+          </div>
+          {resource.provider && (
+            <p className="text-xs text-muted-foreground mt-0.5">{resource.provider}</p>
+          )}
+          {resource.description && (
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{resource.description}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold text-primary/80 dark:text-primary/70 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+              {categoryLabels[resource.category] || resource.category}
+            </span>
+            {resource.deadline && (
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30' : 'text-amber-600 dark:text-amber-300 bg-amber-400/10 border border-amber-500/30'}`}>
+                {ended ? 'Expired' : `Deadline: ${format(new Date(resource.deadline), 'dd MMM, yyyy')}`}
+              </span>
+            )}
+          </div>
+          {resource.tags && resource.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {resource.tags.map((tag) => (
+                <span key={tag} className="text-[10px] font-medium text-muted-foreground bg-muted/40 border border-border px-1.5 py-0.5 rounded-full">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  </a>
-);
+    </Wrapper>
+  );
+};
+
+// --- Main Hub Page ---
 
 export default function HubPage() {
-  const [tab, setTab] = useState<TabKey>('competitions');
+  const { user } = useAuth();
+  const [tab, setTab] = useState<TabKey>('events');
+  const [eventCategory, setEventCategory] = useState<EventCategoryKey>('all');
   const [loading, setLoading] = useState(true);
-  const [featured, setFeatured] = useState<CompetitionItem[]>([]);
-  const [list, setList] = useState<CompetitionItem[]>([]);
+
+  // Events tab data
+  const [featured, setFeatured] = useState<CompetitionItem | null>(null);
+  const [competitions, setCompetitions] = useState<CompetitionItem[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
+
+  // Jobs tab data
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [gigs, setGigs] = useState<GigItem[]>([]);
+
+  // Resources tab data
+  const [resources, setResources] = useState<ResourceItem[]>([]);
   const [resourceFilter, setResourceFilter] = useState<string>('All');
 
   const filteredResources = useMemo(() => {
-    if (resourceFilter === 'All') return RESOURCES;
-    return RESOURCES.filter(r => r.category === resourceFilter);
-  }, [resourceFilter]);
+    if (resourceFilter === 'All') return resources;
+    return resources.filter(r => r.category === resourceFilter);
+  }, [resourceFilter, resources]);
 
+  // Fetch data for the Events tab (competitions + events from DB)
   useEffect(() => {
-    if (tab === 'competitions') {
+    if (tab === 'events') {
       setLoading(true);
       (async () => {
         try {
-          const fRes = await fetch(`/api/competitions?activeOnly=true&orderBy=deadline&ascending=true&limit=1`, { cache: 'no-store' });
-          const fJson = await fRes.json();
-          const upcoming = Array.isArray(fJson.data) ? fJson.data : [];
+          // Fetch featured competition, all competitions, and events in parallel
+          const [featuredRes, compRes, eventsRes] = await Promise.all([
+            fetch(`/api/competitions?activeOnly=true&orderBy=deadline&ascending=true&limit=1`, { cache: 'no-store' }),
+            fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=20`, { cache: 'no-store' }),
+            fetch(`/api/events?activeOnly=true&orderBy=event_date&ascending=true&limit=50`, { cache: 'no-store' }),
+          ]);
+          const featuredJson = await featuredRes.json();
+          const compJson = await compRes.json();
+          const eventsJson = await eventsRes.json();
+
+          // Set featured competition (nearest deadline first, fallback to latest)
+          const upcoming = Array.isArray(featuredJson.data) ? featuredJson.data : [];
           if (upcoming.length > 0) {
-            setFeatured(upcoming);
+            setFeatured(upcoming[0]);
           } else {
-            const latestRes = await fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=1`, { cache: 'no-store' });
-            const latestJson = await latestRes.json();
-            setFeatured(Array.isArray(latestJson.data) ? latestJson.data : []);
+            const allComps = Array.isArray(compJson.data) ? compJson.data : [];
+            setFeatured(allComps.length > 0 ? allComps[0] : null);
           }
 
-          const listRes = await fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=20`, { cache: 'no-store' });
-          const listJson = await listRes.json();
-          setList(Array.isArray(listJson.data) ? listJson.data : []);
+          setCompetitions(Array.isArray(compJson.data) ? compJson.data : []);
+          setEvents(Array.isArray(eventsJson.data) ? eventsJson.data : []);
         } catch (e) {
-          console.error('Failed to load competitions', e);
-          setFeatured([]);
-          setList([]);
+          console.error('Failed to load events data', e);
+          setFeatured(null);
+          setCompetitions([]);
+          setEvents([]);
         }
         setLoading(false);
       })();
@@ -525,9 +726,38 @@ export default function HubPage() {
         setLoading(false);
       })();
     } else if (tab === 'resources') {
-      setLoading(false);
+      setLoading(true);
+      (async () => {
+        try {
+          const res = await fetch(`/api/resources?activeOnly=true&orderBy=created_at&ascending=false&limit=50`, { cache: 'no-store' });
+          const json = await res.json();
+          setResources(Array.isArray(json.data) ? json.data : []);
+        } catch (e) {
+          console.error('Failed to load resources', e);
+          setResources([]);
+        }
+        setLoading(false);
+      })();
     }
   }, [tab]);
+
+  // Filter events by sub-category
+  const filteredEvents = useMemo(() => {
+    if (eventCategory === 'all') return events;
+    // Map sub-category key to the category value stored in DB
+    const categoryMap: Record<string, string> = {
+      events: 'event',
+      meetups: 'meetup',
+      workshops: 'workshop',
+    };
+    const dbCategory = categoryMap[eventCategory];
+    if (!dbCategory) return events;
+    return events.filter(ev => (ev.category || 'event') === dbCategory);
+  }, [eventCategory, events]);
+
+  // Determine what to show based on selected sub-category
+  const showCompetitions = eventCategory === 'all' || eventCategory === 'competitions';
+  const showEvents = eventCategory !== 'competitions';
 
   return (
     <DashboardLayout>
@@ -539,50 +769,93 @@ export default function HubPage() {
 
         {/* Section title */}
         <h2 className="mt-6 text-2xl md:text-3xl font-extrabold text-foreground">
-          {tab === 'competitions' ? 'Competitions' : tab === 'jobs' ? 'Jobs & Gigs' : 'Resources'}
+          {tab === 'events' ? 'Events' : tab === 'jobs' ? 'Jobs & Gigs' : 'Resources'}
         </h2>
         <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-emerald-500/50 dark:from-emerald-300/40 via-emerald-500/30 dark:via-emerald-400/30 to-transparent w-40" />
 
-        {/* Competitions tab */}
-        {tab === 'competitions' && (
+        {/* Events tab — with sub-category pills */}
+        {tab === 'events' && (
           <div className="mt-6 space-y-6">
-            <MonthlyCompetitionCard />
-
-            <div className="pt-2">
-              <h3 className="text-lg md:text-xl font-bold">Featured Competitions</h3>
-              <div className="mt-4">
-                {loading ? (
-                  <div className="animate-pulse h-64 rounded-2xl bg-muted/20 border border-border/60" />
-                ) : featured.length > 0 ? (
-                  <FeaturedCompetitionCard c={featured[0]} />
-                ) : (
-                  <div className="text-sm text-muted-foreground">No featured competitions.</div>
-                )}
-              </div>
+            {/* Sub-category filter pills */}
+            <div className="flex flex-wrap gap-2">
+              {EVENT_CATEGORIES.map(cat => (
+                <button
+                  key={cat.key}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                    eventCategory === cat.key
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
+                      : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
+                  }`}
+                  onClick={() => setEventCategory(cat.key)}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
 
-            <div className="pt-2">
-              <h3 className="text-lg md:text-xl font-bold">All Competitions</h3>
-              <div className="mt-4 grid gap-4">
-                {loading ? (
-                  <>
-                    <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
-                    <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
-                  </>
-                ) : list.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No competitions yet.</div>
-                ) : (
-                  list.map(c => <CompetitionRowCard key={c.id} c={c} />)
-                )}
+            {/* Featured competition card (shown on "All" or "Competitions") */}
+            {showCompetitions && featured && !loading && (
+              <div>
+                <h3 className="text-lg md:text-xl font-bold mb-4">Featured</h3>
+                <FeaturedCompetitionCard c={featured} user={user} />
               </div>
-            </div>
+            )}
+
+            {/* Competitions section (shown when "All" or "Competitions" is selected) */}
+            {showCompetitions && (
+              <div>
+                <h3 className="text-lg md:text-xl font-bold mb-4">Competitions</h3>
+                <div className="grid gap-4">
+                  {loading ? (
+                    <>
+                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                    </>
+                  ) : competitions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No competitions yet.</div>
+                  ) : (
+                    competitions.map(c => <CompetitionRowCard key={c.id} c={c} user={user} />)
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Divider between competitions and events (only when showing both) */}
+            {showCompetitions && showEvents && competitions.length > 0 && (
+              <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            )}
+
+            {/* Events / Meetups / Workshops section */}
+            {showEvents && (
+              <div>
+                <h3 className="text-lg md:text-xl font-bold mb-4">
+                  {eventCategory === 'all' ? 'Events, Meetups & Workshops' :
+                   eventCategory === 'events' ? 'Events' :
+                   eventCategory === 'meetups' ? 'Meetups' :
+                   eventCategory === 'workshops' ? 'Workshops' : 'Events'}
+                </h3>
+                <div className="grid gap-4">
+                  {loading ? (
+                    <>
+                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                    </>
+                  ) : filteredEvents.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No {eventCategory === 'all' ? 'events' : eventCategory} yet.
+                    </div>
+                  ) : (
+                    filteredEvents.map(ev => <EventRowCard key={ev.id} event={ev} user={user} />)
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Jobs & Gigs tab */}
         {tab === 'jobs' && (
           <div className="mt-6 space-y-8">
-            {/* Jobs section */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Briefcase className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
@@ -602,10 +875,8 @@ export default function HubPage() {
               </div>
             </div>
 
-            {/* Divider */}
             <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
-            {/* Gigs section */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
@@ -630,41 +901,35 @@ export default function HubPage() {
         {/* Resources tab */}
         {tab === 'resources' && (
           <div className="mt-6 space-y-6">
-            {/* Category filter pills */}
             <div className="flex flex-wrap gap-2">
-              <button
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                  resourceFilter === 'All'
-                    ? 'bg-primary/15 text-primary border border-primary/30'
-                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                }`}
-                onClick={() => setResourceFilter('All')}
-              >
-                All
-              </button>
               {RESOURCE_CATEGORIES.map(cat => (
                 <button
-                  key={cat}
+                  key={cat.key}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                    resourceFilter === cat
+                    resourceFilter === cat.key
                       ? 'bg-primary/15 text-primary border border-primary/30'
                       : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
                   }`}
-                  onClick={() => setResourceFilter(cat)}
+                  onClick={() => setResourceFilter(cat.key)}
                 >
-                  {cat}
+                  {cat.label}
                 </button>
               ))}
             </div>
 
-            {/* Resource grid */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {filteredResources.map(resource => (
-                <ResourceCard key={resource.id} resource={resource} />
-              ))}
-            </div>
-
-            {filteredResources.length === 0 && (
+            {loading ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-36 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                ))}
+              </div>
+            ) : filteredResources.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {filteredResources.map(resource => (
+                  <ResourceCard key={resource.id} resource={resource} />
+                ))}
+              </div>
+            ) : (
               <div className="text-center text-muted-foreground py-10">No resources in this category.</div>
             )}
           </div>
