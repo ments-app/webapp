@@ -367,7 +367,63 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
           Join
         </a>
       </div>
-    </Link>
+    </div>
+  );
+};
+
+// --- Event row card ---
+
+const EventRowCard = ({ event }: { event: EventItem; user: { id: string } | null }) => {
+  const ended = isEnded(event);
+  const categoryLabel = event.category === 'meetup' ? 'Meetup' : event.category === 'workshop' ? 'Workshop' : 'Event';
+
+  return (
+    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 flex gap-4 hover:bg-card/80 transition">
+      <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
+        {(() => {
+          const url = resolveBannerUrl(event.banner_image_url);
+          return url ? (
+            <Image src={url} alt={event.title} fill className="object-cover" sizes="160px" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+          );
+        })()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{event.title}</h4>
+          <span className="text-[11px] md:text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full shrink-0">
+            {categoryLabel}
+          </span>
+          {ended ? (
+            <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Ended</span>
+          ) : (
+            <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Upcoming</span>
+          )}
+        </div>
+        {event.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{event.description}</p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          {event.event_date && (
+            <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(event.event_date), 'dd MMM, yyyy')}</Stat>
+          )}
+          {event.location && <Stat icon={MapPin}>{event.location}</Stat>}
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 justify-center">
+        {event.event_url && (
+          <a
+            href={event.event_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
+          >
+            View <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -773,23 +829,14 @@ export default function HubPage() {
         {tab === 'resources' && (
           <div className="mt-6 space-y-6">
             <div className="flex flex-wrap gap-2">
-              <button
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === 'All'
-                    ? 'bg-primary/15 text-primary border border-primary/30'
-                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                  }`}
-                onClick={() => setResourceFilter('All')}
-              >
-                All
-              </button>
               {RESOURCE_CATEGORIES.map(cat => (
                 <button
-                  key={cat}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === cat
+                  key={cat.key}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === cat.key
                       ? 'bg-primary/15 text-primary border border-primary/30'
                       : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
                     }`}
-                  onClick={() => setResourceFilter(cat)}
+                  onClick={() => setResourceFilter(cat.key)}
                 >
                   {cat.label}
                 </button>
