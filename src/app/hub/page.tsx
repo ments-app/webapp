@@ -315,7 +315,9 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
         body: JSON.stringify({ userId: user.id }),
       });
       const json = await res.json();
-      if ((res.ok && json.success) || json.alreadyJoined) {
+      if (res.ok && json.success) {
+        setJoined(true);
+      } else if (json.alreadyJoined) {
         setJoined(true);
       }
     } catch {}
@@ -323,51 +325,60 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
   };
 
   return (
-    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 flex gap-4 hover:bg-card/80 transition">
-      <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
-        {(() => {
-          const url = resolveBannerUrl(c.banner_image_url);
-          return url ? (
-            <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
-          );
-        })()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{c.title}</h4>
-          {ended ? (
-            <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full">Ended</span>
-          ) : (
-            <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">Open</span>
+    <Link href={`/hub/${encodeURIComponent(c.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 hover:bg-card/80 transition">
+      <div className="p-4 md:p-5 flex gap-4">
+        <div className="relative h-20 w-28 md:h-24 md:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
+          {(() => {
+            const url = resolveBannerUrl(c.banner_image_url);
+            return url ? (
+              <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+            );
+          })()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-base md:text-lg font-semibold text-foreground truncate">{c.title}</h4>
+            {ended ? (
+              <span className="text-[11px] md:text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Ended</span>
+            ) : (
+              <span className="text-[11px] md:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Active</span>
+            )}
+          </div>
+          {c.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
           )}
+          <div className="mt-2 flex flex-wrap items-center gap-4">
+            {c.deadline && (
+              <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')}</Stat>
+            )}
+            {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+          </div>
         </div>
-        {c.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
-        )}
-        <div className="mt-2 flex flex-wrap items-center gap-4">
-          <Stat icon={Clock}>{c.deadline ? format(new Date(c.deadline), 'dd MMM, yyyy') : 'No deadline'}</Stat>
-          {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+        <div className="flex flex-col gap-2 justify-center">
+          <button
+            onClick={handleJoin}
+            disabled={joined || joining || checkingJoin || !user || ended}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold active:scale-95 transition ${
+              joined
+                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+            }`}
+          >
+            {checkingJoin ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : joined ? (
+              <><CheckCircle className="h-4 w-4" /> Joined</>
+            ) : joining ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>Join <ArrowRight className="h-4 w-4" /></>
+            )}
+          </button>
         </div>
       </div>
-      <div className="flex flex-col gap-2 justify-center">
-        <Link
-          href={`/hub/${encodeURIComponent(c.id)}`}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-3 py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition"
-        >
-          View
-        </Link>
-        <a
-          href={c.is_external && c.external_url ? c.external_url : '#'}
-          target={c.is_external ? '_blank' : undefined}
-          rel={c.is_external ? 'noopener noreferrer' : undefined}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
-        >
-          Join
-        </a>
-      </div>
-    </div>
+    </Link>
   );
 };
 
