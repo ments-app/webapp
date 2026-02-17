@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       if (error) throw error;
 
       // Transform the data to include only the fields we need
-      const result = mappings?.map(mapping => ({
+      const result = mappings?.map((mapping: { conversation_id: string; category_id: string }) => ({
         conversation_id: mapping.conversation_id,
         category_id: mapping.category_id
       })) || [];

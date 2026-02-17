@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     // Get all unique user IDs from conversations
     const userIds = new Set<string>();
-    conversationData.forEach(conv => {
+    conversationData.forEach((conv: { user1_id: string; user2_id: string }) => {
       userIds.add(conv.user1_id);
       userIds.add(conv.user2_id);
     });
@@ -52,12 +52,12 @@ export async function GET(req: NextRequest) {
 
     // Create a map for quick user lookup
     const userMap = new Map<string, Record<string, unknown>>();
-    usersData?.forEach(user => {
+    usersData?.forEach((user: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => {
       userMap.set(user.id, user);
     });
 
     // Batch fetch unread counts for all conversations
-    const conversationIds = conversationData.map(c => c.id);
+    const conversationIds = conversationData.map((c: { id: string }) => c.id);
     const unreadByConv = new Map<string, number>();
     if (conversationIds.length > 0) {
       const { data: unreadMessages } = await supabase
@@ -67,13 +67,14 @@ export async function GET(req: NextRequest) {
         .neq('sender_id', userId)
         .eq('is_read', false);
 
-      for (const msg of (unreadMessages || [])) {
+      for (const msg of (unreadMessages || []) as { conversation_id: string }[]) {
         unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) || 0) + 1);
       }
     }
 
     // Transform to match expected format
-    const conversations = conversationData.map(conv => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conversations = conversationData.map((conv: any) => {
       const isUser1 = conv.user1_id === userId;
       const otherUserId = isUser1 ? conv.user2_id : conv.user1_id;
       const otherUser = userMap.get(otherUserId) || {};

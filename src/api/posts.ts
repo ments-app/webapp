@@ -185,14 +185,14 @@ export async function fetchPosts(
       const repliesMap = new Map<string, number>();
 
       if (likesResult.data) {
-        likesResult.data.forEach(like => {
+        likesResult.data.forEach((like: { post_id: string }) => {
           const count = likesMap.get(like.post_id) || 0;
           likesMap.set(like.post_id, count + 1);
         });
       }
 
       if (repliesResult.data) {
-        repliesResult.data.forEach(reply => {
+        repliesResult.data.forEach((reply: { parent_post_id: string | null }) => {
           if (reply.parent_post_id) {
             const count = repliesMap.get(reply.parent_post_id) || 0;
             repliesMap.set(reply.parent_post_id, count + 1);
@@ -201,7 +201,7 @@ export async function fetchPosts(
       }
 
       // Attach counts to posts
-      const postsWithCounts = posts.map(post => ({
+      const postsWithCounts = posts.map((post: { id: string }) => ({
         ...post,
         likes: likesMap.get(post.id) || 0,
         replies: repliesMap.get(post.id) || 0,
@@ -390,13 +390,13 @@ export async function createPost(
           .from('users')
           .select('id, username')
           .in('username', mentionedUsernames);
-        
+
         if (users && users.length > 0) {
           // Send notifications to mentioned users
           await notifyMentionedUsers(
             data.id,
             authorId,
-            users.map(u => u.id)
+            users.map((u: { id: string }) => u.id)
           );
         }
       }
@@ -843,7 +843,7 @@ export async function checkUserPollVotes(pollId: string, userId: string): Promis
       return { votes: [], error };
     }
 
-    const votes = data?.map(vote => ({
+    const votes = data?.map((vote: { id: string; poll_option_id: string; user_id: string; created_at: string; post_poll_options?: { poll_id: string }[] }) => ({
       id: vote.id,
       option_id: vote.poll_option_id, // Map poll_option_id to option_id
       user_id: vote.user_id,
@@ -926,13 +926,14 @@ export async function getPollVoters(
     }
 
     // Transform the data
-    const voters: PollVoter[] = votes?.map(vote => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const voters: PollVoter[] = votes?.map((vote: any) => {
       // Handle the case where post_poll_options could be array or single object
-      const pollOption = Array.isArray(vote.post_poll_options) 
-        ? vote.post_poll_options[0] 
+      const pollOption = Array.isArray(vote.post_poll_options)
+        ? vote.post_poll_options[0]
         : vote.post_poll_options;
-      
-      // Handle the case where users could be array or single object  
+
+      // Handle the case where users could be array or single object
       const user = Array.isArray(vote.users) ? vote.users[0] : vote.users;
 
       return {
@@ -1027,9 +1028,9 @@ export async function getPollStats(
       return { stats: null, error: votersError };
     }
 
-    const totalVotes = pollData.options?.reduce((sum, opt) => sum + opt.votes, 0) || 0;
-    
-    const optionBreakdown = pollData.options?.map(option => ({
+    const totalVotes = pollData.options?.reduce((sum: number, opt: { votes: number }) => sum + opt.votes, 0) || 0;
+
+    const optionBreakdown = pollData.options?.map((option: { option_text: string; votes: number }) => ({
       option_text: option.option_text,
       votes: option.votes,
       percentage: totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0

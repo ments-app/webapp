@@ -31,7 +31,8 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
       try {
         // Set up auth state listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          async (event: any, session: any) => {
             if (!mounted) return;
             
             console.log('Auth state changed:', event);

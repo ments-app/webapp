@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Batch: get ALL conversation-category mappings for this user's categories
-    const categoryIds = categories.map(c => c.id);
+    const categoryIds = categories.map((c: { id: string }) => c.id);
     const { data: allMappings } = await supabase
       .from('conversation_categories')
       .select('category_id, conversation_id')
@@ -40,14 +40,14 @@ export async function GET(req: NextRequest) {
 
     // Build category -> conversationIds map
     const catConvMap = new Map<string, string[]>();
-    for (const m of (allMappings || [])) {
+    for (const m of (allMappings || []) as { category_id: string; conversation_id: string }[]) {
       const arr = catConvMap.get(m.category_id) || [];
       arr.push(m.conversation_id);
       catConvMap.set(m.category_id, arr);
     }
 
     // Batch: get unread counts for ALL conversations across all categories
-    const allConvIds = [...new Set((allMappings || []).map(m => m.conversation_id))];
+    const allConvIds = [...new Set((allMappings || []).map((m: { conversation_id: string }) => m.conversation_id))];
     const unreadByConv = new Map<string, number>();
     if (allConvIds.length > 0) {
       const { data: unreadMessages } = await supabase
@@ -57,13 +57,14 @@ export async function GET(req: NextRequest) {
         .neq('sender_id', userId)
         .eq('is_read', false);
 
-      for (const msg of (unreadMessages || [])) {
+      for (const msg of (unreadMessages || []) as { conversation_id: string }[]) {
         unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) || 0) + 1);
       }
     }
 
     // Assemble enhanced categories — no extra queries needed
-    const enhancedCategories: ChatCategory[] = categories.map(category => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enhancedCategories: ChatCategory[] = categories.map((category: any) => {
       const conversationIds = catConvMap.get(category.id) || [];
       const unreadCount = conversationIds.reduce((sum, cid) => sum + (unreadByConv.get(cid) || 0), 0);
       return {

@@ -60,7 +60,8 @@ export function useRealtimeMessages(
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           if (payload.new) {
             const msg = toMessage(payload.new);
             if (msg) onNewMessage(msg);

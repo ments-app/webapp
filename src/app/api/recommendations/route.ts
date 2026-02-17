@@ -23,7 +23,7 @@ export async function GET() {
           .select('followee_id')
           .eq('follower_id', userId);
 
-        const followingIds = new Set((followRows || []).map(r => r.followee_id));
+        const followingIds = new Set((followRows || []).map((r: { followee_id: string }) => r.followee_id));
         followingIds.add(userId); // exclude self
 
         const { data: users } = await supabase
@@ -35,7 +35,7 @@ export async function GET() {
         if (!users) return [];
 
         return users
-          .filter(u => !followingIds.has(u.id))
+          .filter((u: { id: string }) => !followingIds.has(u.id))
           .slice(0, 8);
       })(),
 
@@ -56,8 +56,8 @@ export async function GET() {
 
         if (!recentPosts || recentPosts.length === 0) return [];
 
-        const postIds = recentPosts.map(p => p.id);
-        const authorIds = [...new Set(recentPosts.map(p => p.author_id))];
+        const postIds = recentPosts.map((p: { id: string }) => p.id);
+        const authorIds = [...new Set(recentPosts.map((p: { author_id: string }) => p.author_id))];
 
         // Batch fetch likes and author info
         const [likesRes, authorsRes] = await Promise.all([
@@ -66,18 +66,18 @@ export async function GET() {
         ]);
 
         const likesMap = new Map<string, number>();
-        likesRes.data?.forEach(l => {
+        likesRes.data?.forEach((l: { post_id: string }) => {
           likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
         });
 
         const authorsMap = new Map<string, { username: string; full_name: string; avatar_url: string | null }>();
-        authorsRes.data?.forEach(a => {
+        authorsRes.data?.forEach((a: { id: string; username: string; full_name: string; avatar_url: string | null }) => {
           authorsMap.set(a.id, { username: a.username, full_name: a.full_name, avatar_url: a.avatar_url });
         });
 
         // Sort by like count descending and take top 5
         return recentPosts
-          .map(p => ({
+          .map((p: { id: string; content: string; created_at: string; author_id: string }) => ({
             id: p.id,
             content: p.content,
             created_at: p.created_at,

@@ -50,7 +50,7 @@ export function UserActivityFeed({ userId, type }: Props) {
     }
 
     // Batch counts for likes and replies
-    const postIds = posts.map(p => p.id);
+    const postIds = posts.map((p: { id: string }) => p.id);
     const [likesResult, repliesResult] = await Promise.all([
       supabase.from('post_likes').select('post_id').in('post_id', postIds),
       supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
@@ -60,20 +60,21 @@ export function UserActivityFeed({ userId, type }: Props) {
     const repliesMap = new Map<string, number>();
 
     if (likesResult.data) {
-      likesResult.data.forEach(like => {
+      likesResult.data.forEach((like: { post_id: string }) => {
         likesMap.set(like.post_id, (likesMap.get(like.post_id) || 0) + 1);
       });
     }
 
     if (repliesResult.data) {
-      repliesResult.data.forEach(reply => {
+      repliesResult.data.forEach((reply: { parent_post_id: string | null }) => {
         if (reply.parent_post_id) {
           repliesMap.set(reply.parent_post_id, (repliesMap.get(reply.parent_post_id) || 0) + 1);
         }
       });
     }
 
-    const withCounts = posts.map(p => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const withCounts = posts.map((p: any) => ({
       ...p,
       likes: likesMap.get(p.id) || 0,
       replies: repliesMap.get(p.id) || 0,

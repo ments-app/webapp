@@ -97,7 +97,7 @@ export default function EnvironmentPage() {
 
         let likesCount = 0;
         if (postIds && postIds.length > 0) {
-          const ids = postIds.map((p) => p.id);
+          const ids = postIds.map((p: { id: string }) => p.id);
           const { data: likesRows, error: likesErr } = await supabase
             .from('post_likes')
             .select('post_id')

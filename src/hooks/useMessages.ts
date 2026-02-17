@@ -133,7 +133,8 @@ export function useMessages(conversationId: string, userId: string) {
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           const newMessage = payload.new as Message;
           console.log('New message received:', newMessage);
 
@@ -154,7 +155,8 @@ export function useMessages(conversationId: string, userId: string) {
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           const updatedMessage = payload.new as Message;
           console.log('Message updated:', updatedMessage);
 

@@ -62,7 +62,8 @@ export function useConversations(userId: string, filter: ConversationFilter = 'a
           table: 'conversations',
           filter: `or(user1_id.eq.${userId},user2_id.eq.${userId})`
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           console.log('Conversation changed:', payload);
           // Refetch conversations when they change
           fetchConversations();
@@ -80,7 +81,8 @@ export function useConversations(userId: string, filter: ConversationFilter = 'a
           schema: 'public',
           table: 'messages'
         },
-        async (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (payload: any) => {
           const newMessage = payload.new;
           console.log('New message received:', newMessage);
 

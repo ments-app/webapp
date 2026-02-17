@@ -55,10 +55,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
         .from('user_follows')
         .select('followee_id')
         .eq('follower_id', viewerId)
-        .in('followee_id', users.map(u => u.id));
+        .in('followee_id', users.map((u: { id: string }) => u.id));
 
       if (!followErr && viewerFollows) {
-        followStatusMap = viewerFollows.reduce((acc, f) => {
+        followStatusMap = viewerFollows.reduce((acc: Record<string, boolean>, f: { followee_id: string }) => {
           acc[f.followee_id] = true;
           return acc;
         }, {} as Record<string, boolean>);
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
     }
 
     // Add follow status to each user
-    const usersWithFollowStatus = (users || []).map(user => ({
+    const usersWithFollowStatus = (users || []).map((user: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => ({
       ...user,
       is_following: followStatusMap[user.id] || false
     }));

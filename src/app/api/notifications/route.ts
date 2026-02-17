@@ -59,13 +59,15 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Normalize both sources
-    const legacyList: NotifRow[] = (legacyResult.data || []).map(n => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacyList: NotifRow[] = (legacyResult.data || []).map((n: any) => ({
       ...n,
       notification_source: 'legacy',
       is_read: n.read,
       recipient_id: n.user_id,
     }));
-    const inappList: NotifRow[] = (inappResult.data || []).map(n => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inappList: NotifRow[] = (inappResult.data || []).map((n: any) => ({
       ...n,
       notification_source: 'inapp',
       read: n.is_read,

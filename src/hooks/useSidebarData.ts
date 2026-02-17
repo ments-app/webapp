@@ -113,7 +113,7 @@ export function useSidebarData() {
 
           if (!posts || posts.length === 0) return [];
 
-          posts.forEach(p => postIds.push(p.id));
+          posts.forEach((p: { id: string }) => postIds.push(p.id));
 
           // Batch fetch likes + replies counts
           const [likesRes, repliesRes] = await Promise.all([
@@ -123,12 +123,12 @@ export function useSidebarData() {
 
           const likesMap = new Map<string, number>();
           const repliesMap = new Map<string, number>();
-          likesRes.data?.forEach(l => likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1));
-          repliesRes.data?.forEach(r => {
+          likesRes.data?.forEach((l: { post_id: string }) => likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1));
+          repliesRes.data?.forEach((r: { parent_post_id: string | null }) => {
             if (r.parent_post_id) repliesMap.set(r.parent_post_id, (repliesMap.get(r.parent_post_id) || 0) + 1);
           });
 
-          return posts.map(p => ({
+          return posts.map((p: { id: string; content: string | null; post_type: string; created_at: string }) => ({
             id: p.id,
             content: p.content,
             post_type: p.post_type,
@@ -145,7 +145,7 @@ export function useSidebarData() {
             .select('followee_id')
             .eq('follower_id', userId);
 
-          const followingIds = new Set((followRows || []).map(r => r.followee_id));
+          const followingIds = new Set((followRows || []).map((r: { followee_id: string }) => r.followee_id));
           followingIds.add(userId); // exclude self
 
           // Fetch a pool of users
@@ -159,7 +159,7 @@ export function useSidebarData() {
 
           // Filter out already-followed and self, take 5
           return users
-            .filter(u => !followingIds.has(u.id))
+            .filter((u: { id: string }) => !followingIds.has(u.id))
             .slice(0, 5) as SuggestedUser[];
         })(),
       ]);

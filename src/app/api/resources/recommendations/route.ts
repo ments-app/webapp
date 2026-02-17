@@ -50,7 +50,7 @@ export async function GET() {
     }
 
     // Build startup context (primary signal for recommendations)
-    const startupContext = (startups || []).map(s => {
+    const startupContext = (startups || []).map((s: { brand_name: string | null; stage: string | null; keywords: string[] | null; description: string | null; is_actively_raising: boolean; registered_address: string | null }) => {
       const parts = [
         `Startup: ${s.brand_name || 'Unnamed'}`,
         s.stage ? `Stage: ${s.stage}` : '',

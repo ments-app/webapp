@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Get unique sender IDs and reply-to IDs
-    const senderIds = [...new Set(messages.map(m => m.sender_id).filter(Boolean))];
-    const replyToIds = [...new Set(messages.map(m => m.reply_to_id).filter(Boolean))];
+    const senderIds = [...new Set(messages.map((m: { sender_id: string }) => m.sender_id).filter(Boolean))];
+    const replyToIds = [...new Set(messages.map((m: { reply_to_id: string | null }) => m.reply_to_id).filter(Boolean))];
 
     // Fetch sender details
     const { data: senders } = await supabase
@@ -82,11 +82,12 @@ export async function GET(req: NextRequest) {
       .in('id', replyToIds);
 
     // Create lookup maps
-    const senderMap = new Map(senders?.map(s => [s.id, s]) || []);
-    const replyToMap = new Map(replyToMessages?.map(r => [r.id, r]) || []);
+    const senderMap = new Map(senders?.map((s: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => [s.id, s]) || []);
+    const replyToMap = new Map(replyToMessages?.map((r: { id: string; content: string; sender_id: string; created_at: string }) => [r.id, r]) || []);
 
     // Attach sender and reply_to data to messages
-    const enrichedMessages = messages.map(msg => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enrichedMessages = messages.map((msg: any) => ({
       ...msg,
       sender: senderMap.get(msg.sender_id) || null,
       reply_to: msg.reply_to_id ? replyToMap.get(msg.reply_to_id) || null : null
