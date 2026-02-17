@@ -1,8 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-let _instance: ReturnType<typeof createBrowserClient>;
+type SupabaseClient = ReturnType<typeof createBrowserClient>;
 
-export function getSupabaseClient() {
+let _instance: SupabaseClient;
+
+function getClient(): SupabaseClient {
   if (!_instance) {
     _instance = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,15 +19,14 @@ export function getSupabaseClient() {
   return _instance;
 }
 
-// Kept for backwards compatibility — lazy getter
-export const supabase = {
-  get auth() { return getSupabaseClient().auth; },
-  get realtime() { return getSupabaseClient().realtime; },
-  get storage() { return getSupabaseClient().storage; },
-  get functions() { return getSupabaseClient().functions; },
-  from: (...args: Parameters<ReturnType<typeof createBrowserClient>['from']>) => getSupabaseClient().from(...args),
-  channel: (...args: Parameters<ReturnType<typeof createBrowserClient>['channel']>) => getSupabaseClient().channel(...args),
-  removeChannel: (...args: Parameters<ReturnType<typeof createBrowserClient>['removeChannel']>) => getSupabaseClient().removeChannel(...args),
-  removeAllChannels: () => getSupabaseClient().removeAllChannels(),
-  rpc: (...args: Parameters<ReturnType<typeof createBrowserClient>['rpc']>) => getSupabaseClient().rpc(...args),
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const supabase: SupabaseClient = new Proxy({} as any, {
+  get(_, prop) {
+    const client = getClient();
+    const value = (client as Record<string | symbol, unknown>)[prop];
+    if (typeof value === 'function') {
+      return (value as Function).bind(client);
+    }
+    return value;
+  },
+});
