@@ -164,7 +164,7 @@ export async function fetchPosts(
       }
 
       // Batch fetch all likes and replies counts in two queries instead of N queries
-      const postIds = posts.map(p => p.id);
+      const postIds = posts.map((p: { id: string }) => p.id);
       
       const [likesResult, repliesResult] = await Promise.all([
         // Get likes counts for all posts in one query
