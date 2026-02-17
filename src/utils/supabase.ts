@@ -1,28 +1,31 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-function getSupabaseClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookieOptions: {
-        name: 'sb-web-auth',
-      },
-    }
-  );
+let _instance: ReturnType<typeof createBrowserClient>;
+
+export function getSupabaseClient() {
+  if (!_instance) {
+    _instance = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookieOptions: {
+          name: 'sb-web-auth',
+        },
+      }
+    );
+  }
+  return _instance;
 }
 
-let _instance: ReturnType<typeof getSupabaseClient> | undefined;
-
-export const supabase = new Proxy({} as ReturnType<typeof getSupabaseClient>, {
-  get(_, prop, receiver) {
-    if (!_instance) {
-      _instance = getSupabaseClient();
-    }
-    const value = Reflect.get(_instance, prop, receiver);
-    if (typeof value === 'function') {
-      return value.bind(_instance);
-    }
-    return value;
-  },
-});
+// Kept for backwards compatibility — lazy getter
+export const supabase = {
+  get auth() { return getSupabaseClient().auth; },
+  get realtime() { return getSupabaseClient().realtime; },
+  get storage() { return getSupabaseClient().storage; },
+  get functions() { return getSupabaseClient().functions; },
+  from: (...args: Parameters<ReturnType<typeof createBrowserClient>['from']>) => getSupabaseClient().from(...args),
+  channel: (...args: Parameters<ReturnType<typeof createBrowserClient>['channel']>) => getSupabaseClient().channel(...args),
+  removeChannel: (...args: Parameters<ReturnType<typeof createBrowserClient>['removeChannel']>) => getSupabaseClient().removeChannel(...args),
+  removeAllChannels: () => getSupabaseClient().removeAllChannels(),
+  rpc: (...args: Parameters<ReturnType<typeof createBrowserClient>['rpc']>) => getSupabaseClient().rpc(...args),
+};
