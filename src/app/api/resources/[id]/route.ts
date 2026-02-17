@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('resources')
       .select('*')
       .eq('id', id)

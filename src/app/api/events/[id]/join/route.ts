@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 // Use service role key to bypass RLS for insert operations
-const supabase = createClient(supabaseUrl, supabaseServiceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Check if event exists and is active
-    const { data: event, error: eventError } = await supabase
+    const { data: event, error: eventError } = await getSupabase()
       .from('events')
       .select('id, is_active')
       .eq('id', eventId)
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Check if user already joined
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from('event_participants')
       .select('id')
       .eq('event_id', eventId)
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Insert participant record
-    const { error: insertError } = await supabase
+    const { error: insertError } = await getSupabase()
       .from('event_participants')
       .insert({ event_id: eventId, user_id: userId });
 

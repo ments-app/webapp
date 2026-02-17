@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // PUT /api/users/[username]/projects/[projectId]/text_sections/[sectionId]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ username: string; projectId: string; sectionId: string }> }) {
@@ -14,10 +15,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     const body = await req.json().catch(() => ({}));
     const { heading, content, display_order } = body || {};
 
-    const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
+    const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { data: project } = await supabase
+    const { data: project } = await getSupabase()
       .from('projects')
       .select('id')
       .eq('id', projectId)
@@ -30,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     if (typeof content !== 'undefined') patch.content = content;
     if (typeof display_order !== 'undefined') patch.display_order = display_order;
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('project_text_sections')
       .update(patch)
       .eq('id', sectionId)
@@ -52,10 +53,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { username, projectId, sectionId } = await params;
     if (!username || !projectId || !sectionId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
-    const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
+    const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('project_text_sections')
       .delete()
       .eq('id', sectionId)

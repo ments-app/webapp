@@ -3,7 +3,7 @@ import { createAuthClient } from '@/utils/supabase-server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Base URL for Supabase public assets
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
 // Try to produce a browser-usable URL for a storage object reference.
 // Handles: https URLs, s3:// URLs, Supabase storage paths, bucket/key paths.
@@ -23,12 +23,12 @@ async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClien
   // Supabase storage public path
   if (/^\/?storage\/v1\/object\/public\//i.test(s)) {
     const pathOnly = s.replace(/^\/+/, '');
-    return supabaseUrl ? `${supabaseUrl}/${pathOnly}` : `/${pathOnly}`;
+    return getSupabaseUrl() ? `${getSupabaseUrl()}/${pathOnly}` : `/${pathOnly}`;
   }
   // Shorthand public path (e.g. 'public/avatars/...')
   if (/^public\//i.test(s)) {
     const pathOnly = s.replace(/^\/+/, '');
-    return supabaseUrl ? `${supabaseUrl}/storage/v1/object/${pathOnly}` : `/storage/v1/object/${pathOnly}`;
+    return getSupabaseUrl() ? `${getSupabaseUrl()}/storage/v1/object/${pathOnly}` : `/storage/v1/object/${pathOnly}`;
   }
   // Bucket/key path — try signed URL, fallback to public URL pattern
   const path = s.replace(/^\/+/, '');
@@ -40,8 +40,8 @@ async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClien
       const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60);
       if (!error && data?.signedUrl) return data.signedUrl as string;
     } catch { }
-    if (supabaseUrl) {
-      return `${supabaseUrl}/storage/v1/object/public/${path}`;
+    if (getSupabaseUrl()) {
+      return `${getSupabaseUrl()}/storage/v1/object/public/${path}`;
     }
   }
   return null;

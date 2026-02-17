@@ -3,9 +3,10 @@ import { createAuthClient } from '@/utils/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 import Groq from 'groq-sdk';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const publicSupabase = createClient(supabaseUrl, supabaseAnonKey);
+const getPublicSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function GET() {
   try {
@@ -23,17 +24,17 @@ export async function GET() {
 
     // Fetch user profile and startup profiles in parallel
     const [profileRes, startupsRes, resourcesRes] = await Promise.all([
-      publicSupabase
+      getPublicSupabase()
         .from('profiles')
         .select('tagline, about, city, user_type')
         .eq('id', user.id)
         .single(),
-      publicSupabase
+      getPublicSupabase()
         .from('startup_profiles')
         .select('brand_name, keywords, stage, description, is_actively_raising, registered_address')
         .eq('owner_id', user.id)
         .limit(3),
-      publicSupabase
+      getPublicSupabase()
         .from('resources')
         .select('id, title, description, category, provider, tags, eligibility')
         .eq('is_active', true)

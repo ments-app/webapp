@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,8 +12,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     // Fetch event details and participant count in parallel
     const [{ data: event, error }, participantsAgg] = await Promise.all([
-      supabase.from('events').select('*').eq('id', id).maybeSingle(),
-      supabase
+      getSupabase().from('events').select('*').eq('id', id).maybeSingle(),
+      getSupabase()
         .from('event_participants')
         .select('user_id', { count: 'exact', head: true })
         .eq('event_id', id),

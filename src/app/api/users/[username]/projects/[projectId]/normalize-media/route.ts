@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // POST /api/users/[username]/projects/[projectId]/normalize-media
 // Normalizes cover_url and logo_url from accidentally saved "https://s3://..." to "s3://..."
@@ -13,12 +14,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
     // Resolve user
-    const { data: userRow, error: userErr } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
+    const { data: userRow, error: userErr } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
     if (userErr) return NextResponse.json({ error: userErr.message }, { status: 400 });
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Fetch project
-    const { data: project, error: projErr } = await supabase
+    const { data: project, error: projErr } = await getSupabase()
       .from('projects')
       .select('id, cover_url, logo_url')
       .eq('id', projectId)
@@ -45,7 +46,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
       return NextResponse.json({ ok: true, updated: false });
     }
 
-    const { error: updErr } = await supabase
+    const { error: updErr } = await getSupabase()
       .from('projects')
       .update(patch)
       .eq('id', projectId)

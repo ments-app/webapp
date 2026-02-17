@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseServiceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Check if competition exists
-    const { data: comp, error: compError } = await supabase
+    const { data: comp, error: compError } = await getSupabase()
       .from('competitions')
       .select('id, deadline')
       .eq('id', competitionId)
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Check if user already joined
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from('competition_entries')
       .select('submitted_by')
       .eq('competition_id', competitionId)
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Insert entry record (project_id is nullable)
     const projectId = body.projectId || null;
-    const { error: insertError } = await supabase
+    const { error: insertError } = await getSupabase()
       .from('competition_entries')
       .insert({ competition_id: competitionId, submitted_by: userId, project_id: projectId });
 
@@ -77,7 +78,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     // Check if competition exists and hasn't ended
-    const { data: comp, error: compError } = await supabase
+    const { data: comp, error: compError } = await getSupabase()
       .from('competitions')
       .select('id, deadline')
       .eq('id', competitionId)
@@ -98,7 +99,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     // Delete the entry
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await getSupabase()
       .from('competition_entries')
       .delete()
       .eq('competition_id', competitionId)

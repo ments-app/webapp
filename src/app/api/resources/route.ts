@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
     const orderBy = (searchParams.get('orderBy') || 'created_at') as string;
     const ascending = searchParams.get('ascending') === 'true';
 
-    let query = supabase
+    let query = getSupabase()
       .from('resources')
       .select('*')
       .order(orderBy, { ascending, nullsFirst: false })

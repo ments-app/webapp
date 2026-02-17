@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const getSupabaseKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 async function getServerClient() {
   const store = await cookies();
   // Derive the project ref from URL
-  const m = /https?:\/\/([^.]+)\.supabase\.co/i.exec(supabaseUrl);
+  const m = /https?:\/\/([^.]+)\.supabase\.co/i.exec(getSupabaseUrl());
   const ref = m?.[1];
   const cookieName = ref ? `sb-${ref}-auth-token` : undefined;
   let accessToken: string | undefined;
@@ -45,7 +45,7 @@ async function getServerClient() {
       }
     }
   }
-  const client = createClient(supabaseUrl, supabaseKey, {
+  const client = createClient(getSupabaseUrl(), getSupabaseKey(), {
     global: {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     },
