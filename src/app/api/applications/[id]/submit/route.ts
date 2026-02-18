@@ -18,7 +18,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { tab_switch_count = 0, time_spent_seconds = 0 } = body;
+    const { tab_switch_count = 0, time_spent_seconds = 0, cancelled = false, cancel_reason = '' } = body;
 
     const admin = createAdminClient();
 
@@ -41,7 +41,35 @@ export async function POST(
       id: number; question: string; type: string; answer: string; score: number; feedback: string;
     }>;
 
-    // Check all questions answered
+    // If cancelled, skip validation and set status directly
+    if (cancelled) {
+      const { data: updated, error: updateErr } = await admin
+        .from('applications')
+        .update({
+          interview_score: 0,
+          overall_score: 0,
+          ai_recommendation: 'not_recommend',
+          ai_summary: cancel_reason === 'max_tab_switches'
+            ? 'Application was automatically cancelled due to exceeding the maximum tab switch limit.'
+            : 'Application was cancelled by the candidate.',
+          hire_suggestion: 'Application cancelled - no evaluation available.',
+          tab_switch_count: tab_switch_count,
+          time_spent_seconds: time_spent_seconds,
+          status: 'cancelled',
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateErr) {
+        return NextResponse.json({ error: updateErr.message }, { status: 500 });
+      }
+      return NextResponse.json({ data: updated });
+    }
+
+    // Check all questions answered (skipped counts as answered)
     const unanswered = questions.filter((q) => !q.answer);
     if (unanswered.length > 0) {
       return NextResponse.json({ error: `${unanswered.length} questions unanswered` }, { status: 400 });

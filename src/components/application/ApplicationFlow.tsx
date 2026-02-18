@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Loader2, ArrowLeft, CheckCircle, AlertTriangle, Send,
   Brain, Sparkles, Target, TrendingUp, TrendingDown, Clock,
-  ChevronRight, Star, Shield,
+  ChevronRight, Star, Shield, XCircle, SkipForward, LogOut,
 } from 'lucide-react';
 import ScreenGuard from './ScreenGuard';
 import { useAuth } from '@/context/AuthContext';
@@ -34,7 +34,9 @@ type Application = {
   status: string;
 };
 
-type Step = 'loading' | 'profile' | 'interview' | 'review' | 'submitted';
+type Step = 'loading' | 'profile' | 'interview' | 'review' | 'submitted' | 'cancelled';
+
+const MAX_TAB_SWITCHES = 3;
 
 interface ApplicationFlowProps {
   type: 'job' | 'gig';
@@ -56,12 +58,36 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
   const [copyPasteCount, setCopyPasteCount] = useState(0);
   const [extensionDetected, setExtensionDetected] = useState(false);
   const [accountSwitchCount, setAccountSwitchCount] = useState(0);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+  const [skippingQuestion, setSkippingQuestion] = useState(false);
   const startTime = useRef(Date.now());
   const answerRef = useRef<HTMLTextAreaElement>(null);
 
   const handleTabSwitch = useCallback(() => {
     setTabSwitches((prev) => prev + 1);
   }, []);
+
+  const handleMaxTabSwitches = useCallback(async () => {
+    if (!app) return;
+    try {
+      await fetch(`/api/applications/${app.id}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tab_switch_count: MAX_TAB_SWITCHES,
+          time_spent_seconds: Math.round((Date.now() - startTime.current) / 1000),
+          copy_paste_count: copyPasteCount,
+          extension_detected: extensionDetected,
+          account_switch_count: accountSwitchCount,
+          cancelled: true,
+          cancel_reason: 'max_tab_switches',
+        }),
+      });
+    } catch {
+      // ignore
+    }
+    setStep('cancelled');
+  }, [app, copyPasteCount, extensionDetected, accountSwitchCount]);
 
   const handleCopyPaste = useCallback(() => {
     setCopyPasteCount((prev) => prev + 1);
@@ -74,6 +100,63 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
   const handleAccountSwitch = useCallback(() => {
     setAccountSwitchCount((prev) => prev + 1);
   }, []);
+
+  async function abortInterview() {
+    if (!app) return;
+    try {
+      await fetch(`/api/applications/${app.id}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tab_switch_count: tabSwitches,
+          time_spent_seconds: Math.round((Date.now() - startTime.current) / 1000),
+          copy_paste_count: copyPasteCount,
+          extension_detected: extensionDetected,
+          account_switch_count: accountSwitchCount,
+          cancelled: true,
+          cancel_reason: 'user_aborted',
+        }),
+      });
+    } catch {
+      // ignore
+    }
+    setStep('cancelled');
+  }
+
+  async function skipQuestion() {
+    if (!app) return;
+    setSkippingQuestion(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/applications/${app.id}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_id: questions[currentQ].id, answer: '', skipped: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed');
+
+      const updated = [...questions];
+      updated[currentQ] = {
+        ...updated[currentQ],
+        answer: '[Skipped]',
+        score: 0,
+        feedback: 'Question was skipped by the candidate.',
+      };
+      setApp((prev) => prev ? { ...prev, ai_questions: updated } : prev);
+      setAnswerText('');
+
+      if (currentQ < questions.length - 1) {
+        setCurrentQ(currentQ + 1);
+      } else {
+        setStep('review');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to skip question');
+    } finally {
+      setSkippingQuestion(false);
+    }
+  }
 
   // Start application
   useEffect(() => {
@@ -90,9 +173,11 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
         if (!res.ok) throw new Error(json.error || 'Failed to start');
         if (!cancelled) {
           setApp(json.data);
-          // If resumed and already submitted
+          // If resumed and already submitted or cancelled
           if (json.data.status === 'submitted') {
             setStep('submitted');
+          } else if (json.data.status === 'cancelled') {
+            setStep('cancelled');
           } else {
             // Figure out where they left off
             const questions = json.data.ai_questions || [];
@@ -242,7 +327,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
     const bd = app.match_breakdown || { skills: 0, experience: 0, level: 0, overall: 0 };
     return (
       <div className="min-h-screen bg-background">
-        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} userId={user?.id} />
+        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} onMaxTabSwitches={handleMaxTabSwitches} userId={user?.id} tabSwitchCount={tabSwitches} maxTabSwitches={MAX_TAB_SWITCHES} />
         {/* Top bar */}
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -361,19 +446,61 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
 
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} userId={user?.id} />
+        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} onMaxTabSwitches={handleMaxTabSwitches} userId={user?.id} tabSwitchCount={tabSwitches} maxTabSwitches={MAX_TAB_SWITCHES} />
         {/* Top bar */}
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-foreground">Question {currentQ + 1} of {questions.length}</span>
-              <span className="text-xs text-muted-foreground">Step 2 of 3</span>
+              <div className="flex items-center gap-3">
+                {tabSwitches > 0 && (
+                  <span className="text-xs text-amber-500 font-medium">
+                    {MAX_TAB_SWITCHES - tabSwitches} tab switch{MAX_TAB_SWITCHES - tabSwitches !== 1 ? 'es' : ''} left
+                  </span>
+                )}
+                <button
+                  onClick={() => setShowAbortConfirm(true)}
+                  className="text-xs text-red-400 hover:text-red-500 font-medium flex items-center gap-1 transition"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Abort
+                </button>
+              </div>
             </div>
             <div className="h-1.5 rounded-full bg-muted/30">
               <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
           </div>
         </div>
+
+        {/* Abort Confirmation Modal */}
+        {showAbortConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="mx-4 max-w-sm rounded-2xl bg-card border border-border p-6 shadow-2xl text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border bg-red-500/10 border-red-500/30">
+                <XCircle className="h-7 w-7 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">Abort Interview?</h3>
+              <p className="text-sm text-muted-foreground mb-5">
+                Are you sure you want to abort? Your application will be cancelled and you will not be able to reapply.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAbortConfirm(false)}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-accent/30 transition"
+                >
+                  Continue Interview
+                </button>
+                <button
+                  onClick={abortInterview}
+                  className="flex-1 rounded-xl bg-red-500 text-white py-2.5 text-sm font-semibold hover:bg-red-600 transition"
+                >
+                  Abort
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 flex flex-col">
           {/* Previous answered questions (compact) */}
@@ -424,10 +551,20 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
               <div className="flex items-center justify-between mt-2">
                 <span className="text-xs text-muted-foreground">{answerText.length}/2000</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Ctrl+Enter to submit</span>
+                  <button
+                    onClick={skipQuestion}
+                    disabled={submittingAnswer || skippingQuestion}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border text-muted-foreground px-4 py-2.5 text-sm font-medium hover:bg-accent/30 transition disabled:opacity-40"
+                  >
+                    {skippingQuestion ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Skipping...</>
+                    ) : (
+                      <><SkipForward className="h-3.5 w-3.5" /> Skip (0 marks)</>
+                    )}
+                  </button>
                   <button
                     onClick={submitAnswer}
-                    disabled={submittingAnswer || answerText.trim().length < 20}
+                    disabled={submittingAnswer || skippingQuestion || answerText.trim().length < 20}
                     className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition disabled:opacity-40"
                   >
                     {submittingAnswer ? (
@@ -453,7 +590,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
 
     return (
       <div className="min-h-screen bg-background">
-        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} userId={user?.id} />
+        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} onMaxTabSwitches={handleMaxTabSwitches} userId={user?.id} tabSwitchCount={tabSwitches} maxTabSwitches={MAX_TAB_SWITCHES} />
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Review Your Application</span>
@@ -591,6 +728,45 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
             <Clock className="h-3.5 w-3.5" />
             The hiring team will review your application.
           </div>
+
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 rounded-xl bg-foreground text-background px-6 py-3 text-sm font-semibold hover:opacity-90 transition"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Listing
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Cancelled ───────────────────────────────────────────
+  if (step === 'cancelled') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-6">
+            <div className="h-20 w-20 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center mx-auto">
+              <XCircle className="h-10 w-10 text-red-500" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Application Cancelled</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Your application for <strong>{listingTitle}</strong> has been cancelled.
+          </p>
+
+          {tabSwitches >= MAX_TAB_SWITCHES && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 mb-6 text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <h3 className="text-sm font-semibold text-red-500">Exceeded Tab Switch Limit</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                You switched tabs {tabSwitches} time{tabSwitches > 1 ? 's' : ''}, exceeding the maximum limit of {MAX_TAB_SWITCHES}. The application was automatically cancelled to maintain interview integrity.
+              </p>
+            </div>
+          )}
 
           <button
             onClick={() => router.back()}

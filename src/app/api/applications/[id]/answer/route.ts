@@ -18,10 +18,14 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { question_id, answer } = body as { question_id: number; answer: string };
+    const { question_id, answer, skipped } = body as { question_id: number; answer: string; skipped?: boolean };
 
-    if (!question_id || !answer?.trim()) {
-      return NextResponse.json({ error: 'question_id and answer required' }, { status: 400 });
+    if (!question_id) {
+      return NextResponse.json({ error: 'question_id required' }, { status: 400 });
+    }
+
+    if (!skipped && !answer?.trim()) {
+      return NextResponse.json({ error: 'answer required' }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -64,49 +68,62 @@ export async function POST(
       listingCategory = gig?.category || '';
     }
 
-    // AI evaluate the answer
-    let score = 5;
+    // Handle skipped questions
+    let score = 0;
     let feedback = '';
-    try {
-      const evalResponse = await getGroq().chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an interview evaluator. Score answers 1-10 and give brief feedback. Return ONLY valid JSON, no markdown.',
-          },
-          {
-            role: 'user',
-            content: `Evaluate this interview answer.
+
+    if (skipped) {
+      score = 0;
+      feedback = 'Question was skipped by the candidate.';
+      questions[qIndex] = {
+        ...questions[qIndex],
+        answer: '[Skipped]',
+        score,
+        feedback,
+      };
+    } else {
+      // AI evaluate the answer
+      score = 5;
+      try {
+        const evalResponse = await getGroq().chat.completions.create({
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an interview evaluator. Score answers 1-10 and give brief feedback. Return ONLY valid JSON, no markdown.',
+            },
+            {
+              role: 'user',
+              content: `Evaluate this interview answer.
 
 ROLE: ${listingTitle} (${listingCategory})
 QUESTION (${questions[qIndex].type}): ${questions[qIndex].question}
 ANSWER: ${answer.slice(0, 2000)}
 
 Return JSON: { "score": <1-10>, "feedback": "<2-3 sentence evaluation>" }`,
-          },
-        ],
-        model: 'llama-3.3-70b-versatile',
-        temperature: 0.3,
-        max_tokens: 300,
-      });
+            },
+          ],
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0.3,
+          max_tokens: 300,
+        });
 
-      const raw = evalResponse.choices?.[0]?.message?.content || '{}';
-      const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      score = Math.min(10, Math.max(1, parsed.score || 5));
-      feedback = parsed.feedback || '';
-    } catch {
-      score = 5;
-      feedback = 'Answer recorded.';
+        const raw = evalResponse.choices?.[0]?.message?.content || '{}';
+        const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        score = Math.min(10, Math.max(1, parsed.score || 5));
+        feedback = parsed.feedback || '';
+      } catch {
+        score = 5;
+        feedback = 'Answer recorded.';
+      }
+
+      questions[qIndex] = {
+        ...questions[qIndex],
+        answer: answer.slice(0, 2000),
+        score,
+        feedback,
+      };
     }
-
-    // Update the question
-    questions[qIndex] = {
-      ...questions[qIndex],
-      answer: answer.slice(0, 2000),
-      score,
-      feedback,
-    };
 
     const { error: updateErr } = await admin
       .from('applications')

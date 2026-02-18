@@ -10,10 +10,13 @@ interface ScreenGuardProps {
   onCopyPaste?: (type: 'copy' | 'paste') => void;
   onExtensionDetected?: () => void;
   onAccountSwitch?: () => void;
+  onMaxTabSwitches?: () => void;
   userId?: string;
+  tabSwitchCount?: number;
+  maxTabSwitches?: number;
 }
 
-type WarningType = 'tab_switch' | 'copy_paste' | 'extension' | 'account_switch';
+type WarningType = 'tab_switch' | 'copy_paste' | 'extension' | 'account_switch' | 'max_tab_switches';
 
 export default function ScreenGuard({
   active,
@@ -21,7 +24,10 @@ export default function ScreenGuard({
   onCopyPaste,
   onExtensionDetected,
   onAccountSwitch,
+  onMaxTabSwitches,
   userId,
+  tabSwitchCount = 0,
+  maxTabSwitches = 3,
 }: ScreenGuardProps) {
   const [showWarning, setShowWarning] = useState(false);
   const [warningType, setWarningType] = useState<WarningType>('tab_switch');
@@ -50,8 +56,16 @@ export default function ScreenGuard({
     if (!active) return;
     if (document.hidden) {
       onTabSwitch();
-      setWarningType('tab_switch');
-      setShowWarning(true);
+      // Check if this switch exceeds the max allowed
+      const newCount = tabSwitchCount + 1;
+      if (newCount >= maxTabSwitches) {
+        setWarningType('max_tab_switches');
+        setShowWarning(true);
+        onMaxTabSwitches?.();
+      } else {
+        setWarningType('tab_switch');
+        setShowWarning(true);
+      }
     } else {
       // When returning to tab, verify the same user is still logged in
       if (originalUserIdRef.current) {
@@ -67,7 +81,7 @@ export default function ScreenGuard({
         }
       }
     }
-  }, [active, onTabSwitch, onAccountSwitch]);
+  }, [active, onTabSwitch, onAccountSwitch, onMaxTabSwitches, tabSwitchCount, maxTabSwitches]);
 
   useEffect(() => {
     if (!active) return;
@@ -153,13 +167,15 @@ export default function ScreenGuard({
     return () => observer.disconnect();
   }, [active, onExtensionDetected]);
 
+  const remaining = Math.max(0, maxTabSwitches - tabSwitchCount);
+
   const warningConfig = {
     tab_switch: {
       icon: <AlertTriangle className="h-7 w-7 text-amber-500" />,
       iconBg: 'bg-amber-500/10 border-amber-500/30',
       title: 'Stay Focused!',
       message: 'You switched away from this tab during your application.',
-      detail: 'Tab switches are tracked and visible to the hiring team. Please stay on this page until you complete your application.',
+      detail: `You have ${remaining} chance${remaining !== 1 ? 's' : ''} remaining. If you exceed ${maxTabSwitches} tab switches, your application will be cancelled.`,
     },
     copy_paste: {
       icon: <Copy className="h-7 w-7 text-orange-500" />,
@@ -182,6 +198,13 @@ export default function ScreenGuard({
       message: 'A different user account was detected.',
       detail: 'It appears that the logged-in account changed during the application. This has been flagged for review.',
     },
+    max_tab_switches: {
+      icon: <Shield className="h-7 w-7 text-red-500" />,
+      iconBg: 'bg-red-500/10 border-red-500/30',
+      title: 'Application Cancelled',
+      message: 'You have exceeded the maximum number of tab switches.',
+      detail: 'Your application has been cancelled due to too many tab switches. This decision is final.',
+    },
   };
 
   if (!showWarning) return null;
@@ -203,12 +226,18 @@ export default function ScreenGuard({
         <p className="text-xs text-muted-foreground mb-5">
           {config.detail}
         </p>
-        <button
-          onClick={() => setShowWarning(false)}
-          className="w-full rounded-xl bg-foreground text-background px-6 py-3 text-sm font-semibold hover:opacity-90 transition"
-        >
-          Continue Application
-        </button>
+        {warningType === 'max_tab_switches' ? (
+          <p className="text-xs text-red-400 font-medium">
+            This window will close automatically.
+          </p>
+        ) : (
+          <button
+            onClick={() => setShowWarning(false)}
+            className="w-full rounded-xl bg-foreground text-background px-6 py-3 text-sm font-semibold hover:opacity-90 transition"
+          >
+            Continue Application
+          </button>
+        )}
       </div>
     </div>
   );
