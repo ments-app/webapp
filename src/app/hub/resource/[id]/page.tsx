@@ -547,7 +547,7 @@ export default function ResourceDetailPage() {
             {user && (recommendations.length > 0 || loadingRecs) && (
               <div className="mt-8">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <Sparkles className="h-5 w-5 text-blue-500" />
                   <h3 className="text-lg font-bold text-foreground">Recommended for Your Startup</h3>
                 </div>
                 {loadingRecs ? (
@@ -562,7 +562,7 @@ export default function ResourceDetailPage() {
                       <Link
                         key={rec.id}
                         href={`/hub/resource/${encodeURIComponent(rec.id)}`}
-                        className="rounded-2xl bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20 p-4 hover:border-amber-500/40 hover:shadow-md transition-all"
+                        className="rounded-2xl bg-gradient-to-br from-blue-500/5 to-purple-500/5 border border-blue-500/20 p-4 hover:border-blue-500/40 hover:shadow-md transition-all"
                       >
                         <div className="flex items-start gap-3">
                           {(() => {
@@ -570,7 +570,7 @@ export default function ResourceDetailPage() {
                             return recLogo ? (
                               <img src={recLogo} alt="" className="h-8 w-8 rounded-lg object-contain bg-muted/30 p-0.5 flex-shrink-0 border border-border/60" />
                             ) : (
-                              <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 text-sm">
+                              <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0 text-sm">
                                 {rec.icon || '\uD83D\uDCE6'}
                               </div>
                             );
@@ -582,7 +582,7 @@ export default function ResourceDetailPage() {
                               {categoryLabels[rec.category] || rec.category}
                             </span>
                             {rec.ai_reason && (
-                              <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-300/80 line-clamp-2">
+                              <p className="mt-1.5 text-xs text-blue-700 dark:text-blue-300/80 line-clamp-2">
                                 <Sparkles className="inline h-3 w-3 mr-1" />{rec.ai_reason}
                               </p>
                             )}

@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Plus, User, Settings, LogOut, Rocket } from 'lucide-react';
+import { Plus, User, Settings, LogOut, Rocket, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -81,40 +81,40 @@ export const Sidebar = React.memo(function Sidebar() {
   }, [user]);
 
   const mainNavItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Search' 
-    },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create Post' 
+    {
+      href: '/create',
+      icon: Plus,
+      label: 'Create Post'
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
+    {
+      href: '/people',
+      icon: Users,
+      label: 'People'
     },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
+    },
+    {
+      href: '/settings',
+      icon: Settings,
+      label: 'Settings'
     },
   ];
 
@@ -128,7 +128,7 @@ export const Sidebar = React.memo(function Sidebar() {
     return (
       <Link 
         href={href}
-        className={`group flex items-center gap-3.5 rounded-xl px-4 py-3 text-[15px] font-medium transition-all duration-200 ${
+        className={`group flex items-center gap-3.5 rounded-xl px-4 py-3 text-base font-medium transition-all duration-200 ${
           isActive 
             ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md' 
             : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
@@ -277,10 +277,10 @@ export const Sidebar = React.memo(function Sidebar() {
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="truncate text-[15px] font-semibold">
+                <p className="truncate text-base font-semibold">
                   {userProfile?.full_name || user.user_metadata?.full_name || 'User'}
                 </p>
-                <p className="truncate text-[13px] text-muted-foreground">
+                <p className="truncate text-sm text-muted-foreground">
                   {user.email}
                 </p>
               </div>

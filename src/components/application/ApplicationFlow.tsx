@@ -8,6 +8,7 @@ import {
   ChevronRight, Star, Shield,
 } from 'lucide-react';
 import ScreenGuard from './ScreenGuard';
+import { useAuth } from '@/context/AuthContext';
 
 type Question = {
   id: number;
@@ -43,6 +44,7 @@ interface ApplicationFlowProps {
 
 export default function ApplicationFlow({ type, listingId, listingTitle }: ApplicationFlowProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>('loading');
   const [app, setApp] = useState<Application | null>(null);
   const [error, setError] = useState('');
@@ -51,11 +53,26 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [submittingFinal, setSubmittingFinal] = useState(false);
   const [tabSwitches, setTabSwitches] = useState(0);
+  const [copyPasteCount, setCopyPasteCount] = useState(0);
+  const [extensionDetected, setExtensionDetected] = useState(false);
+  const [accountSwitchCount, setAccountSwitchCount] = useState(0);
   const startTime = useRef(Date.now());
   const answerRef = useRef<HTMLTextAreaElement>(null);
 
   const handleTabSwitch = useCallback(() => {
     setTabSwitches((prev) => prev + 1);
+  }, []);
+
+  const handleCopyPaste = useCallback(() => {
+    setCopyPasteCount((prev) => prev + 1);
+  }, []);
+
+  const handleExtensionDetected = useCallback(() => {
+    setExtensionDetected(true);
+  }, []);
+
+  const handleAccountSwitch = useCallback(() => {
+    setAccountSwitchCount((prev) => prev + 1);
   }, []);
 
   // Start application
@@ -152,7 +169,13 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
       const res = await fetch(`/api/applications/${app.id}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tab_switch_count: tabSwitches, time_spent_seconds: elapsed }),
+        body: JSON.stringify({
+          tab_switch_count: tabSwitches,
+          time_spent_seconds: elapsed,
+          copy_paste_count: copyPasteCount,
+          extension_detected: extensionDetected,
+          account_switch_count: accountSwitchCount,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed');
@@ -219,7 +242,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
     const bd = app.match_breakdown || { skills: 0, experience: 0, level: 0, overall: 0 };
     return (
       <div className="min-h-screen bg-background">
-        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} />
+        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} userId={user?.id} />
         {/* Top bar */}
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -338,7 +361,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
 
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} />
+        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} userId={user?.id} />
         {/* Top bar */}
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3">
@@ -430,7 +453,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
 
     return (
       <div className="min-h-screen bg-background">
-        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} />
+        <ScreenGuard active={true} onTabSwitch={handleTabSwitch} onCopyPaste={handleCopyPaste} onExtensionDetected={handleExtensionDetected} onAccountSwitch={handleAccountSwitch} userId={user?.id} />
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Review Your Application</span>

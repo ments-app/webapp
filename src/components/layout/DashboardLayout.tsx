@@ -1,7 +1,7 @@
-// top bar 
+// top bar
 "use client";
 
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ import { Sidebar } from './Sidebar';
 import { MobileNavBar } from './MobileNavBar';
 import DashboardSidebarWidgets from './DashboardSidebarWidgets';
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -21,7 +22,38 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
   const shouldShowSidebar = typeof showSidebar === 'boolean' ? showSidebar : !(pathname?.startsWith('/post'));
+
+  // Unread counts for header badges
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const [msgRes, notifRes] = await Promise.allSettled([
+        fetch(`/api/messages/read?userId=${user.id}`),
+        fetch(`/api/notifications?userId=${user.id}&unreadOnly=true&limit=1`),
+      ]);
+      if (msgRes.status === 'fulfilled' && msgRes.value.ok) {
+        const json = await msgRes.value.json();
+        setUnreadMessages(json.total_unread_count ?? 0);
+      }
+      if (notifRes.status === 'fulfilled' && notifRes.value.ok) {
+        const json = await notifRes.value.json();
+        setUnreadNotifications(json.pagination?.total ?? 0);
+      }
+    } catch {
+      // non-critical
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchUnreadCounts();
+    const interval = setInterval(fetchUnreadCounts, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCounts]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-16 md:pb-0">
@@ -57,21 +89,30 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
             </Link>
           </div>
 
-          {/* Spacer to push right elements to the end */}
+          {/* Spacer */}
           <div className="flex-1"></div>
-          
+
           {/* Right side actions */}
           <div className="flex items-center gap-2">
-            {/* 1. Messages */}
+            {/* 1. Search */}
+            <Link href="/search" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
+              <Image src="/icons/search.svg" alt="Search" width={20} height={20} className="h-5 w-5" />
+            </Link>
+
+            {/* 2. Messages */}
             <Link href="/messages" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className="h-5 w-5" />
-              <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full ring-2 ring-background"></div>
+              {unreadMessages > 0 && (
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full ring-2 ring-background"></div>
+              )}
             </Link>
-            
-            {/* 2. Notifications */}
+
+            {/* 3. Notifications */}
             <Link href="/notifications" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Image src="/icons/notification.svg" alt="Notifications" width={20} height={20} className="h-5 w-5" />
-              <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
+              {unreadNotifications > 0 && (
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
+              )}
             </Link>
           </div>
         </div>

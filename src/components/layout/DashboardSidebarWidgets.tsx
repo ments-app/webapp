@@ -129,9 +129,12 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       {/* Communities / Environments Widget */}
       {environments.length > 0 && (
         <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Communities</h2>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold text-foreground">Communities</h2>
+            </div>
+            <Link href="/environments" className="text-sm text-primary hover:underline">View all</Link>
           </div>
           <div className="space-y-1">
             {environments.map((env) => (
@@ -166,9 +169,9 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-foreground">Recent Chats</h2>
+              <h2 className="text-base font-semibold text-foreground">Recent Chats</h2>
             </div>
-            <Link href="/messages" className="text-xs text-primary hover:underline">View all</Link>
+            <Link href="/messages" className="text-sm text-primary hover:underline">View all</Link>
           </div>
           <div className="space-y-1">
             {recentConversations.map((conv) => (
@@ -191,11 +194,11 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
+                  <p className="truncate text-base font-medium text-foreground">
                     {conv.other_full_name || conv.other_username}
                   </p>
                   {conv.last_message && (
-                    <p className="truncate text-xs text-muted-foreground">
+                    <p className="truncate text-sm text-muted-foreground">
                       {conv.last_message}
                     </p>
                   )}
@@ -218,7 +221,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
             <Bell className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
           </div>
-          <Link href="/notifications" className="text-xs text-primary hover:underline">View all</Link>
+          <Link href="/notifications" className="text-sm text-primary hover:underline">View all</Link>
         </div>
         <div className="space-y-2">
           {notifications.length > 0 ? (
@@ -232,10 +235,10 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
               >
                 <div className="mt-0.5">{getActivityIcon(notif.type)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground leading-relaxed">
+                  <p className="text-sm text-foreground leading-relaxed">
                     {truncateText(notif.content, 80)}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(notif.created_at)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(notif.created_at)}</p>
                 </div>
                 {!notif.is_read && (
                   <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
@@ -252,7 +255,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">My Posts</h2>
+          <h2 className="text-base font-semibold text-foreground">My Posts</h2>
         </div>
         <div className="space-y-2">
           {myPosts.length > 0 ? (
@@ -262,10 +265,10 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                 href={`/post/${post.id}`}
                 className="block rounded-xl bg-muted/40 border border-border/80 p-3 hover:bg-accent/60 transition-colors"
               >
-                <p className="text-sm text-foreground mb-2 line-clamp-2">
+                <p className="text-base text-foreground mb-2 line-clamp-2">
                   {truncateText(post.content, 60) || 'Untitled post'}
                 </p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
                       <Heart className="w-3 h-3" />
@@ -288,9 +291,12 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
 
       {/* People to Connect Widget */}
       <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
-        <div className="flex items-center gap-2 mb-3">
-          <Users className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">People to Connect</h2>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">People to Connect</h2>
+          </div>
+          <Link href="/people" className="text-sm text-primary hover:underline">View all</Link>
         </div>
         <div className="space-y-2">
           {suggestedUsers.length > 0 ? (
@@ -316,10 +322,10 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                     )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
-                        <h3 className="font-medium text-sm text-foreground truncate">{person.full_name || person.username}</h3>
+                        <h3 className="font-medium text-base text-foreground truncate">{person.full_name || person.username}</h3>
                         {person.is_verified && <CheckCircle className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {person.tagline || `@${person.username}`}
                       </p>
                     </div>

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow, differenceInMinutes, differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, differenceInYears } from 'date-fns';
-import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Play, Pause } from 'lucide-react';
+import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Play, Pause, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createPortal } from 'react-dom';
 import { Post, likePost, unlikePost, votePollOption, checkUserLikedPost, checkUserPollVotes, deletePost } from '@/api/posts';
@@ -674,6 +674,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     isEditModalOpen: false,
     isDeleting: false,
     showDeleteConfirm: false,
+    isExpanded: false,
   });
   const replies = post.replies || 0; // No need for state since it doesn't change
   
@@ -745,6 +746,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   }, [user?.id, uiState.isLiking, uiState.isLiked, post.id, onLike]);
 
   const handleReply = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (onReply) {
       onReply();
@@ -1052,7 +1054,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           </div>
           
           {/* Username/Handle and Time */}
-          <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-[15px]">
             <span className="font-medium cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
               @{post.author?.handle || post.author?.username?.toLowerCase() || 'anonymous'}
             </span>
@@ -1222,7 +1224,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         <div className="mb-5">
           <MentionText 
             content={displayContent}
-            className="text-foreground leading-relaxed text-base block"
+            className="text-foreground leading-relaxed text-[17px] block"
           />
           {isLongContent && (
             <button
@@ -1240,7 +1242,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         
         {/* Media */}
         {post.media && post.media.length > 0 && (
-          <div className="mb-5 rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-2">
+          <div className={`mb-5 rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-2 flex justify-center ${uiState.isExpanded ? 'max-h-none' : 'max-h-[500px]'}`}>
             <MediaGallery
               items={post.media}
               onOpen={openLightbox}
@@ -1325,9 +1327,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         
         {/* Interaction buttons */}
         <footer className="flex items-center justify-between pt-4 border-t border-border">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
             className="flex items-center gap-2 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 rounded-2xl px-4 py-2 transition-all duration-200 group/reply"
             onClick={handleReply}
           >
@@ -1367,13 +1370,35 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             <Bookmark className={`h-5 w-5 group-hover/bookmark:scale-110 transition-all duration-200 ${uiState.isBookmarked ? 'fill-current' : ''}`} />
           </Button>
           
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="flex items-center gap-2 text-muted-foreground hover:text-green-500 hover:bg-green-500/10 rounded-2xl px-4 py-2 transition-all duration-200 group/share"
             onClick={handleShare}
           >
             <Share className="h-5 w-5 group-hover/share:scale-110 transition-transform duration-200" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="flex items-center gap-2 text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-2xl px-4 py-2 transition-all duration-200 group/resize"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!uiState.isExpanded) onExpandContent?.();
+              setUiState(prev => ({
+                ...prev,
+                isExpanded: !prev.isExpanded,
+                showFullContent: !prev.isExpanded ? true : prev.showFullContent,
+              }));
+            }}
+          >
+            {uiState.isExpanded ? (
+              <Minimize2 className="h-5 w-5 group-hover/resize:scale-110 transition-transform duration-200" />
+            ) : (
+              <Maximize2 className="h-5 w-5 group-hover/resize:scale-110 transition-transform duration-200" />
+            )}
           </Button>
         </footer>
       </div>

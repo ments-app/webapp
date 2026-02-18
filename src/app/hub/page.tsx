@@ -925,7 +925,7 @@ function HubPageContent() {
             {user && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <Sparkles className="h-5 w-5 text-blue-500" />
                   <h3 className="text-lg font-bold text-foreground">Recommended for You</h3>
                 </div>
                 {loadingRecs ? (
@@ -940,7 +940,7 @@ function HubPageContent() {
                       <Link
                         key={rec.id}
                         href={`/hub/resource/${encodeURIComponent(rec.id)}`}
-                        className="rounded-2xl bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20 p-4 hover:border-amber-500/40 hover:shadow-md transition-all"
+                        className="rounded-2xl bg-gradient-to-br from-blue-500/5 to-purple-500/5 border border-blue-500/20 p-4 hover:border-blue-500/40 hover:shadow-md transition-all"
                       >
                         <h4 className="text-sm font-semibold text-foreground line-clamp-1">{rec.title}</h4>
                         {rec.provider && <p className="text-xs text-muted-foreground mt-0.5">{rec.provider}</p>}
@@ -948,7 +948,7 @@ function HubPageContent() {
                           {categoryLabels[rec.category] || rec.category}
                         </span>
                         {rec.ai_reason && (
-                          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300/80 line-clamp-2">
+                          <p className="mt-2 text-xs text-blue-700 dark:text-blue-300/80 line-clamp-2">
                             <Sparkles className="inline h-3 w-3 mr-1" />{rec.ai_reason}
                           </p>
                         )}
