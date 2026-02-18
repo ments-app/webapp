@@ -378,6 +378,19 @@ export async function createPost(
     .select()
     .single();
 
+  // Fire async topic extraction for the feed engine
+  if (data && !error && content) {
+    fetch('/api/feed/extract-topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        post_id: data.id,
+        content,
+        post_type: postType,
+      }),
+    }).catch(() => {}); // Fire-and-forget
+  }
+
   // Handle mentions if post was created successfully
   if (data && !error && content) {
     try {

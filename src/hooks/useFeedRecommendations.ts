@@ -17,6 +17,7 @@ interface TrendingPost {
   content: string | null;
   created_at: string;
   likes: number;
+  engagement_score?: number;
   author: {
     username: string;
     full_name: string;

@@ -94,7 +94,7 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
         )}
 
         {/* Enhanced Main Post Section */}
-        <main className="flex-1 overflow-hidden py-6 px-4 md:px-6 min-h-[500px]">
+        <main className="flex-1 overflow-visible py-6 px-4 md:px-6 min-h-[500px]">
           <div className="max-w-2xl mx-auto lg:max-w-none">
             {children}
           </div>

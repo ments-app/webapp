@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PostList } from '@/components/posts/PostList';
+import { PersonalizedFeed } from '@/components/feed/PersonalizedFeed';
 
 import { ArrowRight, Users, Rocket, Sparkles } from 'lucide-react';
 
@@ -11,9 +11,6 @@ const HomePage = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const { user, isLoading, signInWithGoogle } = useAuth();
-
-  // Default environment ID - in a real app, this would be dynamically selected
-  const defaultEnvironmentId = '00000000-0000-0000-0000-000000000000';
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -44,13 +41,9 @@ const HomePage = () => {
     return (
       <DashboardLayout>
         <div className="space-y-8">
-          {/* Feed Content */}
+          {/* Personalized Feed */}
           <div className="animate-in fade-in-50 duration-300">
-            <div className="space-y-8">
-              <PostList 
-                environmentId={defaultEnvironmentId}
-              />
-            </div>
+            <PersonalizedFeed />
           </div>
         </div>
       </DashboardLayout>

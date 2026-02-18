@@ -1,103 +1,76 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Post, fetchPosts } from '@/api/posts';
-import { PostCard } from './PostCard';
-import { TrackedPostCard } from './TrackedPostCard';
+import { useEffect, useRef, useCallback } from 'react';
+import { usePersonalizedFeed } from '@/hooks/usePersonalizedFeed';
+import { useRealtimeFeedUpdates } from '@/hooks/useRealtimeFeedUpdates';
+import { useFeedRecommendations } from '@/hooks/useFeedRecommendations';
+import { TrackedPostCard } from '@/components/posts/TrackedPostCard';
 import { FeedSuggestions } from '@/components/feed/FeedSuggestions';
 import { TrendingPosts } from '@/components/feed/TrendingPosts';
-import { useFeedRecommendations } from '@/hooks/useFeedRecommendations';
+import { NewPostsNotifier } from '@/components/feed/NewPostsNotifier';
 import { FeedTrackingProvider } from '@/context/FeedTrackingContext';
+import { Loader2 } from 'lucide-react';
 
-type PostListProps = {
-  environmentId: string;
-  refreshTrigger?: number; // Increment to trigger refresh
-};
+export function PersonalizedFeed() {
+  const {
+    posts,
+    isLoading,
+    isLoadingMore,
+    error,
+    hasMore,
+    loadMore,
+    refresh,
+  } = usePersonalizedFeed();
 
-export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const { newPostCount, dismiss } = useRealtimeFeedUpdates();
   const { suggestedUsers, trendingPosts, isLoading: recsLoading, followUser } = useFeedRecommendations();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
+  const handleRefresh = useCallback(() => {
+    dismiss();
+    refresh();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [dismiss, refresh]);
+
+  // Infinite scroll — observe the sentinel element
   useEffect(() => {
-    const loadInitial = async () => {
-      setIsLoading(true);
-      setError(null);
-      setOffset(0);
-      setHasMore(true);
-      try {
-        console.log('Fetching posts for environmentId:', environmentId);
-        const { data, error, hasMore } = await fetchPosts(environmentId, { offset: 0, limit: 20 });
-        console.log('Fetched posts:', data);
-        if (error) throw new Error(error.message);
-        setPosts(data || []);
-        setHasMore(Boolean(hasMore));
-        setOffset((data?.length || 0));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load posts');
-        console.error('Error loading posts:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadInitial();
-  }, [refreshTrigger, environmentId]);
-
-  const loadMore = useCallback(async () => {
-    if (!hasMore || isLoadingMore) return;
-    setIsLoadingMore(true);
-    try {
-      const { data, error, hasMore: more } = await fetchPosts(environmentId, { offset, limit: 20 });
-      if (error) throw new Error(error.message);
-      setPosts((prev) => [...prev, ...(data || [])]);
-      const added = data?.length || 0;
-      setOffset((prev) => prev + added);
-      setHasMore(Boolean(more));
-    } catch (err) {
-      console.error('Error loading more posts:', err);
-    } finally {
-      setIsLoadingMore(false);
+    // Disconnect any previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
     }
-  }, [hasMore, isLoadingMore, environmentId, offset]);
 
-  // Infinite scroll: observe the sentinel at the bottom
-  useEffect(() => {
-    if (!hasMore) return; // nothing to observe
-    const el = sentinelRef.current;
-    if (!el) return;
+    if (!hasMore) return;
 
-    let ticking = false;
     const observer = new IntersectionObserver(
       (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && !isLoadingMore && hasMore) {
-          if (ticking) return;
-          ticking = true;
-          // small microtask to avoid rapid double-fires on some browsers
-          Promise.resolve().then(() => {
-            loadMore().finally(() => {
-              ticking = false;
-            });
-          });
+        if (entries[0]?.isIntersecting) {
+          loadMore();
         }
       },
-      {
-        root: null,
-        rootMargin: '200px 0px', // prefetch a bit before reaching bottom
-        threshold: 0.01,
-      }
+      { rootMargin: '600px' }
     );
 
-    observer.observe(el);
+    observerRef.current = observer;
+
+    const el = sentinelRef.current;
+    if (el) {
+      observer.observe(el);
+    }
+
     return () => {
       observer.disconnect();
     };
-  }, [hasMore, isLoadingMore, loadMore]);
+  }, [hasMore, loadMore]);
+
+  // Re-observe when sentinel ref changes (after posts render)
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (el && observerRef.current) {
+      observerRef.current.observe(el);
+    }
+  }, [posts.length]);
 
   if (isLoading) {
     return (
@@ -134,9 +107,9 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
           <div className="text-center">
             <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
             <p className="text-destructive/80 mb-4">{error}</p>
-            <button 
+            <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
-              onClick={() => window.location.reload()}
+              onClick={() => refresh()}
             >
               Try again
             </button>
@@ -152,7 +125,7 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
         <div className="post-card text-center">
           <div className="py-8">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/20 flex items-center justify-center">
-              <span className="text-2xl">💭</span>
+              <span className="text-2xl">&#128173;</span>
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">No posts yet</h3>
             <p className="text-muted-foreground">Be the first to share something amazing!</p>
@@ -164,6 +137,9 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
 
   return (
     <FeedTrackingProvider>
+      {/* New posts banner */}
+      <NewPostsNotifier count={newPostCount} onRefresh={handleRefresh} />
+
       <div className="space-y-6 max-w-2xl mx-auto">
         {posts.map((post, index) => (
           <div key={post.id}>
@@ -171,7 +147,11 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
             {/* Suggested users after the 3rd post */}
             {index === 2 && posts.length >= 3 && (
               <div className="mt-6">
-                <FeedSuggestions users={suggestedUsers} isLoading={recsLoading} onFollow={followUser} />
+                <FeedSuggestions
+                  users={suggestedUsers}
+                  isLoading={recsLoading}
+                  onFollow={followUser}
+                />
               </div>
             )}
             {/* Trending posts after the 8th post */}
@@ -182,10 +162,30 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
             )}
           </div>
         ))}
-        {/* Sentinel for infinite scroll */}
+
+        {/* Loading more indicator + sentinel */}
         {hasMore && (
-          <div ref={sentinelRef} className="h-10 flex items-center justify-center text-muted-foreground">
-            {isLoadingMore ? 'Loading…' : ''}
+          <div ref={sentinelRef} className="py-8 flex flex-col items-center gap-3">
+            {isLoadingMore ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading more posts...</span>
+              </div>
+            ) : (
+              <button
+                onClick={loadMore}
+                className="px-6 py-2.5 text-sm font-medium rounded-xl bg-accent/50 hover:bg-accent/80 border border-border text-foreground transition-colors"
+              >
+                Load more
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* End of feed */}
+        {!hasMore && posts.length > 0 && (
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            You&#39;re all caught up!
           </div>
         )}
       </div>

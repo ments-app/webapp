@@ -17,6 +17,11 @@ type PostCardProps = {
   post: Post;
   onReply?: () => void;
   onLike?: () => void;
+  onShare?: () => void;
+  onBookmark?: () => void;
+  onPollVote?: (optionIndex: number) => void;
+  onProfileClick?: () => void;
+  onExpandContent?: () => void;
 };
 
 // Constants
@@ -650,7 +655,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
 Lightbox.displayName = 'Lightbox';
 
 // Main PostCard component with optimizations (keeping the rest of your existing code)
-export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
+export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPollVote, onProfileClick, onExpandContent }: PostCardProps) => {
   const router = useRouter();
   const { user } = useAuth();
   
@@ -750,11 +755,12 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
   const handleProfileClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    onProfileClick?.();
     const username = post.author?.username || post.author?.handle;
     if (username) {
       router.push(`/profile/${username}`);
     }
-  }, [post.author?.username, post.author?.handle, router]);
+  }, [post.author?.username, post.author?.handle, router, onProfileClick]);
 
   const toggleMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -778,10 +784,12 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
   const handleBookmark = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setUiState(prev => ({ ...prev, isBookmarked: !prev.isBookmarked }));
-  }, []);
+    onBookmark?.();
+  }, [onBookmark]);
 
   const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    onShare?.();
     const url = `${window.location.origin}/post/${post.id}`;
     if (navigator.share) {
       navigator.share({
@@ -794,10 +802,14 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
         .then(() => console.log('Link copied to clipboard'))
         .catch(console.error);
     }
-  }, [post.id, post.author?.username, content]);
+  }, [post.id, post.author?.username, content, onShare]);
 
   const handlePollVote = useCallback(async (optionId: string) => {
     if (!user?.id || pollState.isVoting) return;
+
+    // Track poll vote with option index
+    const optionIndex = post.poll?.options?.findIndex(o => o.id === optionId) ?? -1;
+    if (optionIndex >= 0) onPollVote?.(optionIndex);
 
     const previousVotes = { ...pollState.votes };
     const previousUserVotes = [...pollState.userVotedOptions];
@@ -1107,6 +1119,8 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
   return (
     <article
       className="group relative bg-card border border-border rounded-3xl p-6 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-black/5 dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/50 dark:hover:bg-card/80 dark:hover:border-border/80 dark:hover:shadow-white/5 hover:-translate-y-1"
+      data-post-id={post.id}
+      data-author-id={post.author_id}
       onClick={onCardClick}
       role="button"
       tabIndex={0}
@@ -1214,6 +1228,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (!uiState.showFullContent) onExpandContent?.();
                 setUiState(prev => ({ ...prev, showFullContent: !prev.showFullContent }));
               }}
               className="mt-2 text-primary hover:text-primary/80 text-sm font-medium transition-colors"
