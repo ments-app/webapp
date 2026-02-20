@@ -3,8 +3,11 @@ import { createAuthClient } from '@/utils/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userLimit = Math.min(Math.max(parseInt(searchParams.get('limit') || '8', 10) || 8, 1), 50);
+
     const supabase = await createAuthClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -26,23 +29,24 @@ export async function GET() {
         const followingIds = new Set((followRows || []).map((r: { followee_id: string }) => r.followee_id));
         followingIds.add(userId); // exclude self
 
+        const fetchLimit = Math.max(userLimit * 3, 40);
         const { data: users } = await supabase
           .from('users')
           .select('id, username, full_name, avatar_url, tagline, is_verified')
           .order('is_verified', { ascending: false })
-          .limit(40);
+          .limit(fetchLimit);
 
         if (!users) return [];
 
         return users
           .filter((u: { id: string }) => !followingIds.has(u.id))
-          .slice(0, 8);
+          .slice(0, userLimit);
       })(),
 
-      // Trending posts: top 5 by like count from the last 7 days
+      // Trending posts: top 5 by engagement score from the last 14 days
       (async () => {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const fourteenDaysAgo = new Date();
+        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
         const { data: recentPosts } = await supabase
           .from('posts')
@@ -50,18 +54,20 @@ export async function GET() {
           .eq('deleted', false)
           .is('parent_post_id', null)
           .neq('author_id', userId)
-          .gte('created_at', sevenDaysAgo.toISOString())
+          .gte('created_at', fourteenDaysAgo.toISOString())
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(200);
 
         if (!recentPosts || recentPosts.length === 0) return [];
 
         const postIds = recentPosts.map((p: { id: string }) => p.id);
         const authorIds = [...new Set(recentPosts.map((p: { author_id: string }) => p.author_id))];
 
-        // Batch fetch likes and author info
-        const [likesRes, authorsRes] = await Promise.all([
+        // Batch fetch likes, replies, media, and author info
+        const [likesRes, repliesRes, mediaRes, authorsRes] = await Promise.all([
           supabase.from('post_likes').select('post_id').in('post_id', postIds),
+          supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
+          supabase.from('post_media').select('post_id').in('post_id', postIds),
           supabase.from('users').select('id, username, full_name, avatar_url').in('id', authorIds),
         ]);
 
@@ -70,21 +76,51 @@ export async function GET() {
           likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
         });
 
+        const repliesMap = new Map<string, number>();
+        repliesRes.data?.forEach((r: { parent_post_id: string }) => {
+          repliesMap.set(r.parent_post_id, (repliesMap.get(r.parent_post_id) || 0) + 1);
+        });
+
+        const mediaMap = new Map<string, number>();
+        mediaRes.data?.forEach((m: { post_id: string }) => {
+          mediaMap.set(m.post_id, (mediaMap.get(m.post_id) || 0) + 1);
+        });
+
         const authorsMap = new Map<string, { username: string; full_name: string; avatar_url: string | null }>();
         authorsRes.data?.forEach((a: { id: string; username: string; full_name: string; avatar_url: string | null }) => {
           authorsMap.set(a.id, { username: a.username, full_name: a.full_name, avatar_url: a.avatar_url });
         });
 
-        // Sort by like count descending and take top 5
+        const now = Date.now();
+
+        // Calculate engagement score and sort
         return recentPosts
-          .map((p: { id: string; content: string; created_at: string; author_id: string }) => ({
-            id: p.id,
-            content: p.content,
-            created_at: p.created_at,
-            likes: likesMap.get(p.id) || 0,
-            author: authorsMap.get(p.author_id) || { username: 'unknown', full_name: 'Unknown', avatar_url: null },
-          }))
-          .sort((a, b) => b.likes - a.likes)
+          .map((p: { id: string; content: string; created_at: string; author_id: string }) => {
+            const likes = likesMap.get(p.id) || 0;
+            const replies = repliesMap.get(p.id) || 0;
+            const mediaCount = Math.min(mediaMap.get(p.id) || 0, 3);
+            const ageMs = now - new Date(p.created_at).getTime();
+            const ageHours = ageMs / (1000 * 60 * 60);
+
+            // Recency multiplier
+            const recencyMultiplier = ageHours <= 24 ? 1.5 : ageHours <= 48 ? 1.2 : 1.0;
+
+            // Velocity: likes per hour (avoid division by zero)
+            const velocityBonus = ageHours > 0 ? (likes / ageHours) * 10 : 0;
+
+            const score = ((likes * 3) + (replies * 5) + (mediaCount * 2) + velocityBonus) * recencyMultiplier;
+
+            return {
+              id: p.id,
+              content: p.content,
+              created_at: p.created_at,
+              likes,
+              replies,
+              engagement_score: Math.round(score * 10) / 10,
+              author: authorsMap.get(p.author_id) || { username: 'unknown', full_name: 'Unknown', avatar_url: null },
+            };
+          })
+          .sort((a, b) => b.engagement_score - a.engagement_score)
           .slice(0, 5);
       })(),
       // Recommended jobs: latest active jobs

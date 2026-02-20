@@ -27,10 +27,15 @@ export function TrendingPosts({ posts, isLoading }: TrendingPostsProps) {
 
   return (
     <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4">
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-        <TrendingUp className="w-4 h-4" />
-        Trending on Ments
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <TrendingUp className="w-4 h-4" />
+          Trending on Ments
+        </h3>
+        <Link href="/trending" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+          View all
+        </Link>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">

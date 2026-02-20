@@ -55,9 +55,14 @@ export function FeedSuggestions({ users, isLoading, onFollow }: FeedSuggestionsP
 
   return (
     <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 overflow-hidden">
-      <h3 className="text-base font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-        Suggested for you
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">
+          Suggested for you
+        </h3>
+        <Link href="/people" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+          View all
+        </Link>
+      </div>
 
       {isLoading ? (
         <div className="flex gap-3 overflow-hidden">
