@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
 import { User, Settings, LogOut, Rocket } from 'lucide-react';
 import Link from 'next/link';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { usePathname } from 'next/navigation';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -252,24 +253,12 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
               className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <div className="relative">
-                {userProfile?.avatar_url ? (
-                  <div className="h-10 w-10 rounded-full overflow-hidden">
-                    <Image
-                      src={toProxyUrl(userProfile.avatar_url, { width: 40, quality: 82 })}
-                      alt={userProfile.full_name || 'Profile'}
-                      width={40}
-                      height={40}
-                      className="h-full w-full object-cover"
-                      sizes="40px"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary/80">
-                    <span className="text-sm font-bold text-primary-foreground">
-                      {userProfile?.full_name?.charAt(0) || user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                )}
+                <UserAvatar
+                  src={userProfile?.avatar_url}
+                  alt={userProfile?.full_name || 'Profile'}
+                  fallbackText={userProfile?.full_name || user.user_metadata?.full_name || user.email || 'U'}
+                  size={40}
+                />
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0 text-left">

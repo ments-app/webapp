@@ -8,6 +8,7 @@ import { Rocket } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 type UserMetadata = {
   avatar_url?: string;
@@ -137,21 +138,13 @@ export function MobileNavBar() {
           href={profileHref}
           className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
         >
-          <div className={`relative w-6 h-6 rounded-full overflow-hidden ring-2 ${pathname.startsWith('/profile') ? 'ring-primary' : 'ring-transparent'}`}>
-            {proxiedAvatar ? (
-              <Image
-                src={proxiedAvatar}
-                alt="Profile"
-                fill
-                sizes="24px"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                {(user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || '?') as string}
-              </div>
-            )}
+          <div className={`ring-2 rounded-full ${pathname.startsWith('/profile') ? 'ring-primary' : 'ring-transparent'}`}>
+            <UserAvatar
+              src={profileAvatar}
+              alt="Profile"
+              fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+              size={24}
+            />
           </div>
           <span className="text-[11px] font-medium mt-1">Profile</span>
         </Link>

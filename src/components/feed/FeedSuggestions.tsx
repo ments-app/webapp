@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { UserPlus, BadgeCheck, ChevronLeft, ChevronRight } from 'lucide-react';
-import { toProxyUrl } from '@/utils/imageUtils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface SuggestedUser {
   id: string;
@@ -112,26 +112,12 @@ export function FeedSuggestions({ users, isLoading, onFollow }: FeedSuggestionsP
               >
                 <div className="rounded-xl border border-border bg-card hover:bg-accent/30 transition-colors p-3 flex flex-col items-center gap-2 h-full">
                   <Link href={`/profile/${user.username}`} className="flex flex-col items-center gap-1.5">
-                    {user.avatar_url ? (
-                      <img
-                        src={toProxyUrl(user.avatar_url, { width: 96, quality: 80 })}
-                        alt={user.full_name}
-                        className="w-12 h-12 rounded-full object-cover"
-                        onError={(e) => {
-                          const el = e.target as HTMLImageElement;
-                          el.style.display = 'none';
-                          if (el.nextElementSibling?.classList.contains('avatar-fallback')) return;
-                          const fallback = document.createElement('div');
-                          fallback.className = 'avatar-fallback w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg';
-                          fallback.textContent = user.full_name?.charAt(0)?.toUpperCase() || '?';
-                          el.parentElement?.insertBefore(fallback, el.nextSibling);
-                        }}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg">
-                        {user.full_name?.charAt(0)?.toUpperCase() || '?'}
-                      </div>
-                    )}
+                    <UserAvatar
+                      src={user.avatar_url}
+                      alt={user.full_name}
+                      fallbackText={user.full_name || user.username}
+                      size={48}
+                    />
                     <div className="text-center min-w-0 w-full">
                       <p className="text-base font-medium text-foreground truncate flex items-center justify-center gap-1">
                         {user.full_name}

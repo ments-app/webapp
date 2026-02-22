@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
 import Link from 'next/link';
 import { toProxyUrl } from '@/utils/imageUtils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 
@@ -143,19 +144,12 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                 href={`/environments/${env.id}`}
                 className="flex items-center gap-3 rounded-lg px-2 py-[7px] text-sm font-medium text-foreground hover:bg-accent/60 transition-colors"
               >
-                {env.picture ? (
-                  <Image
-                    src={toProxyUrl(env.picture, { width: 32, quality: 80 })}
-                    alt={env.name}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground flex-shrink-0">
-                    {env.name.charAt(0)}
-                  </div>
-                )}
+                <UserAvatar
+                  src={env.picture}
+                  alt={env.name}
+                  fallbackText={env.name}
+                  size={32}
+                />
                 <span className="truncate">{env.name}</span>
               </Link>
             ))}
@@ -218,19 +212,12 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                     href={`/profile/${encodeURIComponent(person.username)}`}
                     className="flex items-center gap-3 flex-1 min-w-0"
                   >
-                    {person.avatar_url ? (
-                      <Image
-                        src={toProxyUrl(person.avatar_url, { width: 36, quality: 80 })}
-                        alt={person.full_name || person.username}
-                        width={36}
-                        height={36}
-                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold bg-muted text-muted-foreground flex-shrink-0">
-                        {(person.full_name || person.username || '?').charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <UserAvatar
+                      src={person.avatar_url}
+                      alt={person.full_name || person.username}
+                      fallbackText={person.full_name || person.username}
+                      size={36}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
                         <h3 className="font-semibold text-sm text-foreground truncate">{person.full_name || person.username}</h3>

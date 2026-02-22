@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Image as ImageIcon, Search, X, BarChart2, VideoIcon, Plus, Trash2, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { createPost, createPollPost, type CreatePollData } from '@/api/posts';
 import { supabase } from '@/utils/supabase';
 import { type CompressedResult } from '@/utils/mediaCompressor';
@@ -822,15 +823,13 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       {/* Author & Environment Row */}
       <div className="flex items-start gap-3 mb-4">
         {/* Avatar */}
-        <div className="w-11 h-11 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-tr from-primary/20 to-primary/5 border-2 border-background shadow-sm ring-1 ring-border">
-          {user?.user_metadata?.avatar_url ? (
-            <AvatarImageWithFallback avatarUrl={user.user_metadata.avatar_url} email={user.email} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-lg font-semibold text-muted-foreground">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </div>
-          )}
-        </div>
+        <UserAvatar
+          src={user?.user_metadata?.avatar_url}
+          alt={user?.user_metadata?.full_name || 'User'}
+          fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+          size={44}
+          className="border-2 border-background shadow-sm ring-1 ring-border"
+        />
 
         <div className="flex flex-col pt-0.5 relative" ref={envDropdownRef}>
           <span className="font-semibold text-[15px] text-foreground leading-tight">

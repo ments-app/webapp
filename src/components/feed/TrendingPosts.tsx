@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { Heart, TrendingUp } from 'lucide-react';
-import { toProxyUrl } from '@/utils/imageUtils';
 import { formatConversationTime } from '@/utils/dateFormat';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface TrendingPost {
   id: string;
@@ -58,17 +58,12 @@ export function TrendingPosts({ posts, isLoading }: TrendingPostsProps) {
               href={`/post/${post.id}`}
               className="flex gap-3 p-2 -mx-2 rounded-lg hover:bg-accent/30 transition-colors group"
             >
-              {post.author.avatar_url ? (
-                <img
-                  src={toProxyUrl(post.author.avatar_url, { width: 64, quality: 80 })}
-                  alt={post.author.full_name}
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm flex-shrink-0">
-                  {post.author.full_name?.charAt(0)?.toUpperCase() || '?'}
-                </div>
-              )}
+              <UserAvatar
+                src={post.author.avatar_url}
+                alt={post.author.full_name}
+                fallbackText={post.author.full_name || post.author.username}
+                size={32}
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 text-xs">
                   <span className="font-medium text-foreground truncate">
