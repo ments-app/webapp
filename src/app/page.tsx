@@ -5,10 +5,13 @@ import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PersonalizedFeed } from '@/components/feed/PersonalizedFeed';
 import { CreatePostInput } from '@/components/posts/CreatePostInput';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { Image as ImageIcon, VideoIcon, BarChart2 } from 'lucide-react';
 
 import { ArrowRight, Plus, X } from 'lucide-react';
 
 function AuthenticatedHome() {
+  const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
 
@@ -19,7 +22,39 @@ function AuthenticatedHome() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
+        {/* Compact Create Post Prompt */}
+        <div
+          className="bg-card border border-border rounded-2xl p-3 shadow-sm cursor-pointer hover:bg-accent/30 transition-colors"
+          onClick={() => setShowCreateModal(true)}
+        >
+          <div className="flex items-center gap-3">
+            <UserAvatar
+              src={user?.user_metadata?.avatar_url}
+              alt={user?.user_metadata?.full_name || 'User'}
+              fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+              size={36}
+            />
+            <div className="flex-1 px-4 py-2 bg-muted/50 rounded-full text-sm text-muted-foreground">
+              What&apos;s on your mind?
+            </div>
+          </div>
+          <div className="flex items-center gap-1 mt-2.5 ml-12">
+            <button type="button" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors" onClick={(e) => e.stopPropagation()}>
+              <ImageIcon size={14} />
+              <span className="hidden sm:inline">Photo</span>
+            </button>
+            <button type="button" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" onClick={(e) => e.stopPropagation()}>
+              <VideoIcon size={14} />
+              <span className="hidden sm:inline">Video</span>
+            </button>
+            <button type="button" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" onClick={(e) => e.stopPropagation()}>
+              <BarChart2 size={14} />
+              <span className="hidden sm:inline">Poll</span>
+            </button>
+          </div>
+        </div>
+
         <div className="animate-in fade-in-50 duration-300">
           <PersonalizedFeed key={feedKey} />
         </div>
