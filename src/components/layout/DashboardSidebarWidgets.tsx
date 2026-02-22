@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, Users, Bell, MessageCircle, Heart, UserPlus, CheckCircle } from "lucide-react";
+import { Users, Bell, MessageCircle, Heart, UserPlus, CheckCircle } from "lucide-react";
 import { useSidebarData } from '@/hooks/useSidebarData';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
@@ -163,57 +163,6 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
         </div>
       )}
 
-      {/* Recent Chats Widget */}
-      {recentConversations.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-[18px] h-[18px] text-muted-foreground" />
-              <h2 className="text-sm font-bold text-foreground">Recent Chats</h2>
-            </div>
-            <Link href="/messages" className="text-xs font-medium text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-0.5">
-            {recentConversations.map((conv) => (
-              <Link
-                key={conv.conversation_id}
-                href={`/messages/${conv.conversation_id}`}
-                className="flex items-center gap-3 rounded-lg px-2 py-[7px] text-sm hover:bg-accent/60 transition-colors"
-              >
-                {conv.other_avatar_url ? (
-                  <Image
-                    src={toProxyUrl(conv.other_avatar_url, { width: 32, quality: 80 })}
-                    alt={conv.other_full_name || conv.other_username}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground flex-shrink-0">
-                    {(conv.other_full_name || conv.other_username || '?').charAt(0)}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {conv.other_full_name || conv.other_username}
-                  </p>
-                  {conv.last_message && (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {conv.last_message}
-                    </p>
-                  )}
-                </div>
-                {conv.unread_count > 0 && (
-                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground font-bold">
-                    {conv.unread_count > 9 ? '9+' : conv.unread_count}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Recent Activity Widget — Real notifications */}
       <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center justify-between mb-3">
@@ -247,44 +196,6 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
             ))
           ) : (
             <p className="text-xs text-muted-foreground text-center py-3">No recent activity</p>
-          )}
-        </div>
-      </div>
-
-      {/* My Posts Performance Widget — Real posts */}
-      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className="w-[18px] h-[18px] text-muted-foreground" />
-          <h2 className="text-sm font-bold text-foreground">My Posts</h2>
-        </div>
-        <div className="space-y-1.5">
-          {myPosts.length > 0 ? (
-            myPosts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/post/${post.id}`}
-                className="block rounded-lg bg-muted/30 p-2.5 hover:bg-accent/60 transition-colors"
-              >
-                <p className="text-xs text-foreground mb-1.5 line-clamp-2 leading-snug">
-                  {truncateText(post.content, 60) || 'Untitled post'}
-                </p>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-3 h-3" />
-                      <span>{post.likes}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MessageCircle className="w-3 h-3" />
-                      <span>{post.replies}</span>
-                    </div>
-                  </div>
-                  <span>{timeAgo(post.created_at)}</span>
-                </div>
-              </Link>
-            ))
-          ) : (
-            <p className="text-xs text-muted-foreground text-center py-3">No posts yet</p>
           )}
         </div>
       </div>

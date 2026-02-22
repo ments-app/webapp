@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Plus, User, Settings, LogOut, Rocket, Users } from 'lucide-react';
+import { User, Settings, LogOut, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -30,7 +30,7 @@ const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-export const Sidebar = React.memo(function Sidebar() {
+export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadMessages?: number }) {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
   const [profileHref, setProfileHref] = useState<string>('/profile');
@@ -87,19 +87,20 @@ export const Sidebar = React.memo(function Sidebar() {
       label: 'Home'
     },
     {
-      href: '/create',
-      icon: Plus,
-      label: 'Create Post'
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Search'
+    },
+    {
+      href: '/messages',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Messages',
+      count: unreadMessages,
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
-    },
-    {
-      href: '/people',
-      icon: Users,
-      label: 'People'
     },
     {
       href: '/hub',
@@ -110,11 +111,6 @@ export const Sidebar = React.memo(function Sidebar() {
       href: profileHref,
       icon: User,
       label: 'Profile'
-    },
-    {
-      href: '/settings',
-      icon: Settings,
-      label: 'Settings'
     },
   ];
 
@@ -328,40 +324,35 @@ export function MobileSidebar() {
   }, [user]);
   
   const mobileNavItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Search' 
+    {
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Search'
     },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create' 
+    {
+      href: '/messages',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/message.svg" alt="Messages" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Messages'
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
-    },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
     },
   ];
 

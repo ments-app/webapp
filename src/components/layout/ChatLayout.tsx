@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useEffect } from 'react';
-import { MessageCircle, Settings, User, Plus } from 'lucide-react';
+import { User, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -76,45 +76,35 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
   };
 
   const navigationItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Search' 
+    {
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Search'
     },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create Post' 
+    {
+      href: '/messages',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Messages'
     },
-    { 
-      href: '/messages', 
-      icon: MessageCircle, 
-      label: 'Messages' 
+    {
+      href: '/startups',
+      icon: Rocket,
+      label: 'Startups'
     },
-    { 
-      href: '/projects', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/project.svg" alt="Projects" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Projects' 
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
-    },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
-    },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
     },
   ];
 

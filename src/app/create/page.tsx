@@ -36,13 +36,8 @@ function CreatePageContent() {
         {/* Content */}
         <div className="flex-1 px-4 md:px-8 py-6">
           {/* Main column: full width */}
-          <div className="space-y-6">
-            {/* Select Environment label (the actual selector is inside CreatePostInput) */}
-            <div>
-              <h2 className="text-sm font-semibold text-muted-foreground mb-2">Select Environment</h2>
-              {/* The environment selector + content composer lives inside CreatePostInput */}
-              <CreatePostInput initialPostType={initialPostType} />
-            </div>
+          <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shadow-sm">
+            <CreatePostInput initialPostType={initialPostType} />
           </div>
         </div>
 

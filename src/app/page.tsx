@@ -1,11 +1,68 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PersonalizedFeed } from '@/components/feed/PersonalizedFeed';
+import { CreatePostInput } from '@/components/posts/CreatePostInput';
 
-import { ArrowRight, Users, Rocket, Sparkles } from 'lucide-react';
+import { ArrowRight, Plus, X } from 'lucide-react';
+
+function AuthenticatedHome() {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [feedKey, setFeedKey] = useState(0);
+
+  const handlePostCreated = useCallback(() => {
+    setShowCreateModal(false);
+    setFeedKey((k) => k + 1);
+  }, []);
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="animate-in fade-in-50 duration-300">
+          <PersonalizedFeed key={feedKey} />
+        </div>
+      </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all duration-200 hover:scale-105 active:scale-95"
+        aria-label="Create post"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      {/* Create Post Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-black/50 animate-in fade-in-0 duration-200"
+            onClick={() => setShowCreateModal(false)}
+          />
+          <div className="flex min-h-full items-start justify-center px-4 py-10">
+            <div className="relative z-10 w-full max-w-2xl bg-background rounded-2xl shadow-2xl border border-border animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 duration-200">
+              <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-border bg-background rounded-t-2xl">
+                <h2 className="text-xl font-semibold tracking-tight">Create Post</h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="p-2 bg-muted hover:bg-muted/80 rounded-full text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-5 overflow-y-auto max-h-[65vh]">
+                <CreatePostInput onPostCreated={handlePostCreated} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}
 
 const HomePage = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -38,15 +95,7 @@ const HomePage = () => {
 
   // If user is logged in, show dashboard with only feed
   if (user) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="animate-in fade-in-50 duration-300">
-            <PersonalizedFeed />
-          </div>
-        </div>
-      </DashboardLayout>
-    );
+    return <AuthenticatedHome />;
   }
 
   // Professional light mode login
