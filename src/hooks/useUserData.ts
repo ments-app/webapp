@@ -10,7 +10,7 @@ interface UserData {
   about?: string;
   current_city?: string;
   tagline?: string;
-  user_type: 'mentor' | 'normal_user';
+  user_type: 'mentor' | 'normal_user' | 'explorer' | 'investor' | 'founder';
   created_at?: string;
   avatar_url?: string;
   banner_image?: string;
@@ -36,7 +36,7 @@ export function useUserData() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
