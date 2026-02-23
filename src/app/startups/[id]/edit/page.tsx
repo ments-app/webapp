@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Step1BasicIdentity } from '@/components/startups/Step1BasicIdentity';
-import { Step2CurrentStage } from '@/components/startups/Step2CurrentStage';
-import { Step3ProfileDetails } from '@/components/startups/Step3ProfileDetails';
-import { Step4Team } from '@/components/startups/Step4Team';
-import { Step5FundingRecognition } from '@/components/startups/Step5FundingRecognition';
+import { Step1Identity } from '@/components/startups/Step1Identity';
+import { Step2Description } from '@/components/startups/Step2Description';
+import { Step3Branding } from '@/components/startups/Step3Branding';
+import { Step4Positioning } from '@/components/startups/Step4Positioning';
+import { Step5Edge } from '@/components/startups/Step5Edge';
+import { Step6Financials } from '@/components/startups/Step6Financials';
+import { Step7Media } from '@/components/startups/Step7Media';
 import {
   fetchStartupById, updateStartup, upsertFounders, upsertFundingRounds,
-  upsertIncubators, upsertAwards, uploadPitchDeck, StartupProfile,
+  uploadPitchDeck, uploadStartupImage, StartupProfile,
 } from '@/api/startups';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
@@ -24,6 +26,8 @@ export default function EditStartupPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isUploadingDeck, setIsUploadingDeck] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -32,12 +36,15 @@ export default function EditStartupPage() {
     stage: 'ideation', description: '', keywords: [] as string[], website: '',
     founded_date: '', registered_address: '', startup_email: '',
     startup_phone: '', pitch_deck_url: '', is_actively_raising: false,
+    business_model: '', city: '', country: '', categories: [] as string[],
+    team_size: '', key_strengths: '', target_audience: '',
+    revenue_amount: '', revenue_currency: 'USD', revenue_growth: '',
+    traction_metrics: '', total_raised: '', investor_count: '',
+    elevator_pitch: '', logo_url: '', banner_url: '',
   });
 
   const [founders, setFounders] = useState<{ name: string; linkedin_url: string; display_order: number }[]>([]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
-  const [incubators, setIncubators] = useState<{ program_name: string; year: number | '' }[]>([]);
-  const [awards, setAwards] = useState<{ award_name: string; year: number | '' }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -62,6 +69,16 @@ export default function EditStartupPage() {
         startup_email: data.startup_email, startup_phone: data.startup_phone,
         pitch_deck_url: data.pitch_deck_url || '',
         is_actively_raising: data.is_actively_raising,
+        business_model: data.business_model || '', city: data.city || '',
+        country: data.country || '', categories: data.categories || [],
+        team_size: data.team_size || '', key_strengths: data.key_strengths || '',
+        target_audience: data.target_audience || '',
+        revenue_amount: data.revenue_amount || '', revenue_currency: data.revenue_currency || 'USD',
+        revenue_growth: data.revenue_growth || '', traction_metrics: data.traction_metrics || '',
+        total_raised: data.total_raised || '',
+        investor_count: data.investor_count?.toString() || '',
+        elevator_pitch: data.elevator_pitch || '',
+        logo_url: data.logo_url || '', banner_url: data.banner_url || '',
       });
 
       if (data.founders) {
@@ -74,12 +91,6 @@ export default function EditStartupPage() {
           investor: r.investor || '', amount: r.amount || '',
           round_type: r.round_type || '', round_date: r.round_date || '', is_public: r.is_public,
         })));
-      }
-      if (data.incubators) {
-        setIncubators(data.incubators.map(i => ({ program_name: i.program_name, year: i.year || '' as number | '' })));
-      }
-      if (data.awards) {
-        setAwards(data.awards.map(a => ({ award_name: a.award_name, year: a.year || '' as number | '' })));
       }
       setLoading(false);
     };
@@ -96,6 +107,22 @@ export default function EditStartupPage() {
     setIsUploadingDeck(false);
     if (error) setError(error);
     else setProfileData(prev => ({ ...prev, pitch_deck_url: url }));
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    setIsUploadingLogo(true);
+    const { url, error } = await uploadStartupImage(file, 'logo');
+    setIsUploadingLogo(false);
+    if (error) setError(error);
+    else setProfileData(prev => ({ ...prev, logo_url: url }));
+  };
+
+  const handleBannerUpload = async (file: File) => {
+    setIsUploadingBanner(true);
+    const { url, error } = await uploadStartupImage(file, 'banner');
+    setIsUploadingBanner(false);
+    if (error) setError(error);
+    else setProfileData(prev => ({ ...prev, banner_url: url }));
   };
 
   const handleSave = async () => {
@@ -119,6 +146,22 @@ export default function EditStartupPage() {
         startup_phone: profileData.startup_phone,
         pitch_deck_url: profileData.pitch_deck_url || null,
         is_actively_raising: profileData.is_actively_raising,
+        business_model: profileData.business_model || null,
+        city: profileData.city || null,
+        country: profileData.country || null,
+        categories: profileData.categories,
+        team_size: profileData.team_size || null,
+        key_strengths: profileData.key_strengths || null,
+        target_audience: profileData.target_audience || null,
+        revenue_amount: profileData.revenue_amount || null,
+        revenue_currency: profileData.revenue_currency || null,
+        revenue_growth: profileData.revenue_growth || null,
+        traction_metrics: profileData.traction_metrics || null,
+        total_raised: profileData.total_raised || null,
+        investor_count: profileData.investor_count ? parseInt(profileData.investor_count) : null,
+        elevator_pitch: profileData.elevator_pitch || null,
+        logo_url: profileData.logo_url || null,
+        banner_url: profileData.banner_url || null,
       });
 
       if (updateError) throw new Error(updateError.message);
@@ -128,12 +171,6 @@ export default function EditStartupPage() {
           name: f.name, linkedin_url: f.linkedin_url || undefined, display_order: f.display_order,
         }))),
         upsertFundingRounds(id, fundingRounds.filter(r => r.round_type || r.amount || r.investor)),
-        upsertIncubators(id, incubators.filter(i => i.program_name).map(i => ({
-          program_name: i.program_name, year: i.year || undefined,
-        }))),
-        upsertAwards(id, awards.filter(a => a.award_name).map(a => ({
-          award_name: a.award_name, year: a.year || undefined,
-        }))),
       ]);
 
       setSuccess(true);
@@ -195,19 +232,37 @@ export default function EditStartupPage() {
         )}
 
         <div className="space-y-8">
-          <Step1BasicIdentity data={profileData} onChange={handleProfileChange} />
+          <Step1Identity data={profileData} onChange={handleProfileChange} />
           <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          <Step2CurrentStage data={profileData} onChange={handleProfileChange} />
+          <Step2Description data={profileData} founders={founders} onChange={handleProfileChange} onFoundersChange={setFounders} />
           <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          <Step3ProfileDetails data={profileData} onChange={handleProfileChange} onPitchDeckUpload={handlePitchDeckUpload} isUploadingDeck={isUploadingDeck} />
+          <Step3Branding
+            logoUrl={profileData.logo_url}
+            bannerUrl={profileData.banner_url}
+            isUploadingLogo={isUploadingLogo}
+            isUploadingBanner={isUploadingBanner}
+            onLogoUpload={handleLogoUpload}
+            onBannerUpload={handleBannerUpload}
+            onRemoveLogo={() => handleProfileChange('logo_url', '')}
+            onRemoveBanner={() => handleProfileChange('banner_url', '')}
+          />
           <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          <Step4Team founders={founders} onChange={setFounders} />
+          <Step4Positioning data={profileData} onChange={handleProfileChange} />
           <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          <Step5FundingRecognition
-            fundingRounds={fundingRounds} incubators={incubators} awards={awards}
-            isActivelyRaising={profileData.is_actively_raising}
-            onFundingChange={setFundingRounds} onIncubatorsChange={setIncubators}
-            onAwardsChange={setAwards} onRaisingChange={(v) => handleProfileChange('is_actively_raising', v)}
+          <Step5Edge data={profileData} onChange={handleProfileChange} />
+          <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          <Step6Financials
+            data={profileData}
+            fundingRounds={fundingRounds}
+            onChange={handleProfileChange}
+            onFundingChange={setFundingRounds}
+          />
+          <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          <Step7Media
+            data={profileData}
+            isUploadingDeck={isUploadingDeck}
+            onChange={handleProfileChange}
+            onPitchDeckUpload={handlePitchDeckUpload}
           />
         </div>
 

@@ -22,8 +22,27 @@ export type StartupProfile = {
   is_actively_raising: boolean;
   visibility: 'public' | 'investors_only' | 'private';
   is_published: boolean;
+  is_featured: boolean;
   created_at: string;
   updated_at: string;
+  // New onboarding fields
+  business_model: string | null;
+  city: string | null;
+  country: string | null;
+  categories: string[];
+  team_size: string | null;
+  key_strengths: string | null;
+  target_audience: string | null;
+  revenue_amount: string | null;
+  revenue_currency: string | null;
+  revenue_growth: string | null;
+  traction_metrics: string | null;
+  total_raised: string | null;
+  investor_count: number | null;
+  elevator_pitch: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
+  // Relations
   founders?: StartupFounder[];
   funding_rounds?: StartupFundingRound[];
   incubators?: StartupIncubator[];
@@ -373,7 +392,7 @@ export async function recordView(startupId: string, viewerId?: string): Promise<
   return { error };
 }
 
-// --- Pitch Deck Upload ---
+// --- File Uploads ---
 
 export async function uploadPitchDeck(file: File): Promise<{ url: string; error?: string }> {
   try {
@@ -400,5 +419,33 @@ export async function uploadPitchDeck(file: File): Promise<{ url: string; error?
   } catch (error) {
     console.error('Error uploading pitch deck:', error);
     return { url: '', error: error instanceof Error ? error.message : 'Failed to upload pitch deck' };
+  }
+}
+
+export async function uploadStartupImage(file: File, type: 'logo' | 'banner'): Promise<{ url: string; error?: string }> {
+  try {
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (!userId) throw new Error('User not authenticated');
+
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const filePath = `startup-images/${userId}/${type}/${fileName}`;
+
+    const { error: storageError } = await supabase.storage
+      .from('media')
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (storageError) throw storageError;
+
+    const { data: publicUrlData } = supabase.storage
+      .from('media')
+      .getPublicUrl(filePath);
+
+    return { url: publicUrlData.publicUrl };
+  } catch (error) {
+    console.error(`Error uploading startup ${type}:`, error);
+    return { url: '', error: error instanceof Error ? error.message : `Failed to upload ${type}` };
   }
 }
