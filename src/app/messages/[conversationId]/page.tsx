@@ -12,6 +12,7 @@ import { ArrowLeft, Phone, MoreVertical, Search, AlertCircle } from 'lucide-reac
 import Image from 'next/image';
 import { supabase } from '@/utils/supabase';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Message {
   id: string;
@@ -62,6 +63,8 @@ export default function ConversationPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingChannelRef = useRef<RealtimeChannel | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to bottom with smooth animation
   const scrollToBottom = useCallback((smooth: boolean = true) => {
@@ -314,10 +317,45 @@ export default function ConversationPage() {
     }
   }, []);
 
-  // Handle typing
+  // Typing indicator via Supabase broadcast
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+
+    const channel = supabase.channel(`typing:${conversationId}`);
+
+    channel
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('broadcast', { event: 'typing' }, (payload: any) => {
+        // Only show typing if it's from the OTHER user
+        if (payload.payload?.user_id !== userId) {
+          setIsTyping(payload.payload?.is_typing ?? false);
+
+          // Auto-clear after 3s in case stop event is missed
+          if (payload.payload?.is_typing) {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+          }
+        }
+      })
+      .subscribe();
+
+    typingChannelRef.current = channel;
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      supabase.removeChannel(channel);
+      typingChannelRef.current = null;
+    };
+  }, [conversationId, userId]);
+
+  // Broadcast typing state to the other user
   const handleTyping = useCallback((typing: boolean) => {
-    setIsTyping(typing);
-  }, []);
+    typingChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { user_id: userId, is_typing: typing },
+    });
+  }, [userId]);
 
   // Retry handler for errors
   const handleRetry = () => {

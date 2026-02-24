@@ -49,11 +49,13 @@ export default function ChatInput({
   const [showAttachments, setShowAttachments] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{ bottom: number; right: number } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch recipient ID for this conversation
   useEffect(() => {
@@ -384,43 +386,27 @@ export default function ChatInput({
           </div>
 
           {/* Emoji Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className={`p-2 rounded-full transition-all duration-200 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-400/10' 
-                  : 'text-gray-500 hover:text-emerald-500 hover:bg-emerald-50'
-              }`}
-            >
-              <Smile className="h-5 w-5" />
-            </button>
-            
-            {/* Emoji Picker */}
-            {showEmojiPicker && (
-              <div className={`absolute bottom-full right-0 mb-2 p-3 rounded-xl shadow-xl border max-h-48 max-w-xs overflow-y-auto z-30 ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700' 
-                  : 'bg-white border-gray-200'
-              } animate-in fade-in duration-200`}>
-                <div className="grid grid-cols-8 gap-1 w-64">
-                  {EMOJI_LIST.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => insertEmoji(emoji)}
-                      className={`p-2 rounded-lg text-lg transition-all duration-200 hover:scale-110 ${
-                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            ref={emojiButtonRef}
+            type="button"
+            onClick={() => {
+              if (!showEmojiPicker && emojiButtonRef.current) {
+                const rect = emojiButtonRef.current.getBoundingClientRect();
+                setEmojiPickerPos({
+                  bottom: window.innerHeight - rect.top + 8,
+                  right: Math.max(8, window.innerWidth - rect.right),
+                });
+              }
+              setShowEmojiPicker(!showEmojiPicker);
+            }}
+            className={`p-2 rounded-full transition-all duration-200 ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-400/10'
+                : 'text-gray-500 hover:text-emerald-500 hover:bg-emerald-50'
+            }`}
+          >
+            <Smile className="h-5 w-5" />
+          </button>
 
           {/* Voice/Send Button */}
           {content.trim() ? (
@@ -472,12 +458,39 @@ export default function ChatInput({
       {/* Click Outside Handler */}
       {(showEmojiPicker || showAttachments) && (
         <div
-          className="fixed inset-0 z-20"
+          className="fixed inset-0 z-40"
           onClick={() => {
             setShowEmojiPicker(false);
             setShowAttachments(false);
           }}
         />
+      )}
+
+      {/* Emoji Picker - fixed position to escape overflow:hidden */}
+      {showEmojiPicker && emojiPickerPos && (
+        <div
+          className={`fixed z-50 p-2 rounded-xl shadow-2xl border max-h-64 overflow-y-auto w-[280px] sm:w-[320px] ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-200'
+          } animate-in fade-in duration-200`}
+          style={{ bottom: emojiPickerPos.bottom, right: emojiPickerPos.right }}
+        >
+          <div className="grid grid-cols-7 sm:grid-cols-8 gap-0.5">
+            {EMOJI_LIST.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => insertEmoji(emoji)}
+                className={`p-1.5 rounded-lg text-xl leading-none transition-all duration-200 hover:scale-110 ${
+                  isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                }`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

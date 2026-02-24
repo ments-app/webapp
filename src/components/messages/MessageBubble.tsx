@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MoreVertical, Reply, Copy, Trash2, Edit, Check, CheckCheck } from 'lucide-react';
 import Image from 'next/image';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
@@ -61,8 +61,10 @@ export default function MessageBubble({
   userId
 }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false);
+  const [actionsPos, setActionsPos] = useState<{ top: number; left: number; right: number } | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Animation on mount
   useEffect(() => {
@@ -97,6 +99,19 @@ export default function MessageBubble({
     }
     setShowActions(false);
   };
+
+  // Open actions menu with fixed positioning
+  const openActions = useCallback(() => {
+    if (contentRef.current) {
+      const rect = contentRef.current.getBoundingClientRect();
+      setActionsPos({
+        top: rect.top,
+        left: rect.left,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setShowActions(true);
+  }, []);
 
   // Quick reaction handler
   const handleQuickReact = (emoji: string, e: React.MouseEvent) => {
@@ -168,83 +183,81 @@ export default function MessageBubble({
           </div>
         )}
 
-        {/* Message bubble */}
-        <div className="relative">
-          {/* Quick reactions (show on hover) */}
-          <div className={`absolute ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} top-0 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1 bg-popover rounded-full px-2 py-1 shadow-lg border border-border z-10 whitespace-nowrap ${isOwn ? 'hidden sm:flex' : 'hidden sm:flex'}`}>
-            {QUICK_REACTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={(e) => handleQuickReact(emoji, e)}
-                className={`p-1 rounded-full hover:scale-125 transition-transform ${myReaction === emoji ? 'bg-primary/20' : 'hover:bg-accent/60'
-                  }`}
-                title={`React with ${emoji}`}
-              >
-                <span className="text-sm">{emoji}</span>
-              </button>
-            ))}
+        {/* Quick reactions (show on hover) - positioned relative to message-bubble */}
+        <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-8 opacity-0 group-hover:opacity-100 transition-all duration-200 hidden sm:flex items-center gap-0.5 bg-popover rounded-full px-1.5 py-0.5 shadow-lg border border-border z-10`}>
+          {QUICK_REACTIONS.map((emoji) => (
             <button
-              onClick={() => setShowActions(true)}
-              className="p-1 rounded-full hover:bg-accent/60 transition-colors"
-              title="More actions"
+              key={emoji}
+              onClick={(e) => handleQuickReact(emoji, e)}
+              className={`p-1 rounded-full hover:scale-125 transition-transform ${myReaction === emoji ? 'bg-primary/20' : 'hover:bg-accent/60'
+                }`}
+              title={`React with ${emoji}`}
             >
-              <MoreVertical className="h-3 w-3 text-muted-foreground" />
+              <span className="text-sm">{emoji}</span>
             </button>
+          ))}
+          <button
+            onClick={openActions}
+            className="p-1 rounded-full hover:bg-accent/60 transition-colors"
+            title="More actions"
+          >
+            <MoreVertical className="h-3 w-3 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Message content */}
+        <div
+          ref={contentRef}
+          className={`px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 ${isOwn
+              ? `bg-primary text-primary-foreground ${isLastInGroup ? 'rounded-br-md' : ''
+              } hover:bg-primary/90 hover:shadow-md`
+              : `bg-card text-foreground border border-border ${isLastInGroup ? 'rounded-bl-md' : ''
+              } hover:shadow-md`
+            }`}
+        >
+          {/* Sender name (for incoming grouped messages) */}
+          {!isOwn && !isGrouped && senderName && (
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-medium text-primary">
+                {senderName}
+              </span>
+              {senderIsVerified && (
+                <VerifyBadge size="sm" />
+              )}
+            </div>
+          )}
+
+          {/* Message text */}
+          <div className="message-content text-sm leading-relaxed whitespace-pre-wrap break-words">
+            {message.content}
           </div>
 
-          {/* Message content */}
-          <div
-            className={`px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 ${isOwn
-                ? `bg-primary text-primary-foreground ${isLastInGroup ? 'rounded-br-md' : ''
-                } hover:bg-primary/90 hover:shadow-md`
-                : `bg-card text-foreground border border-border ${isLastInGroup ? 'rounded-bl-md' : ''
-                } hover:shadow-md`
-              }`}
-          >
-            {/* Sender name (for incoming grouped messages) */}
-            {!isOwn && !isGrouped && senderName && (
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs font-medium text-primary">
-                  {senderName}
-                </span>
-                {senderIsVerified && (
-                  <VerifyBadge size="sm" />
+          {/* Timestamp and status */}
+          <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'
+            }`}>
+            <span className={`text-[10px] ${isOwn
+                ? 'text-primary-foreground/70'
+                : 'text-muted-foreground'
+              }`}>
+              {formatTime(message.created_at)}
+            </span>
+
+            {/* Read status for own messages */}
+            {isOwn && (
+              <div className="flex items-center">
+                {isLastMessage ? (
+                  <CheckCheck className="h-3 w-3 text-primary-foreground/70" />
+                ) : (
+                  <Check className="h-3 w-3 text-primary-foreground/70" />
                 )}
               </div>
             )}
-
-            {/* Message text */}
-            <div className="message-content text-sm leading-relaxed whitespace-pre-wrap break-words">
-              {message.content}
-            </div>
-
-            {/* Timestamp and status */}
-            <div className={`flex items-center gap-1 mt-2 ${isOwn ? 'justify-end' : 'justify-start'
-              }`}>
-              <span className={`text-xs ${isOwn
-                  ? 'text-primary-foreground/80'
-                  : 'text-muted-foreground'
-                }`}>
-                {formatTime(message.created_at)}
-              </span>
-
-              {/* Read status for own messages */}
-              {isOwn && (
-                <div className="flex items-center">
-                  {isLastMessage ? (
-                    <CheckCheck className="h-3 w-3 text-primary-foreground/80" />
-                  ) : (
-                    <Check className="h-3 w-3 text-primary-foreground/80" />
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* Reactions */}
+        {/* Reactions display */}
         {reactions.length > 0 && (
-          <div className={`flex flex-wrap gap-1 mt-2 ${isOwn ? 'justify-end' : 'justify-start'
+          <div className={`flex flex-wrap gap-1 mt-1.5 ${isOwn ? 'justify-end' : 'justify-start'
             }`}>
             {reactions.map((reaction) => (
               <button
@@ -256,28 +269,38 @@ export default function MessageBubble({
                     onReact(message.id, reaction.emoji);
                   }
                 }}
-                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all duration-200 border ${myReaction === reaction.emoji
-                    ? 'bg-primary border-primary text-primary-foreground scale-105'
-                    : 'bg-muted border-border text-muted-foreground hover:bg-accent/60'
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all duration-200 ${myReaction === reaction.emoji
+                    ? 'bg-primary/20 border-primary/50 text-foreground'
+                    : 'bg-muted/80 border-border text-muted-foreground hover:bg-accent/60'
                   } hover:scale-105 active:scale-95`}
                 title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
               >
-                <span>{reaction.emoji}</span>
-                <span className="font-medium">{reaction.count}</span>
+                <span className="text-sm leading-none">{reaction.emoji}</span>
+                {reaction.count > 1 && <span className="font-medium">{reaction.count}</span>}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Message Actions Menu */}
-      {showActions && (
+      {/* Message Actions Menu - fixed to escape overflow:hidden */}
+      {showActions && actionsPos && (
         <>
           <div
-            className="fixed inset-0 z-20"
+            className="fixed inset-0 z-40"
             onClick={() => setShowActions(false)}
           />
-          <div className={`absolute ${isOwn ? 'right-0' : 'left-12'} top-0 mt-2 py-2 rounded-xl shadow-xl border min-w-40 max-w-xs z-30 bg-popover border-border animate-in fade-in duration-200`}>
+          <div
+            className="fixed z-50 py-2 rounded-xl shadow-2xl border min-w-[160px] bg-popover border-border animate-in fade-in duration-200"
+            style={{
+              top: Math.max(8, actionsPos.top - 8),
+              ...(isOwn
+                ? { right: actionsPos.right }
+                : { left: actionsPos.left }
+              ),
+              transform: 'translateY(-100%)',
+            }}
+          >
             {onReply && (
               <button
                 onClick={handleReply}

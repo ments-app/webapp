@@ -163,6 +163,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Verify authentication from session (not headers)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const sender_id = user.id;
+
     const body: SendMessageRequest = await req.json();
     const {
       conversation_id,
@@ -171,33 +179,33 @@ export async function POST(req: NextRequest) {
       media_url
     } = body;
 
-    // Get sender from headers (set by middleware) or body (fallback)
-    let sender_id = req.headers.get('x-user-id');
-    if (!sender_id && body.sender_id) {
-      sender_id = body.sender_id; // Fallback for backward compatibility
-    }
-
-    if (!conversation_id || !sender_id || !content) {
-      console.error('Missing required fields:', { conversation_id, sender_id: !!sender_id, content: !!content });
+    if (!conversation_id || !content) {
+      console.error('Missing required fields:', { conversation_id, content: !!content });
       return NextResponse.json({
         error: 'Missing required fields',
-        details: { conversation_id: !!conversation_id, sender_id: !!sender_id, content: !!content }
+        details: { conversation_id: !!conversation_id, content: !!content }
       }, { status: 400 });
     }
 
     // Verify user has access to this conversation
+    // auth.uid() is set from the session, so RLS will allow the row if user is a participant
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('*')
       .eq('id', conversation_id)
-      .or(`user1_id.eq.${sender_id},user2_id.eq.${sender_id}`)
-      .single();
+      .maybeSingle();
 
-    if (convError || !conversation) {
-      console.error('Conversation error:', convError, 'conversation:', conversation);
+    if (convError) {
+      console.error('Conversation query error:', convError);
       return NextResponse.json({
-        error: 'Conversation not found or access denied',
-        details: convError?.message
+        error: 'Failed to verify conversation access',
+        details: convError.message
+      }, { status: 500 });
+    }
+
+    if (!conversation) {
+      return NextResponse.json({
+        error: 'Conversation not found or access denied'
       }, { status: 403 });
     }
 
