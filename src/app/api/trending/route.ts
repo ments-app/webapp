@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAuthClient } from '@/utils/supabase-server';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
+
+const CACHE_PREFIX = 'trending';
+const CACHE_TTL = 60; // seconds
 
 export async function GET(request: Request) {
   try {
@@ -16,9 +20,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check cache (shared across all authenticated users — trending is not personalized)
+    const cacheKey = `${CACHE_PREFIX}:limit=${limit}&offset=${offset}`;
+    const cached = cacheGet<{ posts: unknown[]; hasMore: boolean }>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' },
+      });
+    }
+
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
+    // Reduced from 500 → 200 for performance
     const { data: recentPosts } = await supabase
       .from('posts')
       .select('id, content, created_at, author_id, post_type')
@@ -26,10 +40,12 @@ export async function GET(request: Request) {
       .is('parent_post_id', null)
       .gte('created_at', fourteenDaysAgo.toISOString())
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(200);
 
     if (!recentPosts || recentPosts.length === 0) {
-      return NextResponse.json({ posts: [], hasMore: false });
+      const result = { posts: [], hasMore: false };
+      cacheSet(cacheKey, result, CACHE_TTL);
+      return NextResponse.json(result);
     }
 
     const postIds = recentPosts.map((p: { id: string }) => p.id);
@@ -136,7 +152,12 @@ export async function GET(request: Request) {
     const paginated = scoredPosts.slice(offset, offset + limit);
     const hasMore = offset + limit < scoredPosts.length;
 
-    return NextResponse.json({ posts: paginated, hasMore });
+    const result = { posts: paginated, hasMore };
+    cacheSet(cacheKey, result, CACHE_TTL);
+
+    return NextResponse.json(result, {
+      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' },
+    });
   } catch (error) {
     console.error('Error in trending API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

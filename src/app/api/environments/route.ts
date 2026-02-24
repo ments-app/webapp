@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getProcessedImageUrl } from '@/utils/imageUtils';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export const runtime = 'nodejs';
+
+const CACHE_KEY = 'environments:all';
+const CACHE_TTL = 300; // 5 minutes — environments rarely change
 
 // Type definition matching the database table
 export interface Environment {
@@ -25,6 +29,15 @@ function getServerSupabase() {
 
 export async function GET() {
   try {
+    // Check cache first
+    const cached = cacheGet<Environment[]>(CACHE_KEY);
+    if (cached) {
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' },
+      });
+    }
+
     const supabase = getServerSupabase();
 
     const { data, error } = await supabase
@@ -55,7 +68,13 @@ export async function GET() {
       })
     );
 
-    return NextResponse.json(processed, { status: 200 });
+    // Cache the processed result
+    cacheSet(CACHE_KEY, processed, CACHE_TTL);
+
+    return NextResponse.json(processed, {
+      status: 200,
+      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' },
+    });
   } catch (err) {
     console.error('Unexpected error in /api/environments', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

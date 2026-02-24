@@ -111,9 +111,9 @@ export default function MessageBubble({
 
   // Format timestamp
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(dateString).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -127,11 +127,9 @@ export default function MessageBubble({
   return (
     <div
       ref={bubbleRef}
-      className={`flex items-end group transition-all duration-300 ${
-        isOwn ? 'justify-end' : 'justify-start'
-      } ${isGrouped ? 'mt-1' : 'mt-4'} ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-      } hover:bg-accent/20 rounded-lg px-2 py-1 -mx-2`}
+      className={`flex items-end group transition-all duration-300 ${isOwn ? 'justify-end' : 'justify-start'
+        } ${isGrouped ? 'mt-1' : 'mt-4'} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        } hover:bg-accent/20 rounded-lg px-2 py-1 -mx-2`}
     >
       {/* Avatar for incoming messages (only show for first in group) */}
       {!isOwn && !isGrouped && (
@@ -140,12 +138,12 @@ export default function MessageBubble({
             {(() => {
               const src = getProxiedImageUrl(senderAvatar ?? null);
               return src ? (
-                <Image 
-                  src={src} 
-                  alt={senderName || 'Avatar'} 
-                  width={32} 
-                  height={32} 
-                  className="object-cover" 
+                <Image
+                  src={src}
+                  alt={senderName || 'Avatar'}
+                  width={32}
+                  height={32}
+                  className="object-cover"
                 />
               ) : (
                 <span>{(senderName || 'U').charAt(0).toUpperCase()}</span>
@@ -158,9 +156,8 @@ export default function MessageBubble({
       {/* Spacer for grouped messages */}
       {!isOwn && isGrouped && <div className="w-8 mr-3 flex-shrink-0" />}
 
-      <div className={`message-bubble relative max-w-[85%] md:max-w-[70%] lg:max-w-[60%] min-w-0 ${
-        isOwn ? 'ml-auto' : 'mr-auto'
-      }`}>
+      <div className={`message-bubble relative max-w-[85%] md:max-w-[70%] lg:max-w-[60%] min-w-0 ${isOwn ? 'ml-auto' : 'mr-auto'
+        }`}>
         {/* Reply context */}
         {parentMessage && (
           <div className="mb-2 pl-3 py-2 rounded-lg text-xs border-l-4 bg-muted/50 border-border text-muted-foreground">
@@ -179,9 +176,8 @@ export default function MessageBubble({
               <button
                 key={emoji}
                 onClick={(e) => handleQuickReact(emoji, e)}
-                className={`p-1 rounded-full hover:scale-125 transition-transform ${
-                  myReaction === emoji ? 'bg-primary/20' : 'hover:bg-accent/60'
-                }`}
+                className={`p-1 rounded-full hover:scale-125 transition-transform ${myReaction === emoji ? 'bg-primary/20' : 'hover:bg-accent/60'
+                  }`}
                 title={`React with ${emoji}`}
               >
                 <span className="text-sm">{emoji}</span>
@@ -198,15 +194,12 @@ export default function MessageBubble({
 
           {/* Message content */}
           <div
-            className={`px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 ${
-              isOwn
-                ? `bg-primary text-primary-foreground ${
-                    isLastInGroup ? 'rounded-br-md' : ''
-                  } hover:bg-primary/90 hover:shadow-md`
-                : `bg-card text-foreground border border-border ${
-                    isLastInGroup ? 'rounded-bl-md' : ''
-                  } hover:shadow-md`
-            }`}
+            className={`px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 ${isOwn
+                ? `bg-primary text-primary-foreground ${isLastInGroup ? 'rounded-br-md' : ''
+                } hover:bg-primary/90 hover:shadow-md`
+                : `bg-card text-foreground border border-border ${isLastInGroup ? 'rounded-bl-md' : ''
+                } hover:shadow-md`
+              }`}
           >
             {/* Sender name (for incoming grouped messages) */}
             {!isOwn && !isGrouped && senderName && (
@@ -226,17 +219,15 @@ export default function MessageBubble({
             </div>
 
             {/* Timestamp and status */}
-            <div className={`flex items-center gap-1 mt-2 ${
-              isOwn ? 'justify-end' : 'justify-start'
-            }`}>
-              <span className={`text-xs ${
-                isOwn 
-                  ? 'text-primary-foreground/80' 
-                  : 'text-muted-foreground'
+            <div className={`flex items-center gap-1 mt-2 ${isOwn ? 'justify-end' : 'justify-start'
               }`}>
+              <span className={`text-xs ${isOwn
+                  ? 'text-primary-foreground/80'
+                  : 'text-muted-foreground'
+                }`}>
                 {formatTime(message.created_at)}
               </span>
-              
+
               {/* Read status for own messages */}
               {isOwn && (
                 <div className="flex items-center">
@@ -253,9 +244,8 @@ export default function MessageBubble({
 
         {/* Reactions */}
         {reactions.length > 0 && (
-          <div className={`flex flex-wrap gap-1 mt-2 ${
-            isOwn ? 'justify-end' : 'justify-start'
-          }`}>
+          <div className={`flex flex-wrap gap-1 mt-2 ${isOwn ? 'justify-end' : 'justify-start'
+            }`}>
             {reactions.map((reaction) => (
               <button
                 key={reaction.emoji}
@@ -266,11 +256,10 @@ export default function MessageBubble({
                     onReact(message.id, reaction.emoji);
                   }
                 }}
-                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all duration-200 border ${
-                  myReaction === reaction.emoji
+                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all duration-200 border ${myReaction === reaction.emoji
                     ? 'bg-primary border-primary text-primary-foreground scale-105'
                     : 'bg-muted border-border text-muted-foreground hover:bg-accent/60'
-                } hover:scale-105 active:scale-95`}
+                  } hover:scale-105 active:scale-95`}
                 title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
               >
                 <span>{reaction.emoji}</span>

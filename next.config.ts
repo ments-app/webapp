@@ -52,6 +52,42 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: '/api/environments',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=300, stale-while-revalidate=60',
+          },
+        ],
+      },
+      {
+        source: '/api/events',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=120, stale-while-revalidate=60',
+          },
+        ],
+      },
+      {
+        source: '/api/resources',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=120, stale-while-revalidate=60',
+          },
+        ],
+      },
+      {
+        source: '/api/competitions',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=120, stale-while-revalidate=60',
+          },
+        ],
+      },
     ];
   },
 };
