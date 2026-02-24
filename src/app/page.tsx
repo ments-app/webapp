@@ -91,20 +91,13 @@ function AuthenticatedHome() {
 }
 
 const HomePage = () => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const { user, isLoading, signInWithGoogle } = useAuth();
   const { userData, loading: userDataLoading } = useUserData();
   const router = useRouter();
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
     setIsVisible(true);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   // Redirect to onboarding if not completed

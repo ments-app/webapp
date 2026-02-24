@@ -202,11 +202,10 @@ function SkillsInput({ skills, setSkills }: { skills: string[]; setSkills: React
                   key={cat}
                   type="button"
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    activeCategory === cat
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeCategory === cat
                       ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
                       : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -362,7 +361,6 @@ export default function EditProfileForm() {
   const [city, setCity] = useState('');
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
-  const [skillInput, setSkillInput] = useState('');
 
   // Education count for completion
   const [hasEducation, setHasEducation] = useState(false);
@@ -697,7 +695,7 @@ export default function EditProfileForm() {
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-3 mb-6">
         <Link href={initial?.username ? `/profile/${encodeURIComponent(initial.username)}` : '/profile'}>
-          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1"/>Back</Button>
+          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
         </Link>
         <h1 className="text-xl font-semibold">Edit Profile</h1>
         <div className="ml-auto flex items-center gap-2">
@@ -707,9 +705,8 @@ export default function EditProfileForm() {
               style={{ width: `${profileCompletion.percent}%` }}
             />
           </div>
-          <span className={`text-[11px] font-semibold whitespace-nowrap ${
-            profileCompletion.percent === 100 ? 'text-emerald-500' : 'text-muted-foreground'
-          }`}>
+          <span className={`text-[11px] font-semibold whitespace-nowrap ${profileCompletion.percent === 100 ? 'text-emerald-500' : 'text-muted-foreground'
+            }`}>
             {profileCompletion.percent}%
           </span>
         </div>
@@ -802,9 +799,9 @@ export default function EditProfileForm() {
             <div className="h-full w-full bg-gradient-to-r from-purple-400 to-pink-500" />)
           }
           <button type="button" onClick={onPickCover} className="absolute top-4 right-4 inline-flex items-center justify-center h-12 w-12 rounded-full bg-black/60 text-white hover:bg-black/70 transition-colors">
-            <Camera className="h-6 w-6"/>
+            <Camera className="h-6 w-6" />
           </button>
-          
+
           {/* Avatar positioned at bottom left */}
           <div className="absolute -bottom-8 left-6 h-20 w-20 rounded-full ring-4 ring-background overflow-hidden bg-muted z-10">
             {avatarPreview ? (
@@ -813,11 +810,11 @@ export default function EditProfileForm() {
               <div className="h-full w-full bg-emerald-600" />
             )}
             <button type="button" onClick={onPickAvatar} className="absolute inset-0 w-full h-full rounded-full bg-black/40 hover:bg-black/60 transition-colors z-20 flex items-center justify-center">
-              <Camera className="h-6 w-6 text-white"/>
+              <Camera className="h-6 w-6 text-white" />
             </button>
           </div>
         </div>
-        
+
         {/* Profile Images Label */}
         <div className="px-6 pt-12 pb-4">
           <div className="flex items-center gap-2 text-emerald-400">
@@ -835,7 +832,7 @@ export default function EditProfileForm() {
             <span className="text-sm font-medium">Profile Information</span>
           </div>
         </div>
-        
+
         <div className="p-6 space-y-6">
           {/* Full Name */}
           <div className="space-y-3">
@@ -851,7 +848,7 @@ export default function EditProfileForm() {
               placeholder="Ashish kushwaha"
             />
           </div>
-          
+
           {/* Username */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
@@ -869,7 +866,7 @@ export default function EditProfileForm() {
               />
             </div>
           </div>
-          
+
           {/* Tagline */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
@@ -884,7 +881,7 @@ export default function EditProfileForm() {
               placeholder="frontend"
             />
           </div>
-          
+
           {/* City */}
           <CityInput city={city} setCity={setCity} />
 
@@ -912,9 +909,9 @@ export default function EditProfileForm() {
       )}
       {/* Save Button */}
       <div className="flex justify-end pt-4">
-        <Button 
-          onClick={handleSave} 
-          disabled={!dirty || saving} 
+        <Button
+          onClick={handleSave}
+          disabled={!dirty || saving}
           className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? (

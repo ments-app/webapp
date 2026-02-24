@@ -337,7 +337,7 @@ export default function PublicProfilePage() {
           <div className="rounded-2xl overflow-hidden">
             <div className="relative h-36 sm:h-44 md:h-52 w-full">
               {coverUrl && !imgError.cover ? (
-                 
+
                 <img
                   src={coverUrl}
                   alt="Cover image"
@@ -354,7 +354,7 @@ export default function PublicProfilePage() {
           <div className="relative -mt-12 ml-3 sm:-mt-14 sm:ml-5 mb-3 z-10">
             <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
               {avatarUrl && !imgError.avatar ? (
-                 
+
                 <img
                   src={avatarUrl}
                   alt={fullName}
@@ -457,11 +457,10 @@ export default function PublicProfilePage() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  className={`px-3 py-3 sm:px-5 sm:py-3.5 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === (tab.id as typeof activeTab)
-                      ? 'border-emerald-500 text-emerald-500'
-                      : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-900'}`
-                  }`}
+                  className={`px-3 py-3 sm:px-5 sm:py-3.5 text-sm font-medium border-b-2 transition-colors ${activeTab === (tab.id as typeof activeTab)
+                    ? 'border-emerald-500 text-emerald-500'
+                    : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-900'}`
+                    }`}
                   onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 >
                   {tab.label}
@@ -503,7 +502,6 @@ export default function PublicProfilePage() {
                           ];
                           const completed = fields.filter(f => f.done).length;
                           const percent = Math.round((completed / fields.length) * 100);
-                          const missing = fields.filter(f => !f.done).map(f => f.label);
 
                           return (
                             <div className="mt-3 flex items-center gap-2">
@@ -513,9 +511,8 @@ export default function PublicProfilePage() {
                                   style={{ width: `${percent}%` }}
                                 />
                               </div>
-                              <span className={`text-[11px] font-semibold whitespace-nowrap ${
-                                percent === 100 ? 'text-emerald-500' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                              }`}>
+                              <span className={`text-[11px] font-semibold whitespace-nowrap ${percent === 100 ? 'text-emerald-500' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                }`}>
                                 {percent}% complete
                               </span>
                             </div>
@@ -536,11 +533,10 @@ export default function PublicProfilePage() {
                         {isOwnProfile && (
                           <Link
                             href="/startups/create"
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                              isDarkMode
-                                ? 'border-orange-500/30 text-orange-300 hover:bg-orange-500/10'
-                                : 'border-orange-300 text-orange-700 hover:bg-orange-50'
-                            }`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDarkMode
+                              ? 'border-orange-500/30 text-orange-300 hover:bg-orange-500/10'
+                              : 'border-orange-300 text-orange-700 hover:bg-orange-50'
+                              }`}
                           >
                             <Plus className="h-3.5 w-3.5" />
                             Add
@@ -574,11 +570,10 @@ export default function PublicProfilePage() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {startup.stage && (
-                                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                        isDarkMode
-                                          ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                          : 'bg-orange-50 text-orange-700'
-                                      }`}>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode
+                                        ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                        : 'bg-orange-50 text-orange-700'
+                                        }`}>
                                         {startup.stage}
                                       </span>
                                     )}
@@ -609,9 +604,8 @@ export default function PublicProfilePage() {
                       {/* Portfolio */}
                       <Link
                         href={isOwnProfile ? `/profile/${encodeURIComponent(username)}/portfolios/edit` : `/profile/${encodeURIComponent(username)}/portfolios`}
-                        className={`group relative overflow-hidden rounded-xl border ${
-                          isDarkMode ? 'border-teal-500/30 hover:border-teal-500/50' : 'border-teal-300 hover:border-teal-400'
-                        } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
+                        className={`group relative overflow-hidden rounded-xl border ${isDarkMode ? 'border-teal-500/30 hover:border-teal-500/50' : 'border-teal-300 hover:border-teal-400'
+                          } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -631,9 +625,8 @@ export default function PublicProfilePage() {
                       {/* Projects */}
                       <Link
                         href={`/profile/${encodeURIComponent(username)}/projects`}
-                        className={`group relative overflow-hidden rounded-xl border ${
-                          isDarkMode ? 'border-emerald-500/30 hover:border-emerald-500/50' : 'border-emerald-300 hover:border-emerald-400'
-                        } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
+                        className={`group relative overflow-hidden rounded-xl border ${isDarkMode ? 'border-emerald-500/30 hover:border-emerald-500/50' : 'border-emerald-300 hover:border-emerald-400'
+                          } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -662,11 +655,10 @@ export default function PublicProfilePage() {
                       {isOwnProfile && (
                         <Link
                           href={`/profile/${encodeURIComponent(username)}/experiences/edit`}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                            isDarkMode
-                              ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
-                              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                          }`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDarkMode
+                            ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                            : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                            }`}
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add
@@ -741,11 +733,10 @@ export default function PublicProfilePage() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {duration && (
-                                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                        isDarkMode
-                                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                          : 'bg-emerald-50 text-emerald-700'
-                                      }`}>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                        : 'bg-emerald-50 text-emerald-700'
+                                        }`}>
                                         {duration}
                                       </span>
                                     )}
@@ -787,11 +778,10 @@ export default function PublicProfilePage() {
                         {isOwnProfile && (
                           <Link
                             href={`/profile/${encodeURIComponent(username)}/education/edit`}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                              isDarkMode
-                                ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
-                                : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                            }`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDarkMode
+                              ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                              }`}
                           >
                             <Plus className="h-3.5 w-3.5" />
                             Add
@@ -850,11 +840,10 @@ export default function PublicProfilePage() {
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       {edDuration && (
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                          isDarkMode
-                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                            : 'bg-emerald-50 text-emerald-700'
-                                        }`}>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode
+                                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                          : 'bg-emerald-50 text-emerald-700'
+                                          }`}>
                                           {edDuration}
                                         </span>
                                       )}
@@ -897,11 +886,10 @@ export default function PublicProfilePage() {
                         {data.user.skills.map((skill) => (
                           <span
                             key={skill}
-                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
-                              isDarkMode
-                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            }`}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${isDarkMode
+                              ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
                           >
                             {skill}
                           </span>

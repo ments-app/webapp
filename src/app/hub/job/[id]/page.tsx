@@ -145,9 +145,9 @@ export default function JobDetailPage() {
   const share = () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     if (navigator.share) {
-      navigator.share({ title: job?.title || 'Job', url }).catch(() => {});
+      navigator.share({ title: job?.title || 'Job', url }).catch(() => { });
     } else if (url) {
-      navigator.clipboard.writeText(url).catch(() => {});
+      navigator.clipboard.writeText(url).catch(() => { });
     }
   };
 
@@ -178,7 +178,7 @@ export default function JobDetailPage() {
           <div className="flex flex-col items-center justify-center py-20">
             <Briefcase className="h-12 w-12 text-muted-foreground/40 mb-4" />
             <p className="text-lg font-semibold text-muted-foreground">Job not found</p>
-            <p className="text-sm text-muted-foreground mt-1">This job may have been removed or doesn't exist.</p>
+            <p className="text-sm text-muted-foreground mt-1">This job may have been removed or doesn&apos;t exist.</p>
           </div>
         ) : (
           <>

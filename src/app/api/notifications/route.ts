@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch actor profiles in one query
-    let actorMap: Record<string, { username: string; full_name: string | null; avatar_url: string | null }> = {};
+    const actorMap: Record<string, { username: string; full_name: string | null; avatar_url: string | null }> = {};
     if (actorIds.size > 0) {
       try {
         const { data: actors } = await supabase

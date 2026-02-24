@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import {
   ArrowLeft, Share2, DollarSign, Clock, Zap,
-  Building2, Globe, Mail, CheckCircle, Brain, Sparkles, Loader2,
+  Globe, Mail, CheckCircle, Brain, Sparkles, Loader2,
   ChevronDown, GraduationCap, Layers, Package, FileText, AlertCircle, X, UserCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -129,9 +129,9 @@ export default function GigDetailPage() {
   const share = () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     if (navigator.share) {
-      navigator.share({ title: gig?.title || 'Gig', url }).catch(() => {});
+      navigator.share({ title: gig?.title || 'Gig', url }).catch(() => { });
     } else if (url) {
-      navigator.clipboard.writeText(url).catch(() => {});
+      navigator.clipboard.writeText(url).catch(() => { });
     }
   };
 
@@ -160,7 +160,7 @@ export default function GigDetailPage() {
           <div className="flex flex-col items-center justify-center py-20">
             <Zap className="h-12 w-12 text-muted-foreground/40 mb-4" />
             <p className="text-lg font-semibold text-muted-foreground">Gig not found</p>
-            <p className="text-sm text-muted-foreground mt-1">This gig may have been removed or doesn't exist.</p>
+            <p className="text-sm text-muted-foreground mt-1">This gig may have been removed or doesn&apos;t exist.</p>
           </div>
         ) : (
           <>

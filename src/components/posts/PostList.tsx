@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Post, fetchPosts } from '@/api/posts';
-import { PostCard } from './PostCard';
 import { TrackedPostCard } from './TrackedPostCard';
 import { FeedSuggestions } from '@/components/feed/FeedSuggestions';
 import { TrendingPosts } from '@/components/feed/TrendingPosts';
@@ -134,7 +133,7 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
           <div className="text-center">
             <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
             <p className="text-destructive/80 mb-4">{error}</p>
-            <button 
+            <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
               onClick={() => window.location.reload()}
             >

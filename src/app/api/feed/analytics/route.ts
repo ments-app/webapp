@@ -65,14 +65,6 @@ export async function GET(request: Request) {
       (usersResult.data || []).map((e: { user_id: string }) => e.user_id)
     ).size;
 
-    // Get content type breakdown
-    const { data: typeBreakdown } = await admin
-      .from('feed_events')
-      .select('post_id')
-      .eq('event_type', 'impression')
-      .gte('created_at', since)
-      .limit(5000);
-
     // Top performing posts
     const { data: topPosts } = await admin
       .from('post_features')

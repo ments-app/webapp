@@ -3,7 +3,8 @@ import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 
 // POST /api/verify/send
 // Generates a 6-digit verification code, stores it, and sends via Edge Function
-export async function POST(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function POST(_req: NextRequest) {
   try {
     // Get authenticated user via cookie-based client
     const authClient = await createAuthClient();

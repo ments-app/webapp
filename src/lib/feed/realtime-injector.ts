@@ -3,7 +3,6 @@ import { extractFeatures } from './feature-extractor';
 import { quickScore } from './scorer';
 import { getUserInterestProfile } from './interest-profile';
 import { REALTIME_INJECTION_POSITIONS } from './constants';
-import type { ScoredPost } from './types';
 import type { RawCandidate } from './candidate-generator';
 
 /**

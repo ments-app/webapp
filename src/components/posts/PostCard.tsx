@@ -31,7 +31,7 @@ const CONTENT_TRUNCATE_LENGTH = 280;
 // Memoized tag styling function with proper dependencies
 const getTagStyling = (tag: string) => {
   const normalizedTag = tag.toLowerCase();
-  
+
   if (normalizedTag.includes('app') || normalizedTag.includes('dev')) {
     return 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 shadow-sm';
   } else if (normalizedTag.includes('collaborat') || normalizedTag.includes('team')) {
@@ -75,16 +75,16 @@ const isGoogleAvatar = (url?: string | null): boolean => {
 };
 
 // Enhanced Video Thumbnail component with lazy loading optimization
-const VideoThumbnail = memo(({ 
-  thumbnail, 
-  onPlay, 
-  width, 
+const VideoThumbnail = memo(({
+  thumbnail,
+  onPlay,
+  width,
   height,
   className = "",
   priority = false
-}: { 
-  src: string; 
-  thumbnail?: string | null; 
+}: {
+  src: string;
+  thumbnail?: string | null;
   onPlay?: () => void;
   width?: number | null;
   height?: number | null;
@@ -112,7 +112,7 @@ const VideoThumbnail = memo(({
   const displayThumbnail = thumbnail && !thumbnailError;
 
   return (
-    <div 
+    <div
       className={`relative mx-auto rounded-2xl overflow-hidden bg-black shadow-xl group max-h-[520px] md:max-h-[600px] cursor-pointer ${className}`}
       style={{ aspectRatio: aspect, width: '100%', maxWidth: '100%' }}
       onMouseEnter={handleMouseEnter}
@@ -142,21 +142,19 @@ const VideoThumbnail = memo(({
           </div>
         </div>
       )}
-      
+
       {/* Play button overlay */}
-      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
-        isHovered ? 'opacity-100' : 'opacity-80'
-      }`}>
-        <div className={`w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all duration-200 ${
-          isHovered ? 'scale-110 bg-black/80' : 'scale-100'
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-80'
         }`}>
+        <div className={`w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all duration-200 ${isHovered ? 'scale-110 bg-black/80' : 'scale-100'
+          }`}>
           <Play className="h-8 w-8 text-white ml-1" />
         </div>
       </div>
-      
+
       {/* Gradient overlay for better button visibility */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-2xl pointer-events-none" />
-      
+
       {/* Border */}
       <div className="absolute inset-0 rounded-2xl border border-white/10 pointer-events-none" />
     </div>
@@ -167,9 +165,9 @@ VideoThumbnail.displayName = 'VideoThumbnail';
 
 
 // Optimized ResponsiveVideo component with lazy loading
-const ResponsiveVideo = memo(({ src, poster, width, height }: { 
-  src: string; 
-  poster?: string; 
+const ResponsiveVideo = memo(({ src, poster, width, height }: {
+  src: string;
+  poster?: string;
   width?: number | null;
   height?: number | null;
 }) => {
@@ -211,7 +209,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
-    
+
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('error', handleError);
@@ -234,7 +232,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
   }
 
   return (
-    <div 
+    <div
       className="relative mx-auto rounded-2xl overflow-hidden bg-black shadow-xl group max-h-[520px] md:max-h-[600px]"
       style={{ aspectRatio: aspect, width: '100%', maxWidth: '100%' }}
       onMouseEnter={handleMouseEnter}
@@ -253,7 +251,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
         <source src={src} type="video/ogg" />
         Your browser does not support the video tag.
       </video>
-      
+
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-2xl backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4">
@@ -262,7 +260,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
           </div>
         </div>
       )}
-      
+
       {isLoaded && (
         <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0'}`}>
           <Button
@@ -279,7 +277,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
           </Button>
         </div>
       )}
-      
+
       <div className="absolute inset-0 rounded-2xl border border-white/10 pointer-events-none"></div>
     </div>
   );
@@ -288,21 +286,21 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
 ResponsiveVideo.displayName = 'ResponsiveVideo';
 
 // Enhanced MediaGallery with optimized lazy loading and preloading strategy
-const MediaGallery = memo(({ items, onOpen }: { 
-  items: Array<{ 
-    id?: string; 
-    media_type: 'photo' | 'video'; 
-    media_url: string; 
-    media_thumbnail?: string | null; 
-    width?: number | null; 
-    height?: number | null 
-  }>; 
-  onOpen?: (index: number) => void 
+const MediaGallery = memo(({ items, onOpen }: {
+  items: Array<{
+    id?: string;
+    media_type: 'photo' | 'video';
+    media_url: string;
+    media_thumbnail?: string | null;
+    width?: number | null;
+    height?: number | null
+  }>;
+  onOpen?: (index: number) => void
 }) => {
   const total = items?.length || 0;
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
-  const [imageDimensions, setImageDimensions] = useState<Map<number, {width: number, height: number}>>(new Map());
+  const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number, height: number }>>(new Map());
 
   // Move hooks to before any conditional logic to fix React hooks rules violation
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -313,7 +311,7 @@ const MediaGallery = memo(({ items, onOpen }: {
   const checkScroll = useCallback(() => {
     const container = scrollRef.current;
     if (!container) return;
-    
+
     setCanScrollLeft(container.scrollLeft > 0);
     setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 1);
   }, []);
@@ -364,7 +362,7 @@ const MediaGallery = memo(({ items, onOpen }: {
   }, [imageDimensions, handleImageError]);
 
   // Click handlers
-  const handleImageClick = useMemo(() => 
+  const handleImageClick = useMemo(() =>
     (index: number) => (e: React.MouseEvent) => {
       e.stopPropagation();
       onOpen?.(index);
@@ -392,7 +390,7 @@ const MediaGallery = memo(({ items, onOpen }: {
           <span className="text-xl font-bold leading-none flex items-center justify-center w-full h-full">‹</span>
         </button>
       )}
-      
+
       {canScrollRight && (
         <button
           onClick={scrollRight}
@@ -411,14 +409,14 @@ const MediaGallery = memo(({ items, onOpen }: {
       >
         {items.map((m, i) => {
           const imageUrl = toProxyUrl(m.media_url);
-          
+
           // Get dimensions from state, API, or use defaults
           const loadedDimensions = imageDimensions.get(i);
           const apiWidth = m.width;
           const apiHeight = m.height;
-          
+
           let imageWidth, imageHeight;
-          
+
           if (loadedDimensions) {
             // Use dynamically loaded dimensions (most accurate)
             imageWidth = loadedDimensions.width;
@@ -435,7 +433,7 @@ const MediaGallery = memo(({ items, onOpen }: {
             imageWidth = 16; // Default to landscape while loading
             imageHeight = 9;
           }
-          
+
           const aspectRatio = imageWidth / imageHeight;
           const isSingle = total === 1;
 
@@ -469,13 +467,13 @@ const MediaGallery = memo(({ items, onOpen }: {
           // Ensure minimums
           if (containerWidth < minSize) containerWidth = minSize;
           if (containerHeight < minSize) containerHeight = minSize;
-          
+
           return (
-            <div 
+            <div
               key={i}
               className="flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in bg-muted/20"
-              style={{ 
-                width: `${Math.round(containerWidth)}px`, 
+              style={{
+                width: `${Math.round(containerWidth)}px`,
                 height: `${Math.round(containerHeight)}px`
               }}
               onClick={handleImageClick(i)}
@@ -494,9 +492,9 @@ const MediaGallery = memo(({ items, onOpen }: {
                       // Try to get natural dimensions when image loads
                       const img = document.querySelector(`img[src="${imageUrl}"]`) as HTMLImageElement;
                       if (img && !imageDimensions.has(i)) {
-                        setImageDimensions(prev => new Map(prev.set(i, { 
-                          width: img.naturalWidth, 
-                          height: img.naturalHeight 
+                        setImageDimensions(prev => new Map(prev.set(i, {
+                          width: img.naturalWidth,
+                          height: img.naturalHeight
                         })));
                       }
                     }}
@@ -509,10 +507,10 @@ const MediaGallery = memo(({ items, onOpen }: {
                     priority={i === 0}
                   />
                 ) : (
-                  <div 
+                  <div
                     className="bg-muted/50 flex items-center justify-center rounded-2xl"
-                    style={{ 
-                      width: `${Math.round(containerWidth)}px`, 
+                    style={{
+                      width: `${Math.round(containerWidth)}px`,
                       height: `${Math.round(containerHeight)}px`
                     }}
                   >
@@ -521,8 +519,8 @@ const MediaGallery = memo(({ items, onOpen }: {
                 )
               ) : (
                 playingVideo === i ? (
-                  <ResponsiveVideo 
-                    src={toProxyUrl(m.media_url)} 
+                  <ResponsiveVideo
+                    src={toProxyUrl(m.media_url)}
                     poster={m.media_thumbnail || undefined}
                     width={imageWidth}
                     height={imageHeight}
@@ -552,18 +550,18 @@ const MediaGallery = memo(({ items, onOpen }: {
 MediaGallery.displayName = 'MediaGallery';
 
 // Enhanced Lightbox with video thumbnail support
-const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: { 
-  items: Array<{ media_type: 'photo' | 'video'; media_url: string; media_thumbnail?: string | null }>; 
-  index: number; 
-  onClose: () => void; 
-  onPrev: () => void; 
-  onNext: () => void; 
+const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
+  items: Array<{ media_type: 'photo' | 'video'; media_url: string; media_thumbnail?: string | null }>;
+  index: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
 }) => {
   const current = items[index];
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => { setMounted(true); }, []);
-  
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -585,11 +583,11 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
   if (!mounted || !current) return null;
 
   const overlay = (
-    <div 
-      className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center" 
-      role="dialog" 
-      aria-modal="true" 
-      data-no-nav="true" 
+    <div
+      className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      data-no-nav="true"
       onClick={handleOverlayClick}
     >
       <div className="relative w-full h-full max-w-6xl max-h-[90vh] m-4" onClick={handleContentClick}>
@@ -619,28 +617,28 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
             </video>
           )}
         </div>
-        <button 
-          className="absolute top-4 right-4 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center" 
-          onClick={onClose} 
-          aria-label="Close" 
+        <button
+          className="absolute top-4 right-4 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center"
+          onClick={onClose}
+          aria-label="Close"
           data-no-nav="true"
         >
           ✕
         </button>
         {items.length > 1 && (
           <>
-            <button 
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200" 
-              onClick={onPrev} 
-              aria-label="Previous" 
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200"
+              onClick={onPrev}
+              aria-label="Previous"
               data-no-nav="true"
             >
               <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">‹</span>
             </button>
-            <button 
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200" 
-              onClick={onNext} 
-              aria-label="Next" 
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200"
+              onClick={onNext}
+              aria-label="Next"
               data-no-nav="true"
             >
               <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">›</span>
@@ -660,7 +658,7 @@ Lightbox.displayName = 'Lightbox';
 export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPollVote, onProfileClick, onExpandContent }: PostCardProps) => {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   // Consolidated state management for better performance
   const [uiState, setUiState] = useState({
     isMenuOpen: false,
@@ -679,10 +677,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     isExpanded: false,
   });
   const replies = post.replies || 0; // No need for state since it doesn't change
-  
+
   // Poll state - consolidated for better performance
   const [pollState, setPollState] = useState({
-    votes: {} as {[key: string]: number},
+    votes: {} as { [key: string]: number },
     userVotedOptions: [] as string[],
     hasUserVoted: false,
     isVoting: false,
@@ -695,17 +693,17 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   // Memoized values - optimized to prevent unnecessary re-renders
   const content = useMemo(() => post.content ?? '', [post.content]);
   const isLongContent = useMemo(() => content.length > CONTENT_TRUNCATE_LENGTH, [content.length]);
-  const displayContent = useMemo(() => 
-    isLongContent && !uiState.showFullContent 
-      ? content.substring(0, CONTENT_TRUNCATE_LENGTH) + '...' 
+  const displayContent = useMemo(() =>
+    isLongContent && !uiState.showFullContent
+      ? content.substring(0, CONTENT_TRUNCATE_LENGTH) + '...'
       : content,
     [content, isLongContent, uiState.showFullContent]
   );
-  
+
   const isVerified = useMemo(() => Boolean(post.author?.is_verified), [post.author?.is_verified]);
   const isAuthor = useMemo(() => user?.id === post.author_id, [user?.id, post.author_id]);
-  const totalPollVotes = useMemo(() => 
-    Object.values(pollState.votes).reduce((sum, votes) => sum + votes, 0), 
+  const totalPollVotes = useMemo(() =>
+    Object.values(pollState.votes).reduce((sum, votes) => sum + votes, 0),
     [pollState.votes]
   );
   const createdAtDate = useMemo(() => new Date(post.created_at), [post.created_at]);
@@ -725,7 +723,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     if (!user?.id || uiState.isLiking) return;
 
     setUiState(prev => ({ ...prev, isLiking: true }));
-    
+
     try {
       if (uiState.isLiked) {
         const { error } = await unlikePost(post.id, user.id);
@@ -743,7 +741,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     } finally {
       setUiState(prev => ({ ...prev, isLiking: false }));
     }
-    
+
     onLike?.();
   }, [user?.id, uiState.isLiking, uiState.isLiked, post.id, onLike]);
 
@@ -825,19 +823,19 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     let previousOptionId: string | null = null;
 
     const isRemovingVote = pollState.userVotedOptions.includes(optionId);
-    
+
     if (isRemovingVote) {
       action = 'removed';
       newUserVotes = newUserVotes.filter(id => id !== optionId);
       newVotes[optionId] = Math.max(0, (newVotes[optionId] || 1) - 1);
     } else {
       previousOptionId = pollState.userVotedOptions[0] || null;
-      
+
       if (previousOptionId) {
         newUserVotes = newUserVotes.filter(id => id !== previousOptionId);
         newVotes[previousOptionId] = Math.max(0, (newVotes[previousOptionId] || 1) - 1);
       }
-      
+
       newUserVotes = [optionId];
       newVotes[optionId] = (newVotes[optionId] || 0) + 1;
     }
@@ -853,7 +851,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
     try {
       const { data, error } = await votePollOption(optionId, user.id);
-      
+
       if (error || !data || !data.success) {
         console.error('Vote failed, rolling back:', error);
         setPollState(prev => ({
@@ -868,7 +866,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       if (data.action !== action) {
         const serverVotes = { ...pollState.votes };
         let serverUserVotes = [...pollState.userVotedOptions];
-        
+
         if (data.action === 'removed') {
           serverUserVotes = serverUserVotes.filter(id => id !== optionId);
           serverVotes[optionId] = Math.max(0, (serverVotes[optionId] || 1) - 1);
@@ -882,7 +880,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           }
           serverVotes[optionId] = (serverVotes[optionId] || 0) + 1;
         }
-        
+
         setPollState(prev => ({
           ...prev,
           votes: serverVotes,
@@ -901,7 +899,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     } finally {
       setPollState(prev => ({ ...prev, isVoting: false, votingOptionId: null }));
     }
-  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted]);
+  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options]);
 
   // Lightbox handlers - consolidated state updates
   const openLightbox = useCallback((index: number) => {
@@ -942,7 +940,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
         if (post.poll && !pollResult.error) {
           const votedOptionIds = pollResult.votes.map(v => v.option_id);
-          const initialVotes: {[key: string]: number} = {};
+          const initialVotes: { [key: string]: number } = {};
           if (post.poll.options) {
             post.poll.options.forEach(option => {
               initialVotes[option.id] = option.votes;
@@ -965,7 +963,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
   useEffect(() => {
     if (!uiState.isMenuOpen) return;
-    
+
     const onDocMouseDown = (e: MouseEvent) => {
       const n = menuRef.current;
       if (n && !n.contains(e.target as Node)) {
@@ -975,10 +973,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setUiState(prev => ({ ...prev, isMenuOpen: false }));
     };
-    
+
     document.addEventListener('mousedown', onDocMouseDown);
     document.addEventListener('keydown', onKeyDown);
-    
+
     return () => {
       document.removeEventListener('mousedown', onDocMouseDown);
       document.removeEventListener('keydown', onKeyDown);
@@ -1033,7 +1031,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             )}
           </div>
         </div>
-        
+
         {/* Name and Username section - vertically stacked */}
         <div className="flex-1 min-w-0">
           {/* Name + Verification Badge */}
@@ -1054,7 +1052,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
               </div>
             )}
           </div>
-          
+
           {/* Username/Handle and Time */}
           <div className="flex items-center gap-1.5 text-muted-foreground text-[15px]">
             <span className="font-medium cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
@@ -1065,18 +1063,18 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           </div>
         </div>
       </div>
-      
+
     </div>
   ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull]);
 
   const tagsSection = useMemo(() => {
     if (!post.tags || post.tags.length === 0) return null;
-    
+
     return (
       <div className="flex gap-1.5 sm:gap-2 mb-3 sm:mb-5 flex-wrap">
         {post.tags.map((tag, index) => (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 hover:scale-105 cursor-pointer ${getTagStyling(tag)}`}
           >
             <span>{tag}</span>
@@ -1099,7 +1097,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     >
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-      
+
       <div className="relative z-10">
         {/* Header */}
         <header className="flex items-start justify-between mb-3 sm:mb-5">
@@ -1107,122 +1105,122 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
           {/* Environment badge + Menu */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
-          {post.environment && (
-            <button
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 dark:bg-[#1C1F26] border border-border/60 dark:border-[#2A2E38] text-muted-foreground hover:bg-muted dark:hover:bg-[#222733] hover:text-foreground transition-colors max-w-[140px]"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (post.environment?.id) {
-                  router.push(`/environments/${post.environment.id}`);
-                }
-              }}
-              data-no-nav="true"
-              aria-label={`Open environment ${post.environment?.name || ''}`}
-            >
-              {post.environment.picture && !uiState.envImageError ? (
-                <Image
-                  src={toProxyUrl(post.environment.picture, { width: 16, quality: 82 })}
-                  alt={post.environment.name}
-                  width={16}
-                  height={16}
-                  className="w-4 h-4 rounded-full object-cover flex-shrink-0"
-                  onError={handleEnvImageError}
-                  sizes="16px"
-                  loading="lazy"
-                />
-              ) : (
-                <Users className="h-3.5 w-3.5 flex-shrink-0" />
-              )}
-              <span className="truncate">{post.environment.name}</span>
-            </button>
-          )}
-          <div className="relative" ref={menuRef}>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="h-10 w-10 rounded-2xl transition-colors hover:bg-accent/40 text-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              onClick={toggleMenu}
-              aria-haspopup="menu"
-              aria-expanded={uiState.isMenuOpen}
-              aria-label="More options"
-            >
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-            {uiState.isMenuOpen && (
-              <div 
-                className="absolute right-0 mt-2 w-56 rounded-xl bg-popover text-popover-foreground border border-border shadow-xl z-20 overflow-hidden animate-in fade-in-0 zoom-in-95"
-                role="menu"
+            {post.environment && (
+              <button
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 dark:bg-[#1C1F26] border border-border/60 dark:border-[#2A2E38] text-muted-foreground hover:bg-muted dark:hover:bg-[#222733] hover:text-foreground transition-colors max-w-[140px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (post.environment?.id) {
+                    router.push(`/environments/${post.environment.id}`);
+                  }
+                }}
+                data-no-nav="true"
+                aria-label={`Open environment ${post.environment?.name || ''}`}
               >
-                <div className="py-1">
-                  {isAuthor && (
-                    <>
-                      <button 
-                        className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
-                        role="menuitem"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUiState(prev => ({ ...prev, isMenuOpen: false, isEditModalOpen: true }));
-                        }}
-                      >
-                        <Edit className="h-4 w-4 opacity-80" />
-                        <span>Edit post</span>
-                      </button>
-                      <button 
-                        className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                        role="menuitem"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUiState(prev => ({ ...prev, isMenuOpen: false, showDeleteConfirm: true }));
-                        }}
-                        disabled={uiState.isDeleting}
-                      >
-                        <Trash2 className="h-4 w-4 opacity-80" />
-                        <span>{uiState.isDeleting ? 'Deleting...' : 'Delete post'}</span>
-                      </button>
-                      <div className="h-px bg-border/60 my-1" />
-                    </>
-                  )}
-                  <button 
-                    className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
-                    role="menuitem"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShare(e);
-                      setUiState(prev => ({ ...prev, isMenuOpen: false }));
-                    }}
-                  >
-                    <Share className="h-4 w-4 opacity-80" />
-                    <span>Copy link</span>
-                  </button>
-                  {!isAuthor && (
-                    <>
-                      <div className="h-px bg-border/60 my-1" />
-                      <button 
-                        className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
-                        role="menuitem"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUiState(prev => ({ ...prev, isMenuOpen: false }));
-                        }}
-                      >
-                        <TrendingUp className="h-4 w-4 opacity-80" />
-                        <span>Report post</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
+                {post.environment.picture && !uiState.envImageError ? (
+                  <Image
+                    src={toProxyUrl(post.environment.picture, { width: 16, quality: 82 })}
+                    alt={post.environment.name}
+                    width={16}
+                    height={16}
+                    className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                    onError={handleEnvImageError}
+                    sizes="16px"
+                    loading="lazy"
+                  />
+                ) : (
+                  <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                )}
+                <span className="truncate">{post.environment.name}</span>
+              </button>
             )}
-          </div>
+            <div className="relative" ref={menuRef}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-2xl transition-colors hover:bg-accent/40 text-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                onClick={toggleMenu}
+                aria-haspopup="menu"
+                aria-expanded={uiState.isMenuOpen}
+                aria-label="More options"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+              {uiState.isMenuOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-56 rounded-xl bg-popover text-popover-foreground border border-border shadow-xl z-20 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                  role="menu"
+                >
+                  <div className="py-1">
+                    {isAuthor && (
+                      <>
+                        <button
+                          className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUiState(prev => ({ ...prev, isMenuOpen: false, isEditModalOpen: true }));
+                          }}
+                        >
+                          <Edit className="h-4 w-4 opacity-80" />
+                          <span>Edit post</span>
+                        </button>
+                        <button
+                          className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUiState(prev => ({ ...prev, isMenuOpen: false, showDeleteConfirm: true }));
+                          }}
+                          disabled={uiState.isDeleting}
+                        >
+                          <Trash2 className="h-4 w-4 opacity-80" />
+                          <span>{uiState.isDeleting ? 'Deleting...' : 'Delete post'}</span>
+                        </button>
+                        <div className="h-px bg-border/60 my-1" />
+                      </>
+                    )}
+                    <button
+                      className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
+                      role="menuitem"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare(e);
+                        setUiState(prev => ({ ...prev, isMenuOpen: false }));
+                      }}
+                    >
+                      <Share className="h-4 w-4 opacity-80" />
+                      <span>Copy link</span>
+                    </button>
+                    {!isAuthor && (
+                      <>
+                        <div className="h-px bg-border/60 my-1" />
+                        <button
+                          className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUiState(prev => ({ ...prev, isMenuOpen: false }));
+                          }}
+                        >
+                          <TrendingUp className="h-4 w-4 opacity-80" />
+                          <span>Report post</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Tags */}
         {tagsSection}
-        
+
         {/* Content */}
         <div className="mb-3 sm:mb-5">
-          <MentionText 
+          <MentionText
             content={displayContent}
             className="text-foreground leading-relaxed text-[17px] block"
           />
@@ -1239,7 +1237,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             </button>
           )}
         </div>
-        
+
         {/* Media */}
         {post.media && post.media.length > 0 && (
           <div className={`mb-3 sm:mb-5 rounded-xl sm:rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-1.5 sm:p-2 flex justify-center ${uiState.isExpanded ? 'max-h-none' : 'max-h-[400px] sm:max-h-[500px]'}`}>
@@ -1261,39 +1259,38 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                 const isSelected = pollState.userVotedOptions.includes(option.id);
                 const isCurrentlyVoting = pollState.votingOptionId === option.id;
                 const isDisabled = pollState.isVoting && !isCurrentlyVoting;
-                
+
                 return (
                   <div key={option.id} className="relative">
-                    <button 
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${
-                        isSelected
-                          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]' 
+                    <button
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${isSelected
+                          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]'
                           : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
-                      } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                        } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                       ${isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''}`}
                       onClick={() => handlePollVote(option.id)}
                       disabled={isDisabled}
                     >
                       {pollState.hasUserVoted && (
-                        <div 
+                        <div
                           className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-xl transition-all duration-700 ease-out"
                           style={{ width: `${percentage}%` }}
                         />
                       )}
-                      
+
                       {isCurrentlyVoting && (
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent rounded-xl">
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-slide-right" />
                         </div>
                       )}
-                      
+
                       <span className="text-foreground font-medium relative z-10 flex items-center gap-2">
                         {option.option_text}
                         {isCurrentlyVoting && (
                           <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                         )}
                       </span>
-                      
+
                       {pollState.hasUserVoted && (
                         <div className="flex items-center gap-2 relative z-10">
                           <span className="text-muted-foreground text-sm font-medium transition-all duration-300">
@@ -1314,7 +1311,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                 <p className="text-muted-foreground text-sm text-center">
                   {totalPollVotes} total vote{totalPollVotes !== 1 ? 's' : ''}
                 </p>
-                
+
                 <PollVoters
                   pollId={post.poll.id}
                   isCreator={user?.id === post.author_id}
@@ -1324,7 +1321,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             )}
           </div>
         )}
-        
+
         {/* Interaction buttons */}
         <footer className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border">
           <Button
@@ -1343,11 +1340,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           <Button
             variant="ghost"
             size="sm"
-            className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/like ${
-              uiState.isLiked
+            className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/like ${uiState.isLiked
                 ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20'
                 : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
-            } ${uiState.isLiking ? 'opacity-50 scale-95' : ''}`}
+              } ${uiState.isLiking ? 'opacity-50 scale-95' : ''}`}
             onClick={handleLike}
             disabled={uiState.isLiking}
           >
@@ -1360,11 +1356,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           <Button
             variant="ghost"
             size="sm"
-            className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/bookmark ${
-              uiState.isBookmarked
+            className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/bookmark ${uiState.isBookmarked
                 ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20'
                 : 'text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10'
-            }`}
+              }`}
             onClick={handleBookmark}
           >
             <Bookmark className={`h-4 w-4 sm:h-5 sm:w-5 group-hover/bookmark:scale-110 transition-all duration-200 ${uiState.isBookmarked ? 'fill-current' : ''}`} />
@@ -1402,10 +1397,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           </Button>
         </footer>
       </div>
-      
+
       {/* Hover effects */}
       <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-      
+
       {/* Lightbox */}
       {uiState.lightboxOpen && post.media && (
         <Lightbox
@@ -1416,7 +1411,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           onNext={lightboxNext}
         />
       )}
-      
+
       {/* Edit Modal */}
       {uiState.isEditModalOpen && user && (
         <EditPostModal
@@ -1430,7 +1425,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           }}
         />
       )}
-      
+
       {/* Delete Confirmation */}
       {uiState.showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">

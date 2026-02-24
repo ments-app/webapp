@@ -183,7 +183,7 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
           .eq('submitted_by', user.id)
           .maybeSingle();
         if (!cancelled) setJoined(!!data);
-      } catch {}
+      } catch { }
       if (!cancelled) setCheckingJoin(false);
     })();
     return () => { cancelled = true; };
@@ -214,7 +214,7 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
       } else if (json.alreadyJoined) {
         setJoined(true);
       }
-    } catch {}
+    } catch { }
     setJoining(false);
   };
 
@@ -254,11 +254,10 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
           <button
             onClick={handleJoin}
             disabled={joined || joining || checkingJoin || !user || ended}
-            className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${
-              joined
-                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
-                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
-            }`}
+            className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${joined
+              ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+              : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+              }`}
           >
             {checkingJoin ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -295,7 +294,7 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
           .eq('submitted_by', user.id)
           .maybeSingle();
         if (!cancelled) setJoined(!!data);
-      } catch {}
+      } catch { }
       if (!cancelled) setCheckingJoin(false);
     })();
     return () => { cancelled = true; };
@@ -324,7 +323,7 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
       } else if (json.alreadyJoined) {
         setJoined(true);
       }
-    } catch {}
+    } catch { }
     setJoining(false);
   };
 
@@ -364,11 +363,10 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
           <button
             onClick={handleJoin}
             disabled={joined || joining || checkingJoin || !user || ended}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${
-              joined
-                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
-                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
-            }`}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${joined
+              ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+              : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+              }`}
           >
             {checkingJoin ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -388,7 +386,8 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
 
 // --- Event row card ---
 
-const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const EventRowCard = ({ event, user: _user }: { event: EventItem; user: { id: string } | null }) => {
   const ended = isEnded(event);
   const categoryLabel = event.category === 'meetup' ? 'Meetup' : event.category === 'workshop' ? 'Workshop' : 'Event';
 
@@ -544,7 +543,7 @@ function getResourceLogoUrl(resource: ResourceItem): string | null {
     try {
       const domain = new URL(resource.url).hostname;
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    } catch {}
+    } catch { }
   }
   return null;
 }
@@ -800,11 +799,10 @@ function HubPageContent() {
               {EVENT_CATEGORIES.map(cat => (
                 <button
                   key={cat.key}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                    eventCategory === cat.key
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
-                      : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                  }`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${eventCategory === cat.key
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
+                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
+                    }`}
                   onClick={() => setEventCategory(cat.key)}
                 >
                   {cat.label}
@@ -849,9 +847,9 @@ function HubPageContent() {
               <div>
                 <h3 className="text-lg md:text-xl font-bold mb-4">
                   {eventCategory === 'all' ? 'Events, Meetups & Workshops' :
-                   eventCategory === 'events' ? 'Events' :
-                   eventCategory === 'meetups' ? 'Meetups' :
-                   eventCategory === 'workshops' ? 'Workshops' : 'Events'}
+                    eventCategory === 'events' ? 'Events' :
+                      eventCategory === 'meetups' ? 'Meetups' :
+                        eventCategory === 'workshops' ? 'Workshops' : 'Events'}
                 </h3>
                 <div className="grid gap-4">
                   {loading ? (
@@ -966,8 +964,8 @@ function HubPageContent() {
                 <button
                   key={cat.key}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === cat.key
-                      ? 'bg-primary/15 text-primary border border-primary/30'
-                      : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
+                    ? 'bg-primary/15 text-primary border border-primary/30'
+                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
                     }`}
                   onClick={() => { setResourceFilter(cat.key); setResourcePage(0); }}
                 >

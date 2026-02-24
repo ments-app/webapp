@@ -5,7 +5,6 @@ import {
   MIN_FRESH_POSTS_IN_TOP_10,
   FRESH_POST_MAX_AGE_HOURS,
   NEW_CREATOR_BOOST,
-  NEW_CREATOR_AGE_DAYS,
 } from './constants';
 
 /**

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
-import { zTestProportions, welchTTest, proportionCI, relativeChange } from '@/lib/feed/statistics';
+import { zTestProportions, proportionCI, relativeChange } from '@/lib/feed/statistics';
 import type { FeedExperiment, ExperimentResults, VariantResult, MetricResult } from '@/lib/feed/types';
 
 export const dynamic = 'force-dynamic';
@@ -67,9 +67,9 @@ export async function GET(
 
       const dwellVariance = dwellEvents.length > 1
         ? dwellEvents.reduce((sum: number, e: { metadata?: Record<string, unknown> }) => {
-            const d = (Number(e.metadata?.dwell_ms) || 0) - avgDwell;
-            return sum + d * d;
-          }, 0) / (dwellEvents.length - 1)
+          const d = (Number(e.metadata?.dwell_ms) || 0) - avgDwell;
+          return sum + d * d;
+        }, 0) / (dwellEvents.length - 1)
         : 0;
 
       // Get unique users
