@@ -5,7 +5,7 @@ import {
   Rocket, Globe, Mail, Phone, FileText, TrendingUp, Users, Award,
   Building, Bookmark, BookmarkCheck, ExternalLink, Eye, MapPin,
   Calendar, Zap, Target, BarChart3, DollarSign, Linkedin,
-  Briefcase, Hash, Lightbulb, Crown, Gem, ChevronRight, Mic
+  Briefcase, Hash, Lightbulb, Crown, Gem, ChevronRight, Mic, Clock
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -270,27 +270,60 @@ export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark 
       )}
 
       {/* ─── Team ─── */}
-      {startup.founders && startup.founders.length > 0 && (
+      {startup.founders && startup.founders.filter(f => f.status !== 'declined').length > 0 && (
         <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-4">
             <Users className="h-4 w-4 text-muted-foreground" /> Team
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {startup.founders.map((f) => (
-              <div key={f.id} className="flex items-center gap-3 p-3.5 bg-accent/15 rounded-xl border border-border/20">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
-                  {f.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{f.name}</p>
-                  {f.linkedin_url && (
-                    <a href={f.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5">
-                      <Linkedin className="h-3 w-3" /> LinkedIn <ExternalLink className="h-2.5 w-2.5" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+            {startup.founders.filter(f => f.status !== 'declined').map((f) => {
+              const isAccepted = f.status === 'accepted';
+              const isPending = f.status === 'pending';
+              const hasMents = !!f.ments_username && isAccepted;
+              const profileHref = hasMents ? `/profile/${f.ments_username}` : undefined;
+              const Wrapper = profileHref ? 'a' : 'div';
+              const wrapperProps = profileHref ? { href: profileHref } : {};
+
+              return (
+                <Wrapper
+                  key={f.id}
+                  {...wrapperProps}
+                  className={`flex items-center gap-3 p-3.5 bg-accent/15 rounded-xl border border-border/20 ${
+                    hasMents ? 'hover:bg-accent/25 hover:border-primary/15 transition-colors cursor-pointer' : ''
+                  } ${isPending ? 'opacity-70' : ''}`}
+                >
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                    isPending
+                      ? 'bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-600'
+                      : 'bg-gradient-to-br from-primary/20 to-primary/5 text-primary'
+                  }`}>
+                    {f.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground truncate">{f.name}</p>
+                      {isPending && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 border border-amber-500/15">
+                          <Clock className="h-2.5 w-2.5" /> Pending
+                        </span>
+                      )}
+                    </div>
+                    {hasMents ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-primary mt-0.5">
+                        @{f.ments_username}
+                        <ChevronRight className="h-3 w-3" />
+                      </span>
+                    ) : isPending && f.ments_username ? (
+                      <span className="text-xs text-muted-foreground mt-0.5">@{f.ments_username}</span>
+                    ) : f.linkedin_url ? (
+                      <a href={f.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5">
+                        <Linkedin className="h-3 w-3" /> LinkedIn <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    ) : null}
+                  </div>
+                </Wrapper>
+              );
+            })}
           </div>
         </div>
       )}

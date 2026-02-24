@@ -1,10 +1,14 @@
 "use client";
 
-import { Plus, X, UserCircle, Linkedin } from 'lucide-react';
+import { Plus, X, UserCircle } from 'lucide-react';
+import { MentsUserSearch } from './MentsUserSearch';
 
 type Founder = {
   name: string;
   linkedin_url: string;
+  user_id: string;
+  ments_username: string;
+  avatar_url: string;
   display_order: number;
 };
 
@@ -21,7 +25,7 @@ const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rou
 
 export function Step2Description({ data, founders, onChange, onFoundersChange }: Step2Props) {
   const addFounder = () => {
-    onFoundersChange([...founders, { name: '', linkedin_url: '', display_order: founders.length }]);
+    onFoundersChange([...founders, { name: '', linkedin_url: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
   };
 
   const removeFounder = (index: number) => {
@@ -35,6 +39,30 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
   const updateFounder = (index: number, field: keyof Founder, value: string) => {
     const updated = [...founders];
     updated[index] = { ...updated[index], [field]: value };
+    onFoundersChange(updated);
+  };
+
+  const linkMentsUser = (index: number, user: { user_id: string; ments_username: string; full_name: string; avatar_url: string | null }) => {
+    const updated = [...founders];
+    updated[index] = {
+      ...updated[index],
+      user_id: user.user_id,
+      ments_username: user.ments_username,
+      avatar_url: user.avatar_url || '',
+      // Auto-fill name if empty
+      name: updated[index].name.trim() || user.full_name,
+    };
+    onFoundersChange(updated);
+  };
+
+  const unlinkMentsUser = (index: number) => {
+    const updated = [...founders];
+    updated[index] = {
+      ...updated[index],
+      user_id: '',
+      ments_username: '',
+      avatar_url: '',
+    };
     onFoundersChange(updated);
   };
 
@@ -80,11 +108,20 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
           {founders.map((founder, index) => (
             <div key={index} className="relative p-4 bg-accent/20 rounded-xl border border-border/30">
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <UserCircle className="h-3.5 w-3.5" />
-                </div>
+                {founder.avatar_url ? (
+                  <img src={founder.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <UserCircle className="h-3.5 w-3.5" />
+                  </div>
+                )}
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Founder {index + 1}
+                  {founder.ments_username && (
+                    <span className="normal-case tracking-normal font-medium text-primary ml-1.5">
+                      @{founder.ments_username}
+                    </span>
+                  )}
                 </span>
                 {founders.length > 1 && (
                   <button
@@ -104,16 +141,16 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
                   placeholder="Full name"
                   className={inputClass}
                 />
-                <div className="relative">
-                  <Linkedin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
-                  <input
-                    type="url"
-                    value={founder.linkedin_url}
-                    onChange={(e) => updateFounder(index, 'linkedin_url', e.target.value)}
-                    placeholder="LinkedIn URL (optional)"
-                    className={`${inputClass} pl-9`}
-                  />
-                </div>
+                <MentsUserSearch
+                  linkedUser={
+                    founder.user_id
+                      ? { user_id: founder.user_id, ments_username: founder.ments_username, avatar_url: founder.avatar_url || undefined }
+                      : null
+                  }
+                  onSelect={(user) => linkMentsUser(index, user)}
+                  onUnlink={() => unlinkMentsUser(index)}
+                  placeholder="Link their Ments profile..."
+                />
               </div>
             </div>
           ))}

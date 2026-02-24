@@ -58,6 +58,9 @@ export type StartupFounder = {
   startup_id: string;
   name: string;
   linkedin_url: string | null;
+  user_id: string | null;
+  ments_username: string | null;
+  status: 'pending' | 'accepted' | 'declined';
   display_order: number;
   created_at: string;
 };
@@ -279,8 +282,19 @@ export async function deleteStartup(id: string): Promise<{ error: PostgrestError
 
 export async function upsertFounders(
   startupId: string,
-  founders: { name: string; linkedin_url?: string; display_order: number }[]
+  founders: { name: string; linkedin_url?: string; user_id?: string; ments_username?: string; display_order: number }[],
+  startupName?: string
 ): Promise<{ error: PostgrestError | null }> {
+  // Get existing founders to preserve accepted statuses
+  const { data: existing } = await supabase
+    .from('startup_founders')
+    .select('user_id, status')
+    .eq('startup_id', startupId);
+
+  const acceptedUserIds = new Set(
+    (existing || []).filter((f: { user_id: string | null; status: string }) => f.user_id && f.status === 'accepted').map((f: { user_id: string | null }) => f.user_id)
+  );
+
   // Delete existing founders and re-insert
   const { error: deleteError } = await supabase
     .from('startup_founders')
@@ -291,11 +305,47 @@ export async function upsertFounders(
 
   if (founders.length === 0) return { error: null };
 
-  const { error } = await supabase
-    .from('startup_founders')
-    .insert(founders.map(f => ({ ...f, startup_id: startupId })));
+  // Set status: if user_id is linked, check if they were already accepted
+  const rows = founders.map(f => ({
+    ...f,
+    startup_id: startupId,
+    status: f.user_id
+      ? acceptedUserIds.has(f.user_id) ? 'accepted' : 'pending'
+      : 'accepted', // name-only founders are auto-accepted
+  }));
 
-  return { error };
+  const { data: inserted, error } = await supabase
+    .from('startup_founders')
+    .insert(rows)
+    .select('id, user_id, status');
+
+  if (error) return { error };
+
+  // Send notifications for newly pending founders
+  const pendingFounders = (inserted || []).filter((f: { id: string; user_id: string | null; status: string }) => f.status === 'pending' && f.user_id);
+
+  if (pendingFounders.length > 0) {
+    const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+
+    for (const founder of pendingFounders) {
+      const founderRow = rows.find(r => r.user_id === founder.user_id);
+      await supabase.from('inapp_notification').insert({
+        recipient_id: founder.user_id,
+        type: 'cofounder_request',
+        message: `You've been added as a co-founder of ${startupName || 'a startup'}`,
+        is_read: false,
+        data: {
+          startup_id: startupId,
+          startup_name: startupName || '',
+          requester_id: currentUserId || '',
+          founder_id: founder.id,
+          founder_name: founderRow?.name || '',
+        },
+      });
+    }
+  }
+
+  return { error: null };
 }
 
 // --- Funding Rounds ---

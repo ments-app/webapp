@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     const actorIds = new Set<string>();
     for (const n of merged) {
       const d = n.data || {};
-      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.user_id;
+      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id;
       if (actorId) actorIds.add(actorId);
     }
 
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     // Map to the shape expected by the frontend
     const mapped = merged.map((n) => {
       const d = n.data || {};
-      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.user_id || null;
+      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id || null;
       const actor = actorId ? actorMap[actorId] : null;
 
       return {
@@ -122,6 +122,8 @@ export async function GET(request: NextRequest) {
         post_id: d.post_id || d.postId || null,
         notification_source: n.notification_source,
         is_read: n.is_read,
+        // Pass through extra data for actionable notifications (e.g. cofounder_request)
+        data: n.type === 'cofounder_request' ? d : undefined,
       };
     });
 

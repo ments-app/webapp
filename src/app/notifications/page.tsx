@@ -1,15 +1,15 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Bell, CheckCheck, Loader2 } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, Rocket, Check, X } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 
 interface NotificationItem {
   id: string;
-  type?: 'follow' | 'reply' | 'mention' | 'reaction' | string;
+  type?: 'follow' | 'reply' | 'mention' | 'reaction' | 'cofounder_request' | string;
   content?: string;
   created_at: string;
   actor_name?: string;
@@ -19,6 +19,14 @@ interface NotificationItem {
   post_id?: string;
   notification_source?: 'inapp' | 'legacy' | string;
   is_read?: boolean;
+  data?: {
+    startup_id?: string;
+    startup_name?: string;
+    founder_id?: string;
+    founder_name?: string;
+    requester_id?: string;
+    [key: string]: unknown;
+  };
 }
 
 // Compact Avatar component
@@ -131,7 +139,33 @@ export default function NotificationsPage() {
     }
   };
 
+  // Co-founder request responses (optimistic UI)
+  const [respondedRequests, setRespondedRequests] = useState<Record<string, 'accepted' | 'declined'>>({});
+  const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
+
+  const handleCofounderRespond = useCallback(async (notificationId: string, founderId: string, action: 'accept' | 'decline') => {
+    setRespondingIds(prev => new Set(prev).add(notificationId));
+    try {
+      const res = await fetch('/api/startups/founders/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ founderId, action }),
+      });
+      if (res.ok) {
+        setRespondedRequests(prev => ({ ...prev, [notificationId]: action === 'accept' ? 'accepted' : 'declined' }));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRespondingIds(prev => { const s = new Set(prev); s.delete(notificationId); return s; });
+    }
+  }, []);
+
   const handleNotificationClick = (notification: NotificationItem) => {
+    if (notification.type === 'cofounder_request' && notification.data?.startup_id) {
+      router.push(`/startups/${notification.data.startup_id}`);
+      return;
+    }
     if (notification.type === 'follow' && notification.actor_username) {
       router.push(`/profile/${notification.actor_username}`);
     } else if ((notification.type === 'reply' || notification.type === 'mention') && notification.post_id) {
@@ -249,8 +283,18 @@ export default function NotificationsPage() {
 
                     {/* Badge */}
                     {n.type && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                        {n.type.charAt(0).toUpperCase() + n.type.slice(1)}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        n.type === 'cofounder_request'
+                          ? 'bg-violet-500/10 text-violet-600'
+                          : 'bg-primary/10 text-primary'
+                      }`}>
+                        {n.type === 'cofounder_request' ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Rocket className="h-3 w-3" /> Co-founder
+                          </span>
+                        ) : (
+                          n.type.charAt(0).toUpperCase() + n.type.slice(1)
+                        )}
                       </span>
                     )}
 
@@ -262,7 +306,58 @@ export default function NotificationsPage() {
 
                   {/* Notification message */}
                   <div className="text-sm text-muted-foreground leading-relaxed">
-                    {n.type === 'reaction' && n.content ? (
+                    {n.type === 'cofounder_request' ? (
+                      <>
+                        <span>
+                          invited you as a co-founder of{' '}
+                          <span className="font-medium text-foreground">{n.data?.startup_name || 'their startup'}</span>
+                        </span>
+
+                        {/* Accept / Decline buttons or responded state */}
+                        {respondedRequests[n.id] ? (
+                          <div className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                            respondedRequests[n.id] === 'accepted'
+                              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                              : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                          }`}>
+                            {respondedRequests[n.id] === 'accepted' ? (
+                              <><Check className="h-3.5 w-3.5" /> Accepted</>
+                            ) : (
+                              <><X className="h-3.5 w-3.5" /> Declined</>
+                            )}
+                          </div>
+                        ) : n.data?.founder_id ? (
+                          <div className="flex items-center gap-2 mt-2.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCofounderRespond(n.id, n.data!.founder_id!, 'accept');
+                              }}
+                              disabled={respondingIds.has(n.id)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                            >
+                              {respondingIds.has(n.id) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5" />
+                              )}
+                              Accept
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCofounderRespond(n.id, n.data!.founder_id!, 'decline');
+                              }}
+                              disabled={respondingIds.has(n.id)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors disabled:opacity-50"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Decline
+                            </button>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : n.type === 'reaction' && n.content ? (
                       <>
                         reacted to your message: <span className="font-medium text-foreground">{n.content}</span>
                       </>
