@@ -92,6 +92,18 @@ export default function EditStartupPage() {
           round_type: r.round_type || '', round_date: r.round_date || '', is_public: r.is_public,
         })));
       }
+      if (data.incubators) {
+        setIncubators(data.incubators.map(i => ({
+          program_name: i.program_name,
+          year: i.year ? (typeof i.year === 'string' ? new Date(i.year).getFullYear() : i.year) : '' as number | '',
+        })));
+      }
+      if (data.awards) {
+        setAwards(data.awards.map(a => ({
+          award_name: a.award_name,
+          year: a.year ? (typeof a.year === 'string' ? new Date(a.year).getFullYear() : a.year) : '' as number | '',
+        })));
+      }
       setLoading(false);
     };
     if (user) load();

@@ -335,7 +335,11 @@ export async function upsertIncubators(
 
   const { error } = await supabase
     .from('startup_incubators')
-    .insert(incubators.map(i => ({ ...i, startup_id: startupId })));
+    .insert(incubators.map(i => ({
+      ...i,
+      startup_id: startupId,
+      year: i.year ? `${i.year}-01-01` : null,
+    })));
 
   return { error };
 }
@@ -357,7 +361,11 @@ export async function upsertAwards(
 
   const { error } = await supabase
     .from('startup_awards')
-    .insert(awards.map(a => ({ ...a, startup_id: startupId })));
+    .insert(awards.map(a => ({
+      ...a,
+      startup_id: startupId,
+      year: a.year ? `${a.year}-01-01` : null,
+    })));
 
   return { error };
 }

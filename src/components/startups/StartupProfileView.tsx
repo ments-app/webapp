@@ -192,7 +192,7 @@ export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark 
           <div className="flex flex-wrap gap-2">
             {startup.incubators.map((inc) => (
               <span key={inc.id} className="px-3 py-1.5 rounded-full text-xs bg-accent/60 text-accent-foreground font-medium">
-                {inc.program_name} {inc.year ? `(${inc.year})` : ''}
+                {inc.program_name} {inc.year ? `(${typeof inc.year === 'string' ? new Date(inc.year).getFullYear() : inc.year})` : ''}
               </span>
             ))}
           </div>
@@ -208,7 +208,7 @@ export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark 
           <div className="flex flex-wrap gap-2">
             {startup.awards.map((a) => (
               <span key={a.id} className="px-3 py-1.5 rounded-full text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 font-medium">
-                {a.award_name} {a.year ? `(${a.year})` : ''}
+                {a.award_name} {a.year ? `(${typeof a.year === 'string' ? new Date(a.year).getFullYear() : a.year})` : ''}
               </span>
             ))}
           </div>
