@@ -146,7 +146,7 @@ export function StartupCreateWizard() {
         description: profileData.description || null,
         keywords: profileData.keywords,
         website: profileData.website || null,
-        founded_date: profileData.founded_date || null,
+        founded_date: profileData.founded_date ? `${profileData.founded_date}-01-01` : null,
         registered_address: null,
         startup_email: profileData.startup_email,
         startup_phone: profileData.startup_phone || '',
