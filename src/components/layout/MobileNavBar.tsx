@@ -5,9 +5,9 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { Rocket } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
-import { toProxyUrl } from '@/utils/imageUtils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 type UserMetadata = {
   avatar_url?: string;
@@ -21,6 +21,7 @@ export function MobileNavBar() {
   const { user } = useAuth();
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileHref, setProfileHref] = useState<string>('/profile');
+  const [profileName, setProfileName] = useState<string>('');
 
   // Resolve and fetch profile the same way as profile/[username]/page.tsx
   useEffect(() => {
@@ -47,6 +48,7 @@ export function MobileNavBar() {
         if (!username) {
           const meta = user.user_metadata as UserMetadata;
           setProfileAvatar(meta?.avatar_url || meta?.picture || null);
+          setProfileName(meta?.full_name || user.email || 'U');
           return;
         }
         // 2) Fetch profile JSON with viewerId
@@ -56,12 +58,17 @@ export function MobileNavBar() {
         if (!res.ok) throw new Error('Failed to load profile');
         const json = await res.json();
         const fetched = (json?.data?.user?.avatar_url as string | null) ?? null;
-        if (!cancelled) setProfileAvatar(fetched);
+        const fetchedName = (json?.data?.user?.full_name as string | null) ?? '';
+        if (!cancelled) {
+          setProfileAvatar(fetched);
+          setProfileName(fetchedName || user.user_metadata?.full_name || user.email || 'U');
+        }
       } catch {
         // fallback to auth metadata avatar if fetch fails
         if (!cancelled) {
           const meta = user?.user_metadata as UserMetadata | undefined;
           setProfileAvatar(meta?.avatar_url || meta?.picture || null);
+          setProfileName(meta?.full_name || user?.email || 'U');
         }
       }
     };
@@ -69,16 +76,10 @@ export function MobileNavBar() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const proxiedAvatar = useMemo(() => (
-    profileAvatar
-      ? toProxyUrl(String(profileAvatar), { width: 32, quality: 82 })
-      : null
-  ), [profileAvatar]);
-  
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 md:hidden z-50">
       <div className="flex items-center justify-around">
-        <Link 
+        <Link
           href="/"
           className={`flex flex-col items-center justify-center p-2 ${pathname === '/' ? 'text-primary' : 'text-muted-foreground'}`}
         >
@@ -92,6 +93,14 @@ export function MobileNavBar() {
         >
           <Image src="/icons/search.svg" alt="Search" width={20} height={20} />
           <span className="text-[11px] font-medium mt-1">Search</span>
+        </Link>
+
+        <Link
+          href="/messages"
+          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/messages') ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <Image src="/icons/message.svg" alt="Messages" width={20} height={20} />
+          <span className="text-[11px] font-medium mt-1">Messages</span>
         </Link>
 
         <Link
@@ -129,22 +138,13 @@ export function MobileNavBar() {
           href={profileHref}
           className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
         >
-          <div className={`relative w-6 h-6 rounded-full overflow-hidden ring-2 ${pathname.startsWith('/profile') ? 'ring-primary' : 'ring-transparent'}`}>
-            {proxiedAvatar ? (
-              <Image
-                src={proxiedAvatar}
-                alt="Profile"
-                fill
-                sizes="24px"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                {(user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || '?') as string}
-              </div>
-            )}
-          </div>
+          <UserAvatar
+            src={profileAvatar}
+            alt="Profile"
+            fallbackText={profileName || user?.user_metadata?.full_name || user?.email || 'U'}
+            size={24}
+            className={`ring-2 ${pathname.startsWith('/profile') ? 'ring-primary' : 'ring-transparent'}`}
+          />
           <span className="text-[11px] font-medium mt-1">Profile</span>
         </Link>
       </div>

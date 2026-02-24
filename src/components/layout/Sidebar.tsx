@@ -2,13 +2,13 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Plus, User, Settings, LogOut, Rocket, Users } from 'lucide-react';
+import { User, Settings, LogOut, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/utils/supabase';
-import { toProxyUrl } from '@/utils/imageUtils';
 
 const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -30,7 +30,19 @@ const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-export const Sidebar = React.memo(function Sidebar() {
+const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const MessageIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadMessages?: number }) {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
   const [profileHref, setProfileHref] = useState<string>('/profile');
@@ -56,11 +68,11 @@ export const Sidebar = React.memo(function Sidebar() {
           .select('username, avatar_url, full_name')
           .eq('id', user.id)
           .maybeSingle();
-          
+
         if (!username) {
           username = data?.username?.toLowerCase();
         }
-        
+
         if (!cancelled) {
           setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
           setUserProfile({
@@ -87,19 +99,20 @@ export const Sidebar = React.memo(function Sidebar() {
       label: 'Home'
     },
     {
-      href: '/create',
-      icon: Plus,
-      label: 'Create Post'
+      href: '/search',
+      icon: SearchIcon,
+      label: 'Search'
+    },
+    {
+      href: '/messages',
+      icon: MessageIcon,
+      label: 'Messages',
+      count: unreadMessages
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
-    },
-    {
-      href: '/people',
-      icon: Users,
-      label: 'People'
     },
     {
       href: '/hub',
@@ -111,17 +124,12 @@ export const Sidebar = React.memo(function Sidebar() {
       icon: User,
       label: 'Profile'
     },
-    {
-      href: '/settings',
-      icon: Settings,
-      label: 'Settings'
-    },
   ];
 
-  const NavLink = ({ href, icon: Icon, label, count }: { 
-    href: string; 
-    icon: React.ComponentType<{ className?: string }>; 
-    label: string; 
+  const NavLink = ({ href, icon: Icon, label, count }: {
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
     count?: number;
   }) => {
     const isActive = pathname === href;
@@ -162,7 +170,7 @@ export const Sidebar = React.memo(function Sidebar() {
   // Handle click outside dropdown
   useEffect(() => {
     if (!isDropdownOpen) return;
-    
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
@@ -177,7 +185,7 @@ export const Sidebar = React.memo(function Sidebar() {
 
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
@@ -185,7 +193,7 @@ export const Sidebar = React.memo(function Sidebar() {
   }, [isDropdownOpen]);
 
   return (
-    <div className="flex h-full flex-col">        
+    <div className="flex h-full flex-col">
       {/* Navigation */}
       <div className="flex-1 overflow-auto sidebar-scroll-hide">
         <nav className="space-y-1">
@@ -197,7 +205,7 @@ export const Sidebar = React.memo(function Sidebar() {
           </div>
         </nav>
       </div>
-      
+
       {/* User Profile Section */}
       {user && (
         <>
@@ -239,7 +247,7 @@ export const Sidebar = React.memo(function Sidebar() {
                     disabled={isSigningOut}
                   >
                     <LogOut className="h-5 w-5 opacity-80" />
-                    <span className="flex-1">{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
+                    <span className="flex-1">{isSigningOut ? 'Signing out...' : 'Sign out'}</span>
                     {isSigningOut && (
                       <span className="ml-2 inline-flex items-center">
                         <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
@@ -249,31 +257,19 @@ export const Sidebar = React.memo(function Sidebar() {
                 </div>
               </div>
             )}
-            
+
             {/* User Profile Button */}
             <button
               onClick={toggleDropdown}
               className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <div className="relative">
-                {userProfile?.avatar_url ? (
-                  <div className="h-10 w-10 rounded-full overflow-hidden">
-                    <Image
-                      src={toProxyUrl(userProfile.avatar_url, { width: 40, quality: 82 })}
-                      alt={userProfile.full_name || 'Profile'}
-                      width={40}
-                      height={40}
-                      className="h-full w-full object-cover"
-                      sizes="40px"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary/80">
-                    <span className="text-sm font-bold text-primary-foreground">
-                      {userProfile?.full_name?.charAt(0) || user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                )}
+                <UserAvatar
+                  src={userProfile?.avatar_url}
+                  alt={userProfile?.full_name || 'Profile'}
+                  fallbackText={userProfile?.full_name || user.user_metadata?.full_name || user.email || 'U'}
+                  size={40}
+                />
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0 text-left">
@@ -326,42 +322,32 @@ export function MobileSidebar() {
     run();
     return () => { cancelled = true; };
   }, [user]);
-  
+
   const mobileNavItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Search' 
-    },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create' 
+    {
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Search'
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
-    },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
     },
   ];
 
@@ -370,12 +356,12 @@ export function MobileSidebar() {
       {mobileNavItems.map((item) => {
         const isActive = pathname === item.href;
         return (
-          <Link 
+          <Link
             key={item.href}
             href={item.href}
             className={`flex flex-col items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
-              isActive 
-                ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg' 
+              isActive
+                ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg'
                 : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
             }`}
           >

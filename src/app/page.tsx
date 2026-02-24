@@ -1,13 +1,94 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PersonalizedFeed } from '@/components/feed/PersonalizedFeed';
+import { CreatePostInput } from '@/components/posts/CreatePostInput';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
-import { ArrowRight, Users, Rocket, Sparkles } from 'lucide-react';
+import { ArrowRight, Image as ImageIcon, VideoIcon, BarChart2, Plus, X } from 'lucide-react';
+
+function AuthenticatedHome() {
+  const { user } = useAuth();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [feedKey, setFeedKey] = useState(0);
+
+  const handlePostCreated = useCallback(() => {
+    setShowCreateModal(false);
+    setFeedKey((k) => k + 1);
+  }, []);
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-4">
+        {/* Compact Create Post Prompt */}
+        <div
+          className="bg-card border border-border rounded-2xl p-3 shadow-sm cursor-pointer hover:bg-accent/30 transition-colors"
+          onClick={() => setShowCreateModal(true)}
+        >
+          <div className="flex items-center gap-3">
+            <UserAvatar
+              src={user?.user_metadata?.avatar_url}
+              alt={user?.user_metadata?.full_name || 'User'}
+              fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+              size={36}
+            />
+            <div className="flex-1 px-4 py-2 bg-muted/50 rounded-full text-sm text-muted-foreground">
+              What&apos;s on your mind?
+            </div>
+          </div>
+          <div className="flex items-center gap-1 mt-2.5 ml-12">
+            <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 hover:bg-emerald-500/10 transition-colors">
+              <ImageIcon size={14} /> <span className="hidden sm:inline">Photo</span>
+            </button>
+            <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 hover:bg-blue-500/10 transition-colors">
+              <VideoIcon size={14} /> <span className="hidden sm:inline">Video</span>
+            </button>
+            <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-600 hover:bg-amber-500/10 transition-colors">
+              <BarChart2 size={14} /> <span className="hidden sm:inline">Poll</span>
+            </button>
+          </div>
+        </div>
+
+        <PersonalizedFeed key={feedKey} />
+      </div>
+
+      {/* FAB */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 hover:shadow-xl active:scale-95 transition-all duration-200"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      {/* Create Post Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
+          <div className="flex min-h-full items-start justify-center px-4 py-10">
+            <div className="relative w-full max-w-2xl bg-background rounded-2xl shadow-2xl border border-border animate-in fade-in-0 zoom-in-95">
+              <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border rounded-t-2xl px-5 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Create Post</h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="p-2 rounded-full hover:bg-accent/60 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-5 overflow-y-auto max-h-[65vh]">
+                <CreatePostInput onPostCreated={handlePostCreated} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}
 
 const HomePage = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -60,15 +141,7 @@ const HomePage = () => {
       );
     }
 
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="animate-in fade-in-50 duration-300">
-            <PersonalizedFeed />
-          </div>
-        </div>
-      </DashboardLayout>
-    );
+    return <AuthenticatedHome />;
   }
 
   // Professional light mode login

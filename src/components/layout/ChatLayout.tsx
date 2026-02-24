@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useEffect } from 'react';
-import { MessageCircle, Settings, User, Plus } from 'lucide-react';
+import { User, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -34,6 +34,12 @@ const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const MessageSvgIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 export function ChatLayout({ children, conversationsList, showConversations = true }: ChatLayoutProps) {
   const { userData, loading } = useUserData();
   const pathname = usePathname();
@@ -49,13 +55,13 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
 
   const getProxiedImageUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
-    
+
     // Only proxy S3 URLs that start with "s3://"
     if (url.startsWith('s3://')) {
       const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
       return `${base}${encodeURIComponent(url)}`;
     }
-    
+
     // All other URLs (Google, direct HTTPS, etc.) use directly
     return url;
   };
@@ -76,45 +82,35 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
   };
 
   const navigationItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Search' 
+    {
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Search'
     },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create Post' 
+    {
+      href: '/messages',
+      icon: MessageSvgIcon,
+      label: 'Messages'
     },
-    { 
-      href: '/messages', 
-      icon: MessageCircle, 
-      label: 'Messages' 
+    {
+      href: '/startups',
+      icon: Rocket,
+      label: 'Startups'
     },
-    { 
-      href: '/projects', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/project.svg" alt="Projects" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Projects' 
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
-    },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
-    },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
     },
   ];
 
@@ -127,11 +123,11 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
         {/* Logo */}
         <div className="flex items-center justify-center h-16 border-b border-border/50">
           <Link href="/" className="transition-transform hover:scale-110 active:scale-95">
-            <Image 
-              src="/logo/green.svg" 
-              alt="Ments Logo" 
-              width={32} 
-              height={32} 
+            <Image
+              src="/logo/green.svg"
+              alt="Ments Logo"
+              width={32}
+              height={32}
               className="w-8 h-8"
             />
           </Link>
@@ -142,7 +138,7 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.href === '/messages' ? pathname?.startsWith('/messages') : pathname === item.href;
-            
+
             return (
               <Link
                 key={item.href}
@@ -155,13 +151,13 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
                 title={item.label}
               >
                 <div className={`${
-                  isActive 
-                    ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-primary-foreground text-primary-foreground' 
+                  isActive
+                    ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-primary-foreground text-primary-foreground'
                     : '[&_svg]:text-current text-current group-hover:[&_img]:brightness-0 group-hover:[&_img]:invert group-hover:[&_svg]:text-foreground group-hover:text-foreground'
                 }`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                
+
                 {/* Tooltip */}
                 <div className="absolute left-full ml-2 px-2 py-1 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] bg-popover text-popover-foreground border border-border shadow-md">
                   {item.label}
@@ -184,23 +180,23 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
                   <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
                 );
               }
-              
+
               // Try to show avatar if available
               const avatarUrl = getProxiedImageUrl(userData?.avatar_url);
               if (avatarUrl) {
                 return (
                   <div className="w-8 h-8 rounded-full overflow-hidden border border-border/50">
-                    <Image 
-                      src={avatarUrl} 
-                      alt={userData?.full_name || userData?.username || "User"} 
-                      width={32} 
-                      height={32} 
+                    <Image
+                      src={avatarUrl}
+                      alt={userData?.full_name || userData?.username || "User"}
+                      width={32}
+                      height={32}
                       className="w-full h-full object-cover"
                     />
                   </div>
                 );
               }
-              
+
               // Fallback to initials
               const initials = getInitials(userData?.full_name, userData?.username);
               return (

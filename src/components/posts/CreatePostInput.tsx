@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Image as ImageIcon, Search, X, Type as TypeIcon, BarChart2, VideoIcon, Plus, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, X, BarChart2, VideoIcon, Plus, Trash2, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { createPost, createPollPost, type CreatePollData } from '@/api/posts';
 import { supabase } from '@/utils/supabase';
@@ -11,54 +10,7 @@ import { type CompressedResult } from '@/utils/mediaCompressor';
 import { MentionDropdown } from './MentionDropdown';
 import { notifyMentionedUsers } from '@/utils/mentions';
 import { extractCleanUsername } from '@/utils/username';
-import { toProxyUrl } from '@/utils/imageUtils';
-
-
-// Avatar image with fallback logic
-function AvatarImageWithFallback({ avatarUrl, email }: { avatarUrl: string, email?: string }) {
-  const [src, setSrc] = useState<string>(toProxyUrl(avatarUrl, { width: 40, quality: 82 }));
-  const [proxyFailed, setProxyFailed] = useState(false);
-  const [directFailed, setDirectFailed] = useState(false);
-
-  useEffect(() => {
-    setSrc(toProxyUrl(avatarUrl, { width: 40, quality: 82 }));
-    setProxyFailed(false);
-    setDirectFailed(false);
-  }, [avatarUrl]);
-
-  if (directFailed) {
-    // Fallback to initial
-    return (
-      <div className="text-lg font-semibold text-muted-foreground">
-        {email?.charAt(0).toUpperCase() || 'U'}
-      </div>
-    );
-  }
-
-  return (
-    <Image
-      src={src}
-      alt="Profile"
-      width={40}
-      height={40}
-      className="w-10 h-10 object-cover rounded-full"
-      unoptimized
-      onError={() => {
-        if (!proxyFailed) {
-          // Only fallback to direct URL if it's http(s); never pass s3:// to next/image
-          if (/^https?:\/\//i.test(avatarUrl)) {
-            setSrc(avatarUrl);
-          } else {
-            setDirectFailed(true);
-          }
-          setProxyFailed(true);
-        } else {
-          setDirectFailed(true);
-        }
-      }}
-    />
-  );
-}
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 // Zoomable image used in fullscreen preview
 function ZoomableImage({ src, alt, onSwipe }: { src: string; alt?: string; onSwipe?: (dir: 'left' | 'right') => void }) {
@@ -250,6 +202,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   const [postType, setPostType] = useState<'text' | 'media' | 'poll'>(initialPostType ?? 'text');
   const [envQuery, setEnvQuery] = useState('');
   const [envLoading, setEnvLoading] = useState(true);
+  const [isEnvDropdownOpen, setIsEnvDropdownOpen] = useState(false);
+  const envDropdownRef = useRef<HTMLDivElement>(null);
   
   // Mention state
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -483,7 +437,17 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
     loadEnvironments();
   }, [selectedEnvironment]);
 
-  // Dropdown handler removed; selection happens via chips
+  // Close env dropdown on outside click
+  useEffect(() => {
+    if (!isEnvDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (envDropdownRef.current && !envDropdownRef.current.contains(e.target as Node)) {
+        setIsEnvDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isEnvDropdownOpen]);
   
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -798,149 +762,103 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
     }
   };
   
-  return (
-    <div className="backdrop-blur-xl bg-card border border-border rounded-2xl p-4 md:p-5 shadow-sm mb-4">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Header row: avatar + environment selector */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-            {user?.user_metadata?.avatar_url ? (
-              <AvatarImageWithFallback avatarUrl={user.user_metadata.avatar_url} email={user.email} />
-            ) : (
-              <div className="text-lg font-semibold text-muted-foreground">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-          </div>
-          <div className="flex-1">
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Select Environment</label>
-            <div className="rounded-2xl border border-border bg-transparent p-3">
-              {/* Search */}
-              <div className="relative mb-2">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <input
-                  type="text"
-                  value={envQuery}
-                  onChange={(e) => setEnvQuery(e.target.value)}
-                  placeholder="Search environments"
-                  className="h-9 w-full pl-8 pr-3 text-sm rounded-xl border border-border bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              {/* Chips */}
-              <div className="flex gap-2 overflow-x-auto md:flex-wrap md:overflow-visible py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {envLoading && (
-                  <>
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="h-9 w-24 rounded-2xl bg-muted/50 border border-border animate-pulse" />
+  const filteredEnvs = environments.filter(env => env.name.toLowerCase().includes(envQuery.toLowerCase()));
+  const isPostDisabled = (!content.trim() && selectedImages.length === 0 && postType !== 'poll') || isSubmitting || !environmentId || (postType === 'poll' && (!pollData.question.trim() || pollData.options.filter(opt => opt.trim()).length < 2));
 
-                    ))}
-                  </>
-                )}
-                {!envLoading && (environments.filter(env => env.name.toLowerCase().includes(envQuery.toLowerCase()))).map((env) => {
-                  const selected = selectedEnvironment?.id === env.id;
-                  return (
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Author row: avatar + name + environment dropdown */}
+      <div className="flex items-start gap-3 mb-4">
+        <UserAvatar
+          src={user?.user_metadata?.avatar_url}
+          alt={user?.user_metadata?.full_name || 'User'}
+          fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+          size={44}
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate">
+            {user?.user_metadata?.full_name || user?.email || 'User'}
+          </p>
+          <div className="relative" ref={envDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsEnvDropdownOpen(!isEnvDropdownOpen)}
+              className="flex items-center gap-1.5 mt-1 px-2.5 py-1 bg-muted/50 hover:bg-muted border border-border rounded-lg text-sm transition-colors"
+            >
+              {selectedEnvironment?.picture ? (
+                <Image src={selectedEnvironment.picture} alt={selectedEnvironment.name} width={14} height={14} unoptimized className="h-3.5 w-3.5 rounded-full object-cover" />
+              ) : (
+                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+              <span className="text-xs font-medium text-muted-foreground">{selectedEnvironment?.name || 'Select environment'}</span>
+              <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isEnvDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isEnvDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2 w-64 bg-popover rounded-xl shadow-xl border border-border z-50 overflow-hidden animate-in fade-in-0 zoom-in-95">
+                <div className="p-2 border-b border-border">
+                  <input
+                    type="text"
+                    value={envQuery}
+                    onChange={(e) => setEnvQuery(e.target.value)}
+                    placeholder="Search environments..."
+                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto p-1.5">
+                  {envLoading && (
+                    <div className="space-y-1">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="h-8 rounded-lg bg-muted/50 animate-pulse" />
+                      ))}
+                    </div>
+                  )}
+                  {!envLoading && filteredEnvs.map(env => (
                     <button
                       key={env.id}
                       type="button"
-                      onClick={() => { setSelectedEnvironment(env); setEnvironmentId(env.id); }}
-                      className={`flex items-center gap-2 px-3 h-9 rounded-2xl border whitespace-nowrap transition ${selected ? 'bg-primary/15 border-primary/40 text-primary ring-2 ring-primary/30' : 'bg-muted/50 border-border text-foreground hover:bg-muted'}`}
+                      onClick={() => { setSelectedEnvironment(env); setEnvironmentId(env.id); setIsEnvDropdownOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${selectedEnvironment?.id === env.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent/60 text-foreground'}`}
                     >
                       {env.picture ? (
                         <Image src={env.picture} alt={env.name} width={20} height={20} unoptimized className="h-5 w-5 rounded-full object-cover" />
                       ) : (
                         <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[10px]">{env.name.charAt(0).toUpperCase()}</div>
                       )}
-                      <span className="text-xs font-semibold md:text-sm">{env.name}</span>
+                      <span className="font-medium">{env.name}</span>
                     </button>
-                  );
-                })}
-                {!envLoading && environments.length > 0 && (environments.filter(env => env.name.toLowerCase().includes(envQuery.toLowerCase())).length === 0) && (
-                  <p className="text-xs text-muted-foreground">No environments match your search.</p>
-                )}
-                {!envLoading && environments.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No environments available.</p>
-                )}
+                  ))}
+                  {!envLoading && filteredEnvs.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-3">No environments found.</p>
+                  )}
+                </div>
               </div>
-              {error && (
-                <p className="mt-2 text-xs text-destructive">{error}</p>
-              )}
-            </div>
+            )}
           </div>
+          {error && (
+            <p className="mt-1 text-xs text-destructive">{error}</p>
+          )}
         </div>
+      </div>
 
-        {/* Post Type chips */}
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-2">Post Type</h3>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2 py-2.5 sm:px-3 sm:py-3 border transition ${
-                postType === 'text'
-                  ? 'bg-primary/15 border-primary/40 text-primary'
-                  : 'bg-muted/50 border-border text-muted-foreground'
-              }`}
-              onClick={() => setPostType('text')}
-            >
-              <TypeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-xs sm:text-sm font-semibold">Text</span>
-            </button>
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2 py-2.5 sm:px-3 sm:py-3 border transition ${
-                postType === 'media'
-                  ? 'bg-primary/15 border-primary/40 text-primary'
-                  : 'bg-muted/50 border-border text-muted-foreground'
-              }`}
-              onClick={() => setPostType('media')}
-            >
-              <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-xs sm:text-sm font-semibold">Media</span>
-            </button>
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2 py-2.5 sm:px-3 sm:py-3 border transition ${
-                postType === 'poll'
-                  ? 'bg-primary/15 border-primary/40 text-primary'
-                  : 'bg-muted/50 border-border text-muted-foreground'
-              }`}
-              onClick={() => setPostType('poll')}
-            >
-              <BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-xs sm:text-sm font-semibold">Poll</span>
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">Create interactive polls for your community.</p>
-        </div>
-
-        {/* Content section */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-foreground">Content</h3>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">Press @ to mention</span>
-              <span className="text-xs text-muted-foreground">{content.length}/{MAX_CONTENT}</span>
-            </div>
-          </div>
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={handleContentChange}
-              placeholder="What's on your mind? Type @ to mention someone"
-              className="w-full rounded-xl bg-muted/30 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground min-h-[100px] sm:min-h-[140px] p-3"
-              spellCheck="false"
-              autoComplete="off"
-            />
-            <MentionDropdown
-              searchTerm={mentionSearch}
-              onSelectUser={handleSelectUser}
-              position={mentionPosition}
-              isVisible={showMentionDropdown}
-            />
-          </div>
-        </div>
+      {/* Content textarea — borderless */}
+      <div className="relative mb-4">
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={handleContentChange}
+          placeholder="What's on your mind? Type @ to mention someone"
+          className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-card-foreground placeholder:text-muted-foreground min-h-[100px] sm:min-h-[140px] p-0 resize-none"
+          spellCheck="false"
+          autoComplete="off"
+        />
+        <MentionDropdown
+          searchTerm={mentionSearch}
+          onSelectUser={handleSelectUser}
+          position={mentionPosition}
+          isVisible={showMentionDropdown}
+        />
+      </div>
 
         {/* Media section */}
         {(postType === 'media' || imagePreviews.length > 0) && (
@@ -1197,19 +1115,48 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
           </div>
         )}
 
-        {/* Footer actions */}
-        <div className="space-y-2">
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button
+        {/* Add to your post toolbar */}
+        <div className="flex items-center justify-between border border-border rounded-xl px-4 py-2.5 mb-4 shadow-sm bg-muted/30">
+          <span className="text-sm font-medium text-muted-foreground hidden sm:inline-block">Add to your post</span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => setPostType('media')}
+              className={`p-2 rounded-full transition-colors ${postType === 'media' ? 'bg-emerald-500/15 text-emerald-500' : 'hover:bg-accent/60 text-emerald-500'}`}
+            >
+              <ImageIcon size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPostType('media'); fileInputRef.current?.click(); }}
+              className="p-2 rounded-full hover:bg-accent/60 text-blue-500 transition-colors"
+            >
+              <VideoIcon size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPostType('poll')}
+              className={`p-2 rounded-full transition-colors ${postType === 'poll' ? 'bg-amber-500/15 text-amber-500' : 'hover:bg-accent/60 text-amber-500'}`}
+            >
+              <BarChart2 size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Footer — character count + post button */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{content.length}/{MAX_CONTENT}</span>
+          <button
             type="submit"
-            variant="default"
-            className="w-full h-11 rounded-xl text-base font-semibold"
-            disabled={(!content.trim() && selectedImages.length === 0 && postType !== 'poll') || isSubmitting || !environmentId || (postType === 'poll' && (!pollData.question.trim() || pollData.options.filter(opt => opt.trim()).length < 2))}
+            disabled={isPostDisabled}
+            className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${
+              isPostDisabled ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95'
+            }`}
           >
-            {isSubmitting ? 'Publishing…' : 'Publish Post'}
-          </Button>
+            {isSubmitting ? 'Publishing...' : 'Post'}
+          </button>
         </div>
       </form>
-    </div>
   );
 }
