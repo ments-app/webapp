@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow, differenceInMinutes, differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, differenceInYears } from 'date-fns';
-import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Play, Pause, Maximize2, Minimize2 } from 'lucide-react';
+import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createPortal } from 'react-dom';
 import { Post, likePost, unlikePost, votePollOption, checkUserLikedPost, checkUserPollVotes, deletePost } from '@/api/posts';
@@ -21,7 +21,6 @@ type PostCardProps = {
   onBookmark?: () => void;
   onPollVote?: (optionIndex: number) => void;
   onProfileClick?: () => void;
-  onExpandContent?: () => void;
 };
 
 // Constants
@@ -655,7 +654,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
 Lightbox.displayName = 'Lightbox';
 
 // Main PostCard component with optimizations (keeping the rest of your existing code)
-export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPollVote, onProfileClick, onExpandContent }: PostCardProps) => {
+export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPollVote, onProfileClick }: PostCardProps) => {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -674,7 +673,6 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     isEditModalOpen: false,
     isDeleting: false,
     showDeleteConfirm: false,
-    isExpanded: false,
   });
   const replies = post.replies || 0; // No need for state since it doesn't change
 
@@ -1228,7 +1226,6 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (!uiState.showFullContent) onExpandContent?.();
                 setUiState(prev => ({ ...prev, showFullContent: !prev.showFullContent }));
               }}
               className="mt-2 text-primary hover:text-primary/80 text-sm font-medium transition-colors"
@@ -1240,7 +1237,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
         {/* Media */}
         {post.media && post.media.length > 0 && (
-          <div className={`mb-3 sm:mb-5 rounded-xl sm:rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-1.5 sm:p-2 flex justify-center ${uiState.isExpanded ? 'max-h-none' : 'max-h-[400px] sm:max-h-[500px]'}`}>
+          <div className={`mb-3 sm:mb-5 rounded-xl sm:rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-1.5 sm:p-2 flex justify-center max-h-[400px] sm:max-h-[500px]`}>
             <MediaGallery
               items={post.media}
               onOpen={openLightbox}
@@ -1264,8 +1261,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                   <div key={option.id} className="relative">
                     <button
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${isSelected
-                          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]'
-                          : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
+                        ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]'
+                        : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
                         } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                       ${isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''}`}
                       onClick={() => handlePollVote(option.id)}
@@ -1341,8 +1338,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             variant="ghost"
             size="sm"
             className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/like ${uiState.isLiked
-                ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20'
-                : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
+              ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20'
+              : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
               } ${uiState.isLiking ? 'opacity-50 scale-95' : ''}`}
             onClick={handleLike}
             disabled={uiState.isLiking}
@@ -1357,8 +1354,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             variant="ghost"
             size="sm"
             className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/bookmark ${uiState.isBookmarked
-                ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20'
-                : 'text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10'
+              ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20'
+              : 'text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10'
               }`}
             onClick={handleBookmark}
           >
@@ -1372,28 +1369,6 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             onClick={handleShare}
           >
             <Share className="h-4 w-4 sm:h-5 sm:w-5 group-hover/share:scale-110 transition-transform duration-200" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/resize"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!uiState.isExpanded) onExpandContent?.();
-              setUiState(prev => ({
-                ...prev,
-                isExpanded: !prev.isExpanded,
-                showFullContent: !prev.isExpanded ? true : prev.showFullContent,
-              }));
-            }}
-          >
-            {uiState.isExpanded ? (
-              <Minimize2 className="h-4 w-4 sm:h-5 sm:w-5 group-hover/resize:scale-110 transition-transform duration-200" />
-            ) : (
-              <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5 group-hover/resize:scale-110 transition-transform duration-200" />
-            )}
           </Button>
         </footer>
       </div>

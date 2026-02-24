@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { fetchStartupById, updateStartup, deleteStartup } from '@/api/startups';
+import { cacheClearByPrefix } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Invalidate startups cache on update
+    cacheClearByPrefix('startups');
+
     return NextResponse.json({ data });
   } catch (error) {
     console.error('Error updating startup:', error);
@@ -67,9 +71,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Invalidate startups cache on delete
+    cacheClearByPrefix('startups');
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting startup:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

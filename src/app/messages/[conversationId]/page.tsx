@@ -12,6 +12,7 @@ import { ArrowLeft, Phone, MoreVertical, Search, AlertCircle } from 'lucide-reac
 import Image from 'next/image';
 import { supabase } from '@/utils/supabase';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Message {
   id: string;
@@ -47,7 +48,7 @@ export default function ConversationPage() {
   const { user } = useAuth();
   // Removed unused variable isDarkMode from useTheme
   const userId = user?.id;
-  
+
   // State
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -57,20 +58,22 @@ export default function ConversationPage() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   // Removed unused state variables isOnline, setIsOnline, lastSeen, setLastSeen
-  
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingChannelRef = useRef<RealtimeChannel | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to bottom with smooth animation
   const scrollToBottom = useCallback((smooth: boolean = true) => {
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
-    
+
     scrollTimeoutRef.current = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ 
+      messagesEndRef.current?.scrollIntoView({
         behavior: smooth ? 'smooth' : 'auto',
         block: 'end'
       });
@@ -133,7 +136,7 @@ export default function ConversationPage() {
   // Load the other participant (username and avatar)
   useEffect(() => {
     if (!conversationId || !userId) return;
-    
+
     (async () => {
       try {
         const { data: convo, error: convoErr } = await supabase
@@ -141,20 +144,20 @@ export default function ConversationPage() {
           .select('id,user1_id,user2_id')
           .eq('id', String(conversationId))
           .single();
-          
+
         if (convoErr) throw convoErr;
-        
+
         const otherId = convo.user1_id === userId ? convo.user2_id : convo.user1_id;
         if (!otherId) return;
-        
+
         const { data: profile, error: profErr } = await supabase
           .from('users')
           .select('id, full_name, username, avatar_url, is_verified')
           .eq('id', otherId)
           .single();
-          
+
         if (profErr) throw profErr;
-        
+
         setOtherUser(profile as OtherUserProfile);
       } catch (e) {
         console.error('Load other user failed', e);
@@ -165,13 +168,13 @@ export default function ConversationPage() {
   // Proxied image helper
   function getProxiedImageUrl(url: string | null | undefined): string | null {
     if (!url) return null;
-    
+
     // Only proxy S3 URLs that start with "s3://"
     if (url.startsWith('s3://')) {
       const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
       return `${base}${encodeURIComponent(url)}`;
     }
-    
+
     // All other URLs (Google, direct HTTPS, etc.) use directly
     return url;
   }
@@ -194,14 +197,14 @@ export default function ConversationPage() {
   // Reaction handlers
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
     if (!userId) return;
-    
+
     try {
       await fetch('/api/messages/reactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId, user_id: userId, reaction: emoji })
       });
-      
+
       // Optimistically update
       setReactions((prev: Reaction[]) => {
         const existing = prev.find(r => r.message_id === messageId && r.user_id === userId);
@@ -220,15 +223,15 @@ export default function ConversationPage() {
 
   const handleRemoveReaction = useCallback(async (messageId: string) => {
     if (!userId) return;
-    
+
     try {
       await fetch('/api/messages/reactions', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId, user_id: userId })
       });
-      
-      setReactions((prev: Reaction[]) => 
+
+      setReactions((prev: Reaction[]) =>
         prev.filter(r => !(r.message_id === messageId && r.user_id === userId))
       );
     } catch (error) {
@@ -254,8 +257,15 @@ export default function ConversationPage() {
 
   // Group messages by date and handle message grouping
   const groupedMessages = useMemo(() => {
+    // Deduplicate messages by id to prevent React duplicate key warnings
+    const seen = new Set<string>();
+    const unique = messages.filter(msg => {
+      if (seen.has(msg.id)) return false;
+      seen.add(msg.id);
+      return true;
+    });
     const groups: Record<string, Message[]> = {};
-    messages.forEach(msg => {
+    unique.forEach(msg => {
       const date = new Date(msg.created_at).toDateString();
       if (!groups[date]) groups[date] = [];
       groups[date].push(msg);
@@ -275,11 +285,11 @@ export default function ConversationPage() {
     } else if (date.toDateString() === yesterday.toDateString()) {
       return 'Yesterday';
     } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     }
   };
@@ -307,10 +317,45 @@ export default function ConversationPage() {
     }
   }, []);
 
-  // Handle typing
+  // Typing indicator via Supabase broadcast
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+
+    const channel = supabase.channel(`typing:${conversationId}`);
+
+    channel
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('broadcast', { event: 'typing' }, (payload: any) => {
+        // Only show typing if it's from the OTHER user
+        if (payload.payload?.user_id !== userId) {
+          setIsTyping(payload.payload?.is_typing ?? false);
+
+          // Auto-clear after 3s in case stop event is missed
+          if (payload.payload?.is_typing) {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+          }
+        }
+      })
+      .subscribe();
+
+    typingChannelRef.current = channel;
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      supabase.removeChannel(channel);
+      typingChannelRef.current = null;
+    };
+  }, [conversationId, userId]);
+
+  // Broadcast typing state to the other user
   const handleTyping = useCallback((typing: boolean) => {
-    setIsTyping(typing);
-  }, []);
+    typingChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { user_id: userId, is_typing: typing },
+    });
+  }, [userId]);
 
   // Retry handler for errors
   const handleRetry = () => {
@@ -331,207 +376,210 @@ export default function ConversationPage() {
 
   return (
     <div className="chat-container flex flex-col h-full w-full overflow-hidden">
-        {/* Header */}
-        <div className="backdrop-blur-sm border-b px-3 md:px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10 bg-card/80 border-border/50">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary md:hidden hover:bg-accent/60 text-foreground"
-              aria-label="Back to conversations"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            
-            {/* Avatar with status */}
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground font-semibold">
-                {(() => {
-                  const src = getProxiedImageUrl(otherUser?.avatar_url ?? null);
-                  return src ? (
-                    <Image 
-                      src={src} 
-                      alt={otherUser?.username || 'Avatar'} 
-                      width={40} 
-                      height={40} 
-                      className="object-cover" 
-                    />
-                  ) : (
-                    <span>{(otherUser?.full_name || otherUser?.username || 'C').charAt(0).toUpperCase()}</span>
-                  );
-                })()}
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold leading-5 text-foreground">
-                  {otherUser?.full_name || otherUser?.username || 'Loading...'}
-                </span>
-                {otherUser?.is_verified && (
-                  <VerifyBadge />
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {isTyping ? (
-                  <span className="text-primary">typing...</span>
+      {/* Header */}
+      <div className="backdrop-blur-sm border-b px-3 md:px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10 bg-card/80 border-border/50">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary md:hidden hover:bg-accent/60 text-foreground"
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+
+          {/* Avatar with status */}
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground font-semibold">
+              {(() => {
+                const src = getProxiedImageUrl(otherUser?.avatar_url ?? null);
+                return src ? (
+                  <Image
+                    src={src}
+                    alt={otherUser?.username || 'Avatar'}
+                    width={40}
+                    height={40}
+                    className="object-cover"
+                  />
                 ) : (
-                  `${messages.length} message${messages.length === 1 ? '' : 's'}`
-                )}
-              </div>
+                  <span>{(otherUser?.full_name || otherUser?.username || 'C').charAt(0).toUpperCase()}</span>
+                );
+              })()}
             </div>
           </div>
-          
-          {/* Action buttons */}
-          <div className="flex items-center gap-1.5">
-            <button 
-              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-              aria-label="Search in conversation"
-            >
-              <Search className="h-5 w-5" />
-            </button>
-            <button 
-              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-              aria-label="Voice call"
-            >
-              <Phone className="h-5 w-5" />
-            </button>
-            <button 
-              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-              aria-label="More options"
-            >
-              <MoreVertical className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
 
-        {/* Messages Container */}
-        <div className="flex-1 flex flex-col min-h-0 w-full">
-          {loading ? (
-            <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4">
-              <MessageSkeleton count={6} />
-            </div>
-          ) : error ? (
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="text-center max-w-md">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
-                <h3 className="text-lg font-semibold mb-2 text-foreground">
-                  Failed to load messages
-                </h3>
-                <p className="text-sm mb-4 text-muted-foreground">
-                  {error}
-                </p>
-                <button
-                  onClick={handleRetry}
-                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors shadow-sm hover:shadow-md"
-                >
-                  Try again
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div 
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 w-full message-scroll"
-              aria-live="polite" 
-              aria-relevant="additions" 
-              role="log"
-            >
-              {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center max-w-sm mx-auto p-6 rounded-2xl border bg-card/50 backdrop-blur-sm border-border/50">
-                    <div className="text-4xl mb-3">💬</div>
-                    <h2 className="font-semibold mb-2 text-foreground">
-                      No messages yet
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Send a message to start the conversation
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                Object.entries(groupedMessages).map(([date, msgs]) => (
-                  <React.Fragment key={date}>
-                    {/* Date Separator */}
-                    <div className="flex justify-center my-6">
-                      <div className="px-4 py-1.5 rounded-full text-xs font-medium shadow-sm bg-card/50 backdrop-blur-sm text-primary border border-primary/20">
-                        {formatDate(date)}
-                      </div>
-                    </div>
-
-                    {/* Messages */}
-                    {msgs.map((message, index) => {
-                      const isOwn = message.sender_id === userId;
-                      const parentMessage = message.reply_to_id
-                        ? messages.find((m: Message) => m.id === message.reply_to_id)
-                        : null;
-                      const groupedReactions = getGroupedReactions(message.id);
-                      const myReaction = getMyReaction(message.id);
-                      
-                      // Check if this message should be grouped with the previous one
-                      const prevMessage = index > 0 ? msgs[index - 1] : null;
-                      const shouldGroup = Boolean(prevMessage && 
-                        prevMessage.sender_id === message.sender_id &&
-                        new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000); // 5 minutes
-
-                      const isLastInGroup = !msgs[index + 1] || 
-                        msgs[index + 1].sender_id !== message.sender_id ||
-                        new Date(msgs[index + 1].created_at).getTime() - new Date(message.created_at).getTime() > 300000;
-
-                      const isLastMessage = index === msgs.length - 1 && date === Object.keys(groupedMessages).slice(-1)[0];
-
-                      return (
-                        <MessageBubble
-                          key={message.id}
-                          message={message}
-                          isOwn={isOwn}
-                          isGrouped={shouldGroup}
-                          parentMessage={parentMessage}
-                          senderAvatar={otherUser?.avatar_url || undefined}
-                          senderName={otherUser?.full_name || otherUser?.username || undefined}
-                          senderIsVerified={otherUser?.is_verified}
-                          reactions={groupedReactions}
-                          myReaction={myReaction}
-                          isLastInGroup={isLastInGroup}
-                          isLastMessage={isLastMessage}
-                          onReact={handleReact}
-                          onRemoveReaction={handleRemoveReaction}
-                          onReply={handleReply}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                          userId={userId!}
-                        />
-                      );
-                    })}
-                  </React.Fragment>
-                ))
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold leading-5 text-foreground">
+                {otherUser?.full_name || otherUser?.username || 'Loading...'}
+              </span>
+              {otherUser?.is_verified && (
+                <VerifyBadge />
               )}
-              
-              {/* Typing Indicator */}
-              <TypingIndicator 
-                isTyping={isTyping} 
-                senderName={otherUser?.full_name || otherUser?.username || undefined}
-                senderAvatar={otherUser?.avatar_url || undefined}
-              />
-              
-              <div ref={messagesEndRef} />
             </div>
-          )}
+            <div className="text-xs text-muted-foreground">
+              {isTyping ? (
+                <span className="text-primary">typing...</span>
+              ) : (
+                `${messages.length} message${messages.length === 1 ? '' : 's'}`
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Chat Input */}
-        <div className="flex-shrink-0 backdrop-blur-sm border-t p-3 md:p-4 min-w-0 bg-card/80 border-border/50">
-          <ChatInput
-            conversationId={String(conversationId)}
-            userId={userId!}
-            onSent={(msg) => {
-              setMessages(msgs => [...msgs, msg]);
-              scrollToBottom();
-            }}
-            replyingTo={replyingTo}
-            onClearReply={handleClearReply}
-            onTyping={handleTyping}
-          />
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5">
+          <button
+            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+            aria-label="Search in conversation"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+          <button
+            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+            aria-label="Voice call"
+          >
+            <Phone className="h-5 w-5" />
+          </button>
+          <button
+            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+            aria-label="More options"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
         </div>
       </div>
+
+      {/* Messages Container */}
+      <div className="flex-1 flex flex-col min-h-0 w-full">
+        {loading ? (
+          <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4">
+            <MessageSkeleton count={6} />
+          </div>
+        ) : error ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center max-w-md">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+              <h3 className="text-lg font-semibold mb-2 text-foreground">
+                Failed to load messages
+              </h3>
+              <p className="text-sm mb-4 text-muted-foreground">
+                {error}
+              </p>
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors shadow-sm hover:shadow-md"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 w-full message-scroll"
+            aria-live="polite"
+            aria-relevant="additions"
+            role="log"
+          >
+            {messages.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center max-w-sm mx-auto p-6 rounded-2xl border bg-card/50 backdrop-blur-sm border-border/50">
+                  <div className="text-4xl mb-3">💬</div>
+                  <h2 className="font-semibold mb-2 text-foreground">
+                    No messages yet
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Send a message to start the conversation
+                  </p>
+                </div>
+              </div>
+            ) : (
+              Object.entries(groupedMessages).map(([date, msgs]) => (
+                <React.Fragment key={date}>
+                  {/* Date Separator */}
+                  <div className="flex justify-center my-6">
+                    <div className="px-4 py-1.5 rounded-full text-xs font-medium shadow-sm bg-card/50 backdrop-blur-sm text-primary border border-primary/20">
+                      {formatDate(date)}
+                    </div>
+                  </div>
+
+                  {/* Messages */}
+                  {msgs.map((message, index) => {
+                    const isOwn = message.sender_id === userId;
+                    const parentMessage = message.reply_to_id
+                      ? messages.find((m: Message) => m.id === message.reply_to_id)
+                      : null;
+                    const groupedReactions = getGroupedReactions(message.id);
+                    const myReaction = getMyReaction(message.id);
+
+                    // Check if this message should be grouped with the previous one
+                    const prevMessage = index > 0 ? msgs[index - 1] : null;
+                    const shouldGroup = Boolean(prevMessage &&
+                      prevMessage.sender_id === message.sender_id &&
+                      new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000); // 5 minutes
+
+                    const isLastInGroup = !msgs[index + 1] ||
+                      msgs[index + 1].sender_id !== message.sender_id ||
+                      new Date(msgs[index + 1].created_at).getTime() - new Date(message.created_at).getTime() > 300000;
+
+                    const isLastMessage = index === msgs.length - 1 && date === Object.keys(groupedMessages).slice(-1)[0];
+
+                    return (
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        isOwn={isOwn}
+                        isGrouped={shouldGroup}
+                        parentMessage={parentMessage}
+                        senderAvatar={otherUser?.avatar_url || undefined}
+                        senderName={otherUser?.full_name || otherUser?.username || undefined}
+                        senderIsVerified={otherUser?.is_verified}
+                        reactions={groupedReactions}
+                        myReaction={myReaction}
+                        isLastInGroup={isLastInGroup}
+                        isLastMessage={isLastMessage}
+                        onReact={handleReact}
+                        onRemoveReaction={handleRemoveReaction}
+                        onReply={handleReply}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        userId={userId!}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              ))
+            )}
+
+            {/* Typing Indicator */}
+            <TypingIndicator
+              isTyping={isTyping}
+              senderName={otherUser?.full_name || otherUser?.username || undefined}
+              senderAvatar={otherUser?.avatar_url || undefined}
+            />
+
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Chat Input */}
+      <div className="flex-shrink-0 backdrop-blur-sm border-t p-3 md:p-4 min-w-0 bg-card/80 border-border/50">
+        <ChatInput
+          conversationId={String(conversationId)}
+          userId={userId!}
+          onSent={(msg) => {
+            setMessages(msgs => {
+              if (msgs.some(m => m.id === msg.id)) return msgs;
+              return [...msgs, msg];
+            });
+            scrollToBottom();
+          }}
+          replyingTo={replyingTo}
+          onClearReply={handleClearReply}
+          onTyping={handleTyping}
+        />
+      </div>
+    </div>
   );
 }

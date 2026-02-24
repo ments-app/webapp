@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAuthClient } from '@/utils/supabase-server';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
+
+const CACHE_PREFIX = 'recommendations';
+const CACHE_TTL = 120; // 2 minutes
 
 export async function GET(request: Request) {
   try {
@@ -16,6 +20,15 @@ export async function GET(request: Request) {
     }
 
     const userId = user.id;
+
+    // Check cache (per-user because recommendations are personalized)
+    const cacheKey = `${CACHE_PREFIX}:${userId}:limit=${userLimit}`;
+    const cached = cacheGet<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: { 'X-Cache': 'HIT' },
+      });
+    }
 
     // Run all queries in parallel
     const [suggestedUsers, trendingPosts, recommendedJobs, recommendedGigs] = await Promise.all([
@@ -148,7 +161,12 @@ export async function GET(request: Request) {
       })(),
     ]);
 
-    return NextResponse.json({ suggestedUsers, trendingPosts, recommendedJobs, recommendedGigs });
+    const result = { suggestedUsers, trendingPosts, recommendedJobs, recommendedGigs };
+    cacheSet(cacheKey, result, CACHE_TTL);
+
+    return NextResponse.json(result, {
+      headers: { 'X-Cache': 'MISS' },
+    });
   } catch (error) {
     console.error('Error in recommendations API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
