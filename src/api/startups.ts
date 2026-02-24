@@ -15,7 +15,9 @@ export type StartupProfile = {
   keywords: string[];
   website: string | null;
   founded_date: string | null;
-  registered_address: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  state: string | null;
   startup_email: string;
   startup_phone: string;
   pitch_deck_url: string | null;

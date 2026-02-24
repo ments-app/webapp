@@ -18,7 +18,9 @@ type Startup = {
   stage: string | null;
   description: string | null;
   is_actively_raising: boolean;
-  registered_address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
 };
 
 type UserProfile = {
@@ -96,7 +98,7 @@ function scoreResource(resource: Resource, startups: Startup[], profile: UserPro
   }
 
   // Bonus for location match
-  const locations = startups.map(s => s.registered_address?.toLowerCase()).filter(Boolean);
+  const locations = startups.flatMap(s => [s.city, s.state, s.country].filter(Boolean).map(l => l!.toLowerCase()));
   if (profile?.current_city) locations.push(profile.current_city.toLowerCase());
   if (locations.some(loc => searchText.includes(loc!))) {
     score += 4;
@@ -159,7 +161,7 @@ export async function GET() {
         .single(),
       supabase
         .from('startup_profiles')
-        .select('brand_name, keywords, stage, description, is_actively_raising, registered_address')
+        .select('brand_name, keywords, stage, description, is_actively_raising, city, state, country')
         .eq('owner_id', user.id)
         .limit(3),
       supabase
@@ -187,7 +189,7 @@ export async function GET() {
             s.keywords?.length ? `Industry: ${s.keywords.join(', ')}` : '',
             s.description ? `About: ${s.description.slice(0, 200)}` : '',
             s.is_actively_raising ? 'Currently raising funding' : '',
-            s.registered_address ? `Location: ${s.registered_address}` : '',
+            [s.city, s.state, s.country].filter(Boolean).length ? `Location: ${[s.city, s.state, s.country].filter(Boolean).join(', ')}` : '',
           ];
           return parts.filter(Boolean).join(' | ');
         }).filter(Boolean).join('\n');

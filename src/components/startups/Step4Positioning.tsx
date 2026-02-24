@@ -30,14 +30,36 @@ const TEAM_SIZES = [
 
 export function Step4Positioning({ data, onChange }: Step4Props) {
   const [keywordInput, setKeywordInput] = useState('');
+  const [otherInput, setOtherInput] = useState('');
+  const [showOtherInput, setShowOtherInput] = useState(() =>
+    data.categories.some(c => !PRESET_CATEGORIES.includes(c))
+  );
+
+  const customCategories = data.categories.filter(c => !PRESET_CATEGORIES.includes(c));
 
   const toggleCategory = (category: string) => {
+    if (category === 'Other') {
+      setShowOtherInput(prev => !prev);
+      return;
+    }
     const exists = data.categories.includes(category);
     if (exists) {
       onChange('categories', data.categories.filter(c => c !== category));
     } else {
       onChange('categories', [...data.categories, category]);
     }
+  };
+
+  const addCustomCategory = () => {
+    const cat = otherInput.trim();
+    if (cat && !data.categories.includes(cat)) {
+      onChange('categories', [...data.categories, cat]);
+      setOtherInput('');
+    }
+  };
+
+  const removeCustomCategory = (cat: string) => {
+    onChange('categories', data.categories.filter(c => c !== cat));
   };
 
   const addKeyword = () => {
@@ -81,15 +103,52 @@ export function Step4Positioning({ data, onChange }: Step4Props) {
               type="button"
               onClick={() => toggleCategory(cat)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
-                data.categories.includes(cat)
-                  ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border text-muted-foreground hover:border-primary/30'
+                cat === 'Other'
+                  ? (showOtherInput || customCategories.length > 0)
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary/30'
+                  : data.categories.includes(cat)
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary/30'
               }`}
             >
               {cat}
             </button>
           ))}
         </div>
+        {(showOtherInput || customCategories.length > 0) && (
+          <div className="mt-3 space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={otherInput}
+                onChange={(e) => setOtherInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCategory(); } }}
+                placeholder="Type your category and press Enter"
+                className="flex-1 px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                type="button"
+                onClick={addCustomCategory}
+                className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            {customCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {customCategories.map((cat) => (
+                  <span key={cat} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-accent/60 text-accent-foreground">
+                    {cat}
+                    <button type="button" onClick={() => removeCustomCategory(cat)} className="hover:text-red-500 transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Website */}

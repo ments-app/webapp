@@ -34,9 +34,9 @@ export default function EditStartupPage() {
   const [profileData, setProfileData] = useState({
     brand_name: '', registered_name: '', legal_status: 'not_registered', cin: '',
     stage: 'ideation', description: '', keywords: [] as string[], website: '',
-    founded_date: '', registered_address: '', startup_email: '',
+    founded_date: '', address_line1: '', address_line2: '', startup_email: '',
     startup_phone: '', pitch_deck_url: '', is_actively_raising: false,
-    business_model: '', city: '', country: '', categories: [] as string[],
+    business_model: '', city: '', state: '', country: '', categories: [] as string[],
     team_size: '', key_strengths: '', target_audience: '',
     revenue_amount: '', revenue_currency: 'USD', revenue_growth: '',
     traction_metrics: '', total_raised: '', investor_count: '',
@@ -65,12 +65,13 @@ export default function EditStartupPage() {
         legal_status: data.legal_status, cin: data.cin || '',
         stage: data.stage, description: data.description || '',
         keywords: data.keywords || [], website: data.website || '',
-        founded_date: data.founded_date ? new Date(data.founded_date).getFullYear().toString() : '', registered_address: data.registered_address || '',
+        founded_date: data.founded_date || '', address_line1: data.address_line1 || '',
+        address_line2: data.address_line2 || '',
         startup_email: data.startup_email, startup_phone: data.startup_phone,
         pitch_deck_url: data.pitch_deck_url || '',
         is_actively_raising: data.is_actively_raising,
         business_model: data.business_model || '', city: data.city || '',
-        country: data.country || '', categories: data.categories || [],
+        state: data.state || '', country: data.country || '', categories: data.categories || [],
         team_size: data.team_size || '', key_strengths: data.key_strengths || '',
         target_audience: data.target_audience || '',
         revenue_amount: data.revenue_amount || '', revenue_currency: data.revenue_currency || 'USD',
@@ -90,18 +91,6 @@ export default function EditStartupPage() {
         setFundingRounds(data.funding_rounds.map(r => ({
           investor: r.investor || '', amount: r.amount || '',
           round_type: r.round_type || '', round_date: r.round_date || '', is_public: r.is_public,
-        })));
-      }
-      if (data.incubators) {
-        setIncubators(data.incubators.map(i => ({
-          program_name: i.program_name,
-          year: i.year ? (typeof i.year === 'string' ? new Date(i.year).getFullYear() : i.year) : '' as number | '',
-        })));
-      }
-      if (data.awards) {
-        setAwards(data.awards.map(a => ({
-          award_name: a.award_name,
-          year: a.year ? (typeof a.year === 'string' ? new Date(a.year).getFullYear() : a.year) : '' as number | '',
         })));
       }
       setLoading(false);
@@ -152,8 +141,10 @@ export default function EditStartupPage() {
         description: profileData.description || null,
         keywords: profileData.keywords,
         website: profileData.website || null,
-        founded_date: profileData.founded_date ? `${profileData.founded_date}-01-01` : null,
-        registered_address: profileData.registered_address || null,
+        founded_date: profileData.founded_date || null,
+        address_line1: profileData.address_line1 || null,
+        address_line2: profileData.address_line2 || null,
+        state: profileData.state || null,
         startup_email: profileData.startup_email,
         startup_phone: profileData.startup_phone,
         pitch_deck_url: profileData.pitch_deck_url || null,

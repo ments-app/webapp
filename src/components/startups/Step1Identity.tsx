@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Building2 } from 'lucide-react';
+import { Country, State, City, ICountry, IState, ICity } from 'country-state-city';
 
 type Step1Props = {
   data: {
@@ -9,7 +11,10 @@ type Step1Props = {
     legal_status: string;
     cin: string;
     founded_date: string;
+    address_line1: string;
+    address_line2: string;
     city: string;
+    state: string;
     country: string;
     startup_email: string;
     business_model: string;
@@ -33,12 +38,68 @@ const stages = [
   { value: 'maturity', label: 'Maturity' },
 ];
 
-const businessModels = [
-  'SaaS', 'Marketplace', 'D2C', 'B2B', 'B2C', 'Hardware', 'Subscription',
-  'Freemium', 'Platform', 'Agency', 'Other',
-];
+const businessModels = ['B2B', 'B2C', 'B2B2C'];
 
 export function Step1Identity({ data, onChange }: Step1Props) {
+  const [countries] = useState<ICountry[]>(() => Country.getAllCountries());
+  const [states, setStates] = useState<IState[]>([]);
+  const [cities, setCities] = useState<ICity[]>([]);
+  const [selectedCountryCode, setSelectedCountryCode] = useState('');
+  const [selectedStateCode, setSelectedStateCode] = useState('');
+
+  // Initialize country/state codes from saved data
+  useEffect(() => {
+    if (data.country && !selectedCountryCode) {
+      const found = countries.find(c => c.name === data.country);
+      if (found) {
+        setSelectedCountryCode(found.isoCode);
+        const countryStates = State.getStatesOfCountry(found.isoCode);
+        setStates(countryStates);
+
+        if (data.state) {
+          const foundState = countryStates.find(s => s.name === data.state);
+          if (foundState) {
+            setSelectedStateCode(foundState.isoCode);
+            setCities(City.getCitiesOfState(found.isoCode, foundState.isoCode));
+          }
+        } else if (data.city) {
+          // Fallback: find which state this city belongs to
+          for (const st of countryStates) {
+            const stateCities = City.getCitiesOfState(found.isoCode, st.isoCode);
+            if (stateCities.some(c => c.name === data.city)) {
+              setSelectedStateCode(st.isoCode);
+              setCities(stateCities);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }, [data.country, data.state, data.city, countries, selectedCountryCode]);
+
+  const handleCountryChange = (countryCode: string) => {
+    const country = countries.find(c => c.isoCode === countryCode);
+    setSelectedCountryCode(countryCode);
+    setSelectedStateCode('');
+    setCities([]);
+    onChange('country', country?.name || '');
+    onChange('state', '');
+    onChange('city', '');
+    setStates(countryCode ? State.getStatesOfCountry(countryCode) : []);
+  };
+
+  const handleStateChange = (stateCode: string) => {
+    const st = states.find(s => s.isoCode === stateCode);
+    setSelectedStateCode(stateCode);
+    onChange('state', st?.name || '');
+    onChange('city', '');
+    setCities(stateCode ? City.getCitiesOfState(selectedCountryCode, stateCode) : []);
+  };
+
+  const handleCityChange = (cityName: string) => {
+    onChange('city', cityName);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-2">
@@ -119,40 +180,83 @@ export function Step1Identity({ data, onChange }: Step1Props) {
         </div>
       )}
 
-      {/* Year Founded */}
+      {/* Founded Date */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Year Founded</label>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Founded Date</label>
         <input
-          type="text"
+          type="date"
           value={data.founded_date}
           onChange={(e) => onChange('founded_date', e.target.value)}
-          placeholder="e.g. 2023"
-          maxLength={4}
-          className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
       </div>
 
-      {/* City & Country */}
+      {/* Address */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">City</label>
+          <label className="block text-sm font-medium text-foreground mb-1.5">Address Line 1 <span className="text-muted-foreground font-normal">(Optional)</span></label>
           <input
             type="text"
-            value={data.city}
-            onChange={(e) => onChange('city', e.target.value)}
-            placeholder="e.g. Bangalore"
+            value={data.address_line1}
+            onChange={(e) => onChange('address_line1', e.target.value)}
+            placeholder="Street address, building"
             className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Country</label>
+          <label className="block text-sm font-medium text-foreground mb-1.5">Address Line 2 <span className="text-muted-foreground font-normal">(Optional)</span></label>
           <input
             type="text"
-            value={data.country}
-            onChange={(e) => onChange('country', e.target.value)}
-            placeholder="e.g. India"
+            value={data.address_line2}
+            onChange={(e) => onChange('address_line2', e.target.value)}
+            placeholder="Apartment, suite, floor"
             className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
+        </div>
+      </div>
+
+      {/* Country, State & City */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">Country</label>
+          <select
+            value={selectedCountryCode}
+            onChange={(e) => handleCountryChange(e.target.value)}
+            className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            <option value="">Select country</option>
+            {countries.map((c) => (
+              <option key={c.isoCode} value={c.isoCode}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">State</label>
+          <select
+            value={selectedStateCode}
+            onChange={(e) => handleStateChange(e.target.value)}
+            disabled={!selectedCountryCode}
+            className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+          >
+            <option value="">Select state</option>
+            {states.map((s) => (
+              <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">City</label>
+          <select
+            value={data.city}
+            onChange={(e) => handleCityChange(e.target.value)}
+            disabled={!selectedStateCode}
+            className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+          >
+            <option value="">Select city</option>
+            {cities.map((c) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

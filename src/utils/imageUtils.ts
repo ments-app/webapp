@@ -18,6 +18,11 @@ export function toProxyUrl(
   if (rawUrl.includes('/functions/v1/get-image')) {
     return rawUrl;
   }
+
+  // If it is a local relative URL, return as-is
+  if (rawUrl.startsWith('/')) {
+    return rawUrl;
+  }
   
   // Build query parameters with optimization settings
   const params = new URLSearchParams({

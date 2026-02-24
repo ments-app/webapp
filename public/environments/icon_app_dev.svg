@@ -1,0 +1,31 @@
+<svg width='512' height='512' viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'>
+<defs>
+  <filter id='soft-shadow' x='-20%' y='-20%' width='140%' height='140%'>
+    <feDropShadow dx='16' dy='16' stdDeviation='20' flood-color='#bac9d8' flood-opacity='0.8'/>
+    <feDropShadow dx='-16' dy='-16' stdDeviation='20' flood-color='#ffffff' flood-opacity='0.9'/>
+  </filter>
+  <filter id='soft-shadow-sm' x='-20%' y='-20%' width='140%' height='140%'>
+    <feDropShadow dx='8' dy='8' stdDeviation='12' flood-color='#bac9d8' flood-opacity='0.8'/>
+    <feDropShadow dx='-8' dy='-8' stdDeviation='12' flood-color='#ffffff' flood-opacity='0.9'/>
+  </filter>
+  <filter id='glow-green' x='-30%' y='-30%' width='160%' height='160%'>
+    <feDropShadow dx='0' dy='8' stdDeviation='16' flood-color='#059669' flood-opacity='0.4'/>
+  </filter>
+  <filter id='glow-black' x='-30%' y='-30%' width='160%' height='160%'>
+    <feDropShadow dx='0' dy='8' stdDeviation='16' flood-color='#1E232A' flood-opacity='0.2'/>
+  </filter>
+  <filter id='glow-blue' x='-30%' y='-30%' width='160%' height='160%'>
+    <feDropShadow dx='0' dy='8' stdDeviation='16' flood-color='#3B82F6' flood-opacity='0.3'/>
+  </filter>
+  <linearGradient id='grad-green' x1='0%' y1='0%' x2='100%' y2='100%'>
+    <stop offset='0%' stop-color='#34D399'/>
+    <stop offset='100%' stop-color='#059669'/>
+  </linearGradient>
+</defs>
+  <rect width='512' height='512' fill='#EBF0F5'/>
+  <rect x='64' y='64' width='384' height='384' rx='80' fill='#EBF0F5' filter='url(#soft-shadow)'/>
+  <rect x='180' y='120' width='152' height='272' rx='32' fill='#EBF0F5' filter='url(#soft-shadow-sm)'/>
+  <rect x='200' y='150' width='112' height='160' rx='16' fill='#1E232A' filter='url(#glow-black)'/>
+  <path d='M 230 200 L 260 230 L 230 260 M 280 260 L 310 260' fill='none' stroke='url(#grad-green)' stroke-width='16' stroke-linecap='round' stroke-linejoin='round' filter='url(#glow-green)'/>
+  <circle cx='256' cy='350' r='16' fill='#FFFFFF' filter='url(#soft-shadow-sm)'/>
+</svg>

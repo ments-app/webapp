@@ -126,9 +126,9 @@ export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark 
               Founded: {new Date(startup.founded_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
             </div>
           )}
-          {startup.registered_address && (
+          {startup.address_line1 && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {startup.registered_address}
+              {[startup.address_line1, startup.address_line2].filter(Boolean).join(', ')}
             </div>
           )}
         </div>
