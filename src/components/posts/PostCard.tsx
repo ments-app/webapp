@@ -1066,41 +1066,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         </div>
       </div>
       
-      {/* Environment Badge - Full width below user info */}
-      {post.environment && (
-        <div
-          className="flex items-center gap-3 text-sm bg-muted/60 dark:bg-[#1C1F26] px-4 py-2 rounded-xl border border-border dark:border-[#2A2E38] w-fit hover:bg-muted dark:hover:bg-[#222733] transition-colors cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (post.environment?.id) {
-              router.push(`/environments/${post.environment.id}`);
-            }
-          }}
-          role="link"
-          aria-label={`Open environment ${post.environment?.name || ''}`}
-          data-no-nav="true"
-        >
-          {post.environment.picture && !uiState.envImageError ? (
-            <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-border dark:ring-[#3C4049]">
-              <Image
-                src={toProxyUrl(post.environment.picture, { width: 24, quality: 82 })}
-                alt={post.environment.name}
-                width={24}
-                height={24}
-                className="object-cover w-full h-full"
-                onError={handleEnvImageError}
-                sizes="24px"
-                loading="lazy"
-              />
-            </div>
-          ) : (
-            <Users className="h-5 w-5 text-gray-400" />
-          )}
-          <span className="text-foreground font-semibold">{post.environment.name}</span>
-        </div>
-      )}
     </div>
-  ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull, post.environment, uiState.envImageError, handleEnvImageError, router]);
+  ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull]);
 
   const tagsSection = useMemo(() => {
     if (!post.tags || post.tags.length === 0) return null;
@@ -1137,8 +1104,38 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         {/* Header */}
         <header className="flex items-start justify-between mb-3 sm:mb-5">
           {profileSection}
-          
-          {/* Menu */}
+
+          {/* Environment badge + Menu */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+          {post.environment && (
+            <button
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 dark:bg-[#1C1F26] border border-border/60 dark:border-[#2A2E38] text-muted-foreground hover:bg-muted dark:hover:bg-[#222733] hover:text-foreground transition-colors max-w-[140px]"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (post.environment?.id) {
+                  router.push(`/environments/${post.environment.id}`);
+                }
+              }}
+              data-no-nav="true"
+              aria-label={`Open environment ${post.environment?.name || ''}`}
+            >
+              {post.environment.picture && !uiState.envImageError ? (
+                <Image
+                  src={toProxyUrl(post.environment.picture, { width: 16, quality: 82 })}
+                  alt={post.environment.name}
+                  width={16}
+                  height={16}
+                  className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                  onError={handleEnvImageError}
+                  sizes="16px"
+                  loading="lazy"
+                />
+              ) : (
+                <Users className="h-3.5 w-3.5 flex-shrink-0" />
+              )}
+              <span className="truncate">{post.environment.name}</span>
+            </button>
+          )}
           <div className="relative" ref={menuRef}>
             <Button 
               variant="ghost" 
@@ -1217,8 +1214,9 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
               </div>
             )}
           </div>
+          </div>
         </header>
-        
+
         {/* Tags */}
         {tagsSection}
         
