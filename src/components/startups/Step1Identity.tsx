@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Building2 } from 'lucide-react';
 import { Country, State, City, ICountry, IState, ICity } from 'country-state-city';
 
 type Step1Props = {
@@ -102,14 +101,9 @@ export function Step1Identity({ data, onChange }: Step1Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
-          <Building2 className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Startup Identity</h2>
-          <p className="text-sm text-muted-foreground">Core information about your startup</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Startup Identity</h2>
+        <p className="text-sm text-muted-foreground">Core information about your startup</p>
       </div>
 
       {/* Brand Name */}

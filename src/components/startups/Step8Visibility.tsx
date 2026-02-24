@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Globe, Lock, Users } from 'lucide-react';
+import { Globe, Lock, Users } from 'lucide-react';
 
 type Step8Props = {
   data: {
@@ -34,14 +34,9 @@ const visibilityOptions = [
 export function Step8Visibility({ data, onChange }: Step8Props) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-500 shadow-md">
-          <Eye className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Visibility & Publish</h2>
-          <p className="text-sm text-muted-foreground">Choose who can see your startup profile</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Visibility & Publish</h2>
+        <p className="text-sm text-muted-foreground">Choose who can see your startup profile</p>
       </div>
 
       {/* Visibility Selection */}

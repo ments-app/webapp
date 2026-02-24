@@ -1,7 +1,5 @@
 "use client";
 
-import { TrendingUp } from 'lucide-react';
-
 type Step5Props = {
   data: {
     key_strengths: string;
@@ -13,14 +11,9 @@ type Step5Props = {
 export function Step5Edge({ data, onChange }: Step5Props) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-rose-500 shadow-md">
-          <TrendingUp className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Competitive Edge</h2>
-          <p className="text-sm text-muted-foreground">What sets you apart from the competition?</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Competitive Edge</h2>
+        <p className="text-sm text-muted-foreground">What sets you apart from the competition?</p>
       </div>
 
       {/* Key Strengths */}

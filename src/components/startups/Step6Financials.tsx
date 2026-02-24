@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Plus, X, TrendingUp } from 'lucide-react';
+import { Plus, X, TrendingUp } from 'lucide-react';
 
 type FundingRound = {
   investor: string;
@@ -51,14 +51,9 @@ export function Step6Financials({ data, fundingRounds, onChange, onFundingChange
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md">
-          <Briefcase className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Financials</h2>
-          <p className="text-sm text-muted-foreground">Revenue and funding details (all optional)</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Financials</h2>
+        <p className="text-sm text-muted-foreground">Revenue and funding details (all optional)</p>
       </div>
 
       {/* Revenue Section */}

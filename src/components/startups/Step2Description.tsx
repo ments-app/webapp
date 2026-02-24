@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 type Founder = {
   name: string;
@@ -38,14 +38,9 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
-          <FileText className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Description & Team</h2>
-          <p className="text-sm text-muted-foreground">Tell us about your product and founding team</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Description & Team</h2>
+        <p className="text-sm text-muted-foreground">Tell us about your product and founding team</p>
       </div>
 
       {/* Product Description */}

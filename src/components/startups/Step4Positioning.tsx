@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Target, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 type Step4Props = {
   data: {
@@ -83,14 +83,9 @@ export function Step4Positioning({ data, onChange }: Step4Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
-          <Target className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Positioning</h2>
-          <p className="text-sm text-muted-foreground">Define your market and positioning</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Positioning</h2>
+        <p className="text-sm text-muted-foreground">Define your market and positioning</p>
       </div>
 
       {/* Categories */}

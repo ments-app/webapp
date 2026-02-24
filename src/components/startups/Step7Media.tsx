@@ -18,14 +18,9 @@ export function Step7Media({ data, isUploadingDeck, onChange, onPitchDeckUpload 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-md">
-          <FileText className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Media & Documents</h2>
-          <p className="text-sm text-muted-foreground">Upload your pitch deck and elevator pitch</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Media & Documents</h2>
+        <p className="text-sm text-muted-foreground">Upload your pitch deck and elevator pitch</p>
       </div>
 
       {/* Pitch Deck */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from 'react';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 type Step3Props = {
   logoUrl: string;
@@ -23,14 +23,9 @@ export function Step3Branding({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md">
-          <ImageIcon className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Branding</h2>
-          <p className="text-sm text-muted-foreground">Upload your startup&apos;s logo and banner</p>
-        </div>
+      <div className="mb-1">
+        <h2 className="text-lg font-semibold text-foreground">Branding</h2>
+        <p className="text-sm text-muted-foreground">Upload your startup&apos;s logo and banner</p>
       </div>
 
       {/* Logo Upload */}
