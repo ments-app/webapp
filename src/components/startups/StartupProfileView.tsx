@@ -4,7 +4,7 @@ import { StartupProfile } from '@/api/startups';
 import {
   Rocket, Globe, Mail, Phone, FileText, TrendingUp, Users, Award,
   Building, Bookmark, BookmarkCheck, ExternalLink, Eye, MapPin,
-  Calendar, Zap, Target, BarChart3, DollarSign, Linkedin,
+  Calendar, Zap, Target, BarChart3, Linkedin,
   Briefcase, Hash, Lightbulb, Crown, Gem, ChevronRight, Mic, Clock
 } from 'lucide-react';
 import Link from 'next/link';

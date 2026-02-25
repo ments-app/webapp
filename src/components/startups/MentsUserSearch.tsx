@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, Check, Copy, Send, UserPlus } from 'lucide-react';
+import { Search, X, Check, Copy, UserPlus } from 'lucide-react';
 
 type MentsUser = {
   id: string;
