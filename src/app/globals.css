@@ -177,9 +177,8 @@
   max-width: 100vw;
 }
 
-.chat-container * {
+.chat-container .message-bubble {
   box-sizing: border-box;
-  max-width: 100%;
 }
 
 /* Fix message bubbles on mobile */

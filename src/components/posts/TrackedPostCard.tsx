@@ -15,7 +15,7 @@ interface TrackedPostCardProps {
 
 export const TrackedPostCard = memo(({ post, positionInFeed, onReply, onLike }: TrackedPostCardProps) => {
   const router = useRouter();
-  const { ref, trackClick, trackLike, trackReply, trackShare, trackBookmark, trackPollVote, trackProfileClick, trackExpandContent } = useFeedTracking({
+  const { ref, trackClick, trackLike, trackReply, trackShare, trackBookmark, trackPollVote, trackProfileClick } = useFeedTracking({
     postId: post.id,
     authorId: post.author_id,
     positionInFeed,
@@ -50,7 +50,6 @@ export const TrackedPostCard = memo(({ post, positionInFeed, onReply, onLike }: 
         onBookmark={trackBookmark}
         onPollVote={trackPollVote}
         onProfileClick={trackProfileClick}
-        onExpandContent={trackExpandContent}
       />
     </div>
   );
