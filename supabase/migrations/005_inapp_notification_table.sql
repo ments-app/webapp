@@ -1,0 +1,6 @@
+-- inapp_notification table already exists in production with the following schema:
+--   id, recipient_id, type, content, is_read, created_at, extra (jsonb),
+--   actor_id, actor_name, actor_avatar_url, actor_username,
+--   post_id, reply_id
+--
+-- No migration needed. This file is kept for documentation purposes.

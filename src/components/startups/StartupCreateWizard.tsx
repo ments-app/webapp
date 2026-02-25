@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createStartup, upsertFounders, upsertFundingRounds, uploadPitchDeck, uploadStartupImage } from '@/api/startups';
+import { createStartup, upsertFundingRounds, uploadPitchDeck, uploadStartupImage } from '@/api/startups';
 import { Step1Identity } from './Step1Identity';
 import { Step2Description } from './Step2Description';
 import { Step3Branding } from './Step3Branding';
@@ -194,13 +194,26 @@ export function StartupCreateWizard() {
 
       const validFounders = founders.filter(f => f.name.trim());
       if (validFounders.length > 0) {
-        promises.push(upsertFounders(startup.id, validFounders.map(f => ({
-          name: f.name,
-          linkedin_url: f.linkedin_url || undefined,
-          user_id: f.user_id || undefined,
-          ments_username: f.ments_username || undefined,
-          display_order: f.display_order,
-        })), profileData.brand_name));
+        promises.push(
+          fetch(`/api/startups/${startup.id}/founders`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              founders: validFounders.map(f => ({
+                name: f.name,
+                user_id: f.user_id || null,
+                ments_username: f.ments_username || null,
+                display_order: f.display_order,
+              })),
+              startupName: profileData.brand_name,
+            }),
+          }).then(async r => {
+            if (!r.ok) {
+              const d = await r.json();
+              throw new Error(d.error || 'Failed to save founders');
+            }
+          })
+        );
       }
 
       const validRounds = fundingRounds.filter(r => r.round_type || r.amount || r.investor);

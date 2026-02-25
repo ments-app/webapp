@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         try {
           let q = supabase
             .from('inapp_notification')
-            .select('id, recipient_id, type, message, is_read, created_at, data', { count: 'exact' })
+            .select('id, recipient_id, type, content, is_read, created_at, extra, actor_id, actor_name, actor_avatar_url, actor_username', { count: 'exact' })
             .eq('recipient_id', userId);
           if (unreadOnly) q = q.eq('is_read', false);
           if (type) q = q.eq('type', type);
@@ -71,6 +71,9 @@ export async function GET(request: NextRequest) {
       notification_source: 'inapp',
       read: n.is_read,
       user_id: n.recipient_id,
+      // Map actual column names to the field names used by the merging/actor-lookup logic below
+      message: n.content,
+      data: n.extra,
     }));
 
     // Merge and sort
