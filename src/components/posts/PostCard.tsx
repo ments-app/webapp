@@ -689,6 +689,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
   // Refs
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // Ref-based voting lock: prevents double-fire before setState propagates
+  const isVotingRef = useRef(false);
 
   // Memoized values - optimized to prevent unnecessary re-renders
   const content = useMemo(() => post.content ?? '', [post.content]);
@@ -807,7 +809,15 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   }, [post.id, post.author?.username, content, onShare]);
 
   const handlePollVote = useCallback(async (optionId: string) => {
-    if (!user?.id || pollState.isVoting) return;
+    // Ref guard fires synchronously — catches rapid clicks before setState can update
+    if (isVotingRef.current) return;
+    if (!user?.id) {
+      // Surface a clear message instead of silently ignoring the click
+      alert('Sign in to vote on polls.');
+      return;
+    }
+    if (pollState.isVoting) return;
+    isVotingRef.current = true;
 
     // Track poll vote with option index
     const optionIndex = post.poll?.options?.findIndex(o => o.id === optionId) ?? -1;
@@ -864,20 +874,19 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       }
 
       if (data.action !== action) {
-        const serverVotes = { ...pollState.votes };
-        let serverUserVotes = [...pollState.userVotedOptions];
+        // Server action differed from client prediction — rebuild state from scratch
+        // using the pre-vote baseline (previousVotes) + server truth.
+        const serverVotes = { ...previousVotes };
+        const serverUserVotes: string[] = [];
 
         if (data.action === 'removed') {
-          serverUserVotes = serverUserVotes.filter(id => id !== optionId);
+          // Server removed the vote; no option should be selected
           serverVotes[optionId] = Math.max(0, (serverVotes[optionId] || 1) - 1);
         } else if (data.action === 'added') {
           if (data.previous_option_id) {
-            serverUserVotes = serverUserVotes.filter(id => id !== data.previous_option_id);
             serverVotes[data.previous_option_id] = Math.max(0, (serverVotes[data.previous_option_id] || 1) - 1);
           }
-          if (!serverUserVotes.includes(optionId)) {
-            serverUserVotes.push(optionId);
-          }
+          serverUserVotes.push(optionId);
           serverVotes[optionId] = (serverVotes[optionId] || 0) + 1;
         }
 
@@ -897,6 +906,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         hasUserVoted: previousHasVoted,
       }));
     } finally {
+      isVotingRef.current = false;
       setPollState(prev => ({ ...prev, isVoting: false, votingOptionId: null }));
     }
   }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options]);
@@ -959,7 +969,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     };
 
     checkUserInteractions();
-  }, [user?.id, post.id, post.poll]);
+  }, [user?.id, post.id, post.poll?.id]);
 
   useEffect(() => {
     if (!uiState.isMenuOpen) return;
@@ -1254,23 +1264,29 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             <div className="font-bold mb-3 sm:mb-4 text-foreground text-base sm:text-lg">{post.poll.question}</div>
             <div className="space-y-3">
               {post.poll.options?.map(option => {
-                const voteCount = pollState.votes[option.id] || 0;
+                const voteCount = pollState.votes[option.id] ?? 0;
                 const percentage = totalPollVotes > 0 ? (voteCount / totalPollVotes) * 100 : 0;
                 const isSelected = pollState.userVotedOptions.includes(option.id);
                 const isCurrentlyVoting = pollState.votingOptionId === option.id;
+                // Disable all OTHER options while one is being processed
                 const isDisabled = pollState.isVoting && !isCurrentlyVoting;
 
                 return (
                   <div key={option.id} className="relative">
                     <button
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${isSelected
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${
+                        isSelected
                           ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]'
                           : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
-                        } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
-                      ${isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''}`}
+                      } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${
+                        isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''
+                      }`}
                       onClick={() => handlePollVote(option.id)}
                       disabled={isDisabled}
+                      aria-pressed={isSelected}
+                      aria-label={`Vote for ${option.option_text}${isSelected ? ' (selected)' : ''}`}
                     >
+                      {/* Progress bar — visible only after user voted */}
                       {pollState.hasUserVoted && (
                         <div
                           className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-xl transition-all duration-700 ease-out"
@@ -1278,6 +1294,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                         />
                       )}
 
+                      {/* Shimmer overlay while this option is being submitted */}
                       {isCurrentlyVoting && (
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent rounded-xl">
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-slide-right" />
@@ -1296,7 +1313,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                           <span className="text-muted-foreground text-sm font-medium transition-all duration-300">
                             {voteCount} vote{voteCount !== 1 ? 's' : ''}
                           </span>
-                          <span className="text-primary text-sm font-bold transition-all duration-300">
+                          <span className="text-primary text-sm font-bold transition-all duration-300 min-w-[2.5rem] text-right">
                             {percentage.toFixed(0)}%
                           </span>
                         </div>
@@ -1306,19 +1323,27 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                 );
               })}
             </div>
-            {pollState.hasUserVoted && (
-              <div className="mt-4 pt-3 border-t border-border">
-                <p className="text-muted-foreground text-sm text-center">
-                  {totalPollVotes} total vote{totalPollVotes !== 1 ? 's' : ''}
-                </p>
 
+            {/* Footer: total votes + tap-to-change hint + voters panel */}
+            <div className="mt-4 pt-3 border-t border-border">
+              <p className="text-muted-foreground text-sm text-center">
+                {totalPollVotes} total vote{totalPollVotes !== 1 ? 's' : ''}
+                {pollState.hasUserVoted && (
+                  <span className="ml-2 text-xs opacity-60">· tap your choice to deselect</span>
+                )}
+                {!user?.id && (
+                  <span className="ml-2 text-xs opacity-60">· sign in to vote</span>
+                )}
+              </p>
+
+              {pollState.hasUserVoted && (
                 <PollVoters
                   pollId={post.poll.id}
                   isCreator={user?.id === post.author_id}
                   totalVotes={totalPollVotes}
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 

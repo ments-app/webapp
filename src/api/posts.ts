@@ -631,7 +631,7 @@ export async function unlikePost(postId: string, userId: string): Promise<{ erro
  */
 export async function votePollOption(optionId: string, userId: string) {
   try {
-    // First, get the poll_id from this option
+    // 1. Fetch option metadata (poll_id + current vote count)
     const { data: optionData, error: optionError } = await supabase
       .from('post_poll_options')
       .select('poll_id, votes')
@@ -644,19 +644,20 @@ export async function votePollOption(optionId: string, userId: string) {
 
     const pollId = optionData.poll_id;
 
-    // Check if user has already voted for this specific option
+    // 2. Check if user already voted for THIS specific option
+    // Use maybeSingle() to avoid PGRST116 error when no row exists
     const { data: existingVoteForOption, error: checkOptionError } = await supabase
       .from('post_poll_votes')
       .select('id')
       .eq('poll_option_id', optionId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (checkOptionError && checkOptionError.code !== 'PGRST116') {
+    if (checkOptionError) {
       return { data: null, error: checkOptionError };
     }
 
-    // If user clicked the same option they already voted for, remove the vote
+    // 3. Same option clicked → REMOVE vote
     if (existingVoteForOption) {
       const { error: deleteError } = await supabase
         .from('post_poll_votes')
@@ -667,30 +668,34 @@ export async function votePollOption(optionId: string, userId: string) {
         return { data: null, error: deleteError };
       }
 
-      // Decrease vote count
-      const currentVotes = optionData.votes ?? 0;
-      const newVotes = Math.max(0, currentVotes - 1);
+      // Re-fetch fresh count before decrementing to avoid stale read issues
+      const { data: freshOption } = await supabase
+        .from('post_poll_options')
+        .select('votes')
+        .eq('id', optionId)
+        .single();
+
+      const freshVotes = freshOption?.votes ?? optionData.votes ?? 0;
       const { error: decrementError } = await supabase
         .from('post_poll_options')
-        .update({ votes: newVotes })
+        .update({ votes: Math.max(0, freshVotes - 1) })
         .eq('id', optionId);
 
       if (decrementError) {
+        // Count update failed — re-insert the vote to keep DB consistent
+        await supabase
+          .from('post_poll_votes')
+          .insert([{ poll_option_id: optionId, user_id: userId }]);
         return { data: null, error: decrementError };
       }
 
-      return { 
-        data: { 
-          success: true, 
-          voted_option_id: optionId, 
-          action: 'removed',
-          previous_option_id: null
-        }, 
-        error: null 
+      return {
+        data: { success: true, voted_option_id: optionId, action: 'removed', previous_option_id: null },
+        error: null,
       };
     }
 
-    // Check if user has voted for ANY other option in this poll
+    // 4. Check if user has voted for ANY other option in this poll
     const { data: existingVotes, error: checkPollError } = await supabase
       .from('post_poll_votes')
       .select(`
@@ -709,14 +714,13 @@ export async function votePollOption(optionId: string, userId: string) {
       return { data: null, error: checkPollError };
     }
 
-    let previousOptionId = null;
+    let previousOptionId: string | null = null;
 
-    // If user has already voted on this poll, remove the previous vote
+    // 5. If user has an existing vote on this poll → remove it first
     if (existingVotes && existingVotes.length > 0) {
       const previousVote = existingVotes[0];
       previousOptionId = previousVote.poll_option_id;
 
-      // Delete the previous vote
       const { error: deleteError } = await supabase
         .from('post_poll_votes')
         .delete()
@@ -726,55 +730,98 @@ export async function votePollOption(optionId: string, userId: string) {
         return { data: null, error: deleteError };
       }
 
-      // Decrease vote count on the previous option
-      const previousOption = previousVote.post_poll_options?.[0];
+      // Fix: post_poll_options is a single object (many-to-one), not an array
+      const previousOption = Array.isArray(previousVote.post_poll_options)
+        ? previousVote.post_poll_options[0]
+        : previousVote.post_poll_options;
+
       if (previousOption) {
-        const currentVotes = previousOption.votes ?? 0;
-        const newVotes = Math.max(0, currentVotes - 1);
+        // Re-fetch fresh count to avoid stale read
+        const { data: freshPrevOption } = await supabase
+          .from('post_poll_options')
+          .select('votes')
+          .eq('id', previousOptionId)
+          .single();
+
+        const freshPrevVotes = freshPrevOption?.votes ?? previousOption.votes ?? 0;
         const { error: decrementError } = await supabase
           .from('post_poll_options')
-          .update({ votes: newVotes })
+          .update({ votes: Math.max(0, freshPrevVotes - 1) })
           .eq('id', previousOptionId);
 
         if (decrementError) {
-          console.error('Error decrementing previous vote:', decrementError);
+          // Count update failed — re-insert the deleted vote to stay consistent
+          await supabase
+            .from('post_poll_votes')
+            .insert([{ poll_option_id: previousOptionId, user_id: userId }]);
+          return { data: null, error: decrementError };
         }
       }
     }
 
-    // Add the new vote
+    // 6. Insert new vote
     const { error: insertError } = await supabase
       .from('post_poll_votes')
-      .insert([
-        {
-          poll_option_id: optionId,
-          user_id: userId
-        }
-      ]);
+      .insert([{ poll_option_id: optionId, user_id: userId }]);
 
     if (insertError) {
+      // Insert failed — restore the previous vote if one was removed
+      if (previousOptionId) {
+        await supabase
+          .from('post_poll_votes')
+          .insert([{ poll_option_id: previousOptionId, user_id: userId }]);
+        // Also restore previous option's count
+        const { data: prevOpt } = await supabase
+          .from('post_poll_options').select('votes').eq('id', previousOptionId).single();
+        if (prevOpt) {
+          await supabase
+            .from('post_poll_options')
+            .update({ votes: (prevOpt.votes ?? 0) + 1 })
+            .eq('id', previousOptionId);
+        }
+      }
       return { data: null, error: insertError };
     }
 
-    // Increase vote count on the new option
-    const currentVotes = optionData.votes ?? 0;
+    // 7. Increment new option count — re-fetch fresh count first
+    const { data: freshOption } = await supabase
+      .from('post_poll_options')
+      .select('votes')
+      .eq('id', optionId)
+      .single();
+
+    const freshVotes = freshOption?.votes ?? optionData.votes ?? 0;
     const { error: incrementError } = await supabase
       .from('post_poll_options')
-      .update({ votes: currentVotes + 1 })
+      .update({ votes: freshVotes + 1 })
       .eq('id', optionId);
 
     if (incrementError) {
+      // Count update failed — rollback: delete inserted vote, restore previous
+      await supabase
+        .from('post_poll_votes')
+        .delete()
+        .eq('poll_option_id', optionId)
+        .eq('user_id', userId);
+      if (previousOptionId) {
+        await supabase
+          .from('post_poll_votes')
+          .insert([{ poll_option_id: previousOptionId, user_id: userId }]);
+        const { data: prevOpt } = await supabase
+          .from('post_poll_options').select('votes').eq('id', previousOptionId).single();
+        if (prevOpt) {
+          await supabase
+            .from('post_poll_options')
+            .update({ votes: (prevOpt.votes ?? 0) + 1 })
+            .eq('id', previousOptionId);
+        }
+      }
       return { data: null, error: incrementError };
     }
 
-    return { 
-      data: { 
-        success: true, 
-        voted_option_id: optionId, 
-        action: 'added',
-        previous_option_id: previousOptionId
-      }, 
-      error: null 
+    return {
+      data: { success: true, voted_option_id: optionId, action: 'added', previous_option_id: previousOptionId },
+      error: null,
     };
   } catch (error) {
     console.error('Error voting on poll option:', error);
@@ -842,7 +889,7 @@ export async function checkUserPollVotes(pollId: string, userId: string): Promis
         poll_option_id,
         user_id,
         created_at,
-        post_poll_options!poll_option_id (
+        post_poll_options!inner (
           id,
           option_text,
           poll_id
@@ -856,13 +903,18 @@ export async function checkUserPollVotes(pollId: string, userId: string): Promis
       return { votes: [], error };
     }
 
-    const votes = data?.map((vote: { id: string; poll_option_id: string; user_id: string; created_at: string; post_poll_options?: { poll_id: string }[] }) => ({
-      id: vote.id,
-      option_id: vote.poll_option_id, // Map poll_option_id to option_id
-      user_id: vote.user_id,
-      created_at: vote.created_at,
-      poll_id: vote.post_poll_options?.[0]?.poll_id
-    })) || [];
+    const votes = data?.map((vote: { id: string; poll_option_id: string; user_id: string; created_at: string; post_poll_options?: { poll_id: string } | { poll_id: string }[] }) => {
+      const pollOption = Array.isArray(vote.post_poll_options)
+        ? vote.post_poll_options[0]
+        : vote.post_poll_options;
+      return {
+        id: vote.id,
+        option_id: vote.poll_option_id,
+        user_id: vote.user_id,
+        created_at: vote.created_at,
+        poll_id: pollOption?.poll_id
+      };
+    }) || [];
 
     return { votes, error: null };
   } catch (error) {

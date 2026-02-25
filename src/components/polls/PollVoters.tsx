@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Users, X, ChevronDown, ChevronUp, Eye, BarChart3 } from 'lucide-react';
+import { Users, X, ChevronDown, ChevronUp, Eye, BarChart3, RefreshCw } from 'lucide-react';
 import { getPollVoters, getPollStats, type PollVoter } from '@/api/posts';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
@@ -38,25 +38,28 @@ export function PollVoters({ pollId, isCreator, totalVotes }: PollVotersProps) {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'voters' | 'stats'>('voters');
   const { user } = useAuth();
+  // Track last loaded totalVotes so we can auto-refresh when count changes
+  const lastLoadedVotesRef = useRef<number | null>(null);
 
   const loadVotersData = async () => {
     if (!user || !isCreator) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const [votersResponse, statsResponse] = await Promise.all([
         getPollVoters(pollId, user.id),
-        getPollStats(pollId, user.id)
+        getPollStats(pollId, user.id),
       ]);
-      
+
       if (votersResponse.error) {
         setError(votersResponse.error.message);
       } else {
         setVoters(votersResponse.voters);
+        lastLoadedVotesRef.current = totalVotes;
       }
-      
+
       if (statsResponse.error) {
         console.error('Stats error:', statsResponse.error.message);
       } else {
@@ -68,6 +71,14 @@ export function PollVoters({ pollId, isCreator, totalVotes }: PollVotersProps) {
       setLoading(false);
     }
   };
+
+  // Auto-refresh voter list when totalVotes changes while panel is open
+  useEffect(() => {
+    if (isOpen && isCreator && lastLoadedVotesRef.current !== null && lastLoadedVotesRef.current !== totalVotes) {
+      loadVotersData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalVotes, isOpen]);
 
   const handleToggle = () => {
     if (!isOpen) {
@@ -154,7 +165,17 @@ export function PollVoters({ pollId, isCreator, totalVotes }: PollVotersProps) {
             )}
 
             {error && (
-              <div className="text-sm text-destructive py-2">{error}</div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-destructive">{error}</span>
+                <button
+                  onClick={loadVotersData}
+                  disabled={loading}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-3 shrink-0"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </button>
+              </div>
             )}
 
             {!loading && !error && viewMode === 'stats' && stats && (

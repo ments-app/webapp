@@ -6,6 +6,17 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const error = requestUrl.searchParams.get('error');
+  const errorDescription = requestUrl.searchParams.get('error_description');
+
+  console.log('[AUTH CALLBACK] Hit callback route');
+  console.log('[AUTH CALLBACK] Code present:', !!code, '| Error:', error, '| Desc:', errorDescription);
+
+  // Handle errors returned by Supabase (e.g. failed external code exchange)
+  if (error) {
+    console.error('[AUTH CALLBACK] Supabase returned error:', error, errorDescription);
+    return NextResponse.redirect(`${requestUrl.origin}/?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`);
+  }
 
   if (code) {
     // Next.js 16: cookies() is async, must await before passing
@@ -13,6 +24,8 @@ export async function GET(request: NextRequest) {
 
     // Exchange code for session
     const { data: { session }, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+
+    console.log('[AUTH CALLBACK] Exchange result - session:', !!session, 'error:', sessionError?.message);
 
     if (sessionError) {
       console.error('Error exchanging code for session:', sessionError);
