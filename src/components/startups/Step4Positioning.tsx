@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Target, X } from 'lucide-react';
+import { X, Check, Plus, Hash } from 'lucide-react';
 
 type Step4Props = {
   data: {
@@ -27,6 +27,8 @@ const TEAM_SIZES = [
   { value: '21-50', label: '21-50' },
   { value: '50+', label: '50+' },
 ];
+
+const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 
 export function Step4Positioning({ data, onChange }: Step4Props) {
   const [keywordInput, setKeywordInput] = useState('');
@@ -82,55 +84,55 @@ export function Step4Positioning({ data, onChange }: Step4Props) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
-          <Target className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Positioning</h2>
-          <p className="text-sm text-muted-foreground">Define your market and positioning</p>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-bold text-foreground">Positioning</h2>
+        <p className="text-sm text-muted-foreground mt-1">Define where you fit in the market</p>
       </div>
 
       {/* Categories */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Industry / Category</label>
+        <label className="block text-sm font-medium text-foreground mb-2.5">Industry / Category</label>
         <div className="flex flex-wrap gap-2">
-          {PRESET_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => toggleCategory(cat)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
-                cat === 'Other'
-                  ? (showOtherInput || customCategories.length > 0)
-                    ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border text-muted-foreground hover:border-primary/30'
-                  : data.categories.includes(cat)
-                    ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border text-muted-foreground hover:border-primary/30'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          {PRESET_CATEGORIES.map((cat) => {
+            const isOther = cat === 'Other';
+            const isSelected = isOther
+              ? (showOtherInput || customCategories.length > 0)
+              : data.categories.includes(cat);
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => toggleCategory(cat)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                  isSelected
+                    ? 'bg-primary/10 text-primary border border-primary/25'
+                    : 'bg-accent/30 text-muted-foreground border border-transparent hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                {isSelected && !isOther && <Check className="h-3 w-3" />}
+                {cat}
+              </button>
+            );
+          })}
         </div>
+
         {(showOtherInput || customCategories.length > 0) && (
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-2.5">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={otherInput}
                 onChange={(e) => setOtherInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCategory(); } }}
-                placeholder="Type your category and press Enter"
-                className="flex-1 px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                placeholder="Type a custom category..."
+                className={`flex-1 ${inputClass}`}
               />
               <button
                 type="button"
                 onClick={addCustomCategory}
-                className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                disabled={!otherInput.trim()}
+                className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
               >
                 Add
               </button>
@@ -138,7 +140,7 @@ export function Step4Positioning({ data, onChange }: Step4Props) {
             {customCategories.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {customCategories.map((cat) => (
-                  <span key={cat} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-accent/60 text-accent-foreground">
+                  <span key={cat} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary border border-primary/25">
                     {cat}
                     <button type="button" onClick={() => removeCustomCategory(cat)} className="hover:text-red-500 transition-colors">
                       <X className="h-3 w-3" />
@@ -159,34 +161,40 @@ export function Step4Positioning({ data, onChange }: Step4Props) {
           value={data.website}
           onChange={(e) => onChange('website', e.target.value)}
           placeholder="https://yourstartup.com"
-          className="w-full px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className={inputClass}
         />
       </div>
 
       {/* Team Size */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Team Size</label>
+        <label className="block text-sm font-medium text-foreground mb-2.5">Team Size</label>
         <div className="flex flex-wrap gap-2">
-          {TEAM_SIZES.map((ts) => (
-            <button
-              key={ts.value}
-              type="button"
-              onClick={() => onChange('team_size', ts.value)}
-              className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                data.team_size === ts.value
-                  ? 'border-primary bg-primary/5 ring-2 ring-primary/20 text-foreground'
-                  : 'border-border text-muted-foreground hover:border-primary/30 hover:bg-accent/30'
-              }`}
-            >
-              {ts.label}
-            </button>
-          ))}
+          {TEAM_SIZES.map((ts) => {
+            const selected = data.team_size === ts.value;
+            return (
+              <button
+                key={ts.value}
+                type="button"
+                onClick={() => onChange('team_size', ts.value)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  selected
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-accent/40 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                }`}
+              >
+                {ts.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Keywords */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Keywords / Tags</label>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          <Hash className="inline h-3.5 w-3.5 mr-1 text-muted-foreground" />
+          Keywords / Tags
+        </label>
         <div className="flex gap-2">
           <input
             type="text"
@@ -194,22 +202,23 @@ export function Step4Positioning({ data, onChange }: Step4Props) {
             onChange={(e) => setKeywordInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a keyword and press Enter"
-            className="flex-1 px-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className={`flex-1 ${inputClass}`}
           />
           <button
             type="button"
             onClick={addKeyword}
-            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+            disabled={!keywordInput.trim()}
+            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
           >
-            Add
+            <Plus className="h-4 w-4" />
           </button>
         </div>
         {data.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
             {data.keywords.map((kw, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-accent/60 text-accent-foreground">
+              <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-accent/50 text-foreground/80 border border-border/30">
                 {kw}
-                <button type="button" onClick={() => removeKeyword(i)} className="hover:text-red-500 transition-colors">
+                <button type="button" onClick={() => removeKeyword(i)} className="text-muted-foreground hover:text-red-500 transition-colors">
                   <X className="h-3 w-3" />
                 </button>
               </span>

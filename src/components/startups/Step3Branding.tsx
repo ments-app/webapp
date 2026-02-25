@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from 'react';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, ImageIcon, Sparkles } from 'lucide-react';
 
 type Step3Props = {
   logoUrl: string;
@@ -22,48 +22,51 @@ export function Step3Branding({
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md">
-          <ImageIcon className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Branding</h2>
-          <p className="text-sm text-muted-foreground">Upload your startup&apos;s logo and banner</p>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-bold text-foreground">Branding</h2>
+        <p className="text-sm text-muted-foreground mt-1">Give your startup a visual identity</p>
       </div>
 
       {/* Logo Upload */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Logo</label>
-        {logoUrl ? (
-          <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border/50 group">
-            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+        <label className="block text-sm font-medium text-foreground mb-2">Logo</label>
+        <div className="flex items-start gap-5">
+          {logoUrl ? (
+            <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-border/40 group shadow-sm">
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={onRemoveLogo}
+                  className="p-2 bg-white/90 rounded-full shadow-sm"
+                >
+                  <X className="h-4 w-4 text-gray-700" />
+                </button>
+              </div>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={onRemoveLogo}
-              className="absolute top-1 right-1 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={isUploadingLogo}
+              className="w-28 h-28 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-accent/30 border-2 border-dashed border-border/50 text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground transition-all disabled:opacity-50 group"
             >
-              <X className="h-4 w-4 text-foreground" />
+              {isUploadingLogo ? (
+                <span className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <ImageIcon className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-medium">Upload</span>
+                </>
+              )}
             </button>
+          )}
+          <div className="pt-2 space-y-1">
+            <p className="text-xs text-muted-foreground">Recommended: 256 x 256px</p>
+            <p className="text-xs text-muted-foreground/60">PNG, JPG or SVG</p>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => logoInputRef.current?.click()}
-            disabled={isUploadingLogo}
-            className="w-32 h-32 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors disabled:opacity-50"
-          >
-            {isUploadingLogo ? (
-              <span className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Upload className="h-5 w-5" />
-                <span className="text-xs">Upload Logo</span>
-              </>
-            )}
-          </button>
-        )}
+        </div>
         <input
           ref={logoInputRef}
           type="file"
@@ -75,36 +78,42 @@ export function Step3Branding({
           }}
           className="hidden"
         />
-        <p className="mt-1 text-xs text-muted-foreground">Recommended: 256x256px, PNG or JPG</p>
       </div>
 
       {/* Banner Upload */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Banner Image</label>
+        <label className="block text-sm font-medium text-foreground mb-2">Banner Image</label>
         {bannerUrl ? (
-          <div className="relative w-full h-40 rounded-xl overflow-hidden border border-border/50 group">
+          <div className="relative w-full h-44 rounded-2xl overflow-hidden border-2 border-border/40 group shadow-sm">
             <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
-            <button
-              type="button"
-              onClick={onRemoveBanner}
-              className="absolute top-2 right-2 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <X className="h-4 w-4 text-foreground" />
-            </button>
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <button
+                type="button"
+                onClick={onRemoveBanner}
+                className="p-2 bg-white/90 rounded-full shadow-sm"
+              >
+                <X className="h-4 w-4 text-gray-700" />
+              </button>
+            </div>
           </div>
         ) : (
           <button
             type="button"
             onClick={() => bannerInputRef.current?.click()}
             disabled={isUploadingBanner}
-            className="w-full h-40 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors disabled:opacity-50"
+            className="w-full h-44 flex flex-col items-center justify-center gap-2 rounded-2xl bg-accent/30 border-2 border-dashed border-border/50 text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground transition-all disabled:opacity-50 group"
           >
             {isUploadingBanner ? (
-              <span className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              <span className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <Upload className="h-5 w-5" />
-                <span className="text-xs">Upload Banner</span>
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-accent/50 group-hover:bg-accent/80 transition-colors">
+                  <Upload className="h-5 w-5" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium">Click to upload banner</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">1200 x 400px recommended</p>
+                </div>
               </>
             )}
           </button>
@@ -120,7 +129,14 @@ export function Step3Branding({
           }}
           className="hidden"
         />
-        <p className="mt-1 text-xs text-muted-foreground">Recommended: 1200x400px, PNG or JPG</p>
+      </div>
+
+      {/* Tip */}
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10">
+        <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          A strong visual identity helps your startup stand out. Your logo and banner will appear on your public profile and in search results.
+        </p>
       </div>
     </div>
   );

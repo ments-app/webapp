@@ -5,7 +5,7 @@ import { cacheGet, cacheSet } from '@/lib/cache';
 
 export const runtime = 'nodejs';
 
-const CACHE_KEY = 'environments:all';
+const CACHE_KEY = 'environments:all:v2';
 const CACHE_TTL = 300; // 5 minutes — environments rarely change
 
 // Type definition matching the database table

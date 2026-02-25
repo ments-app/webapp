@@ -12,7 +12,7 @@ import { Step5Edge } from '@/components/startups/Step5Edge';
 import { Step6Financials } from '@/components/startups/Step6Financials';
 import { Step7Media } from '@/components/startups/Step7Media';
 import {
-  fetchStartupById, updateStartup, upsertFounders, upsertFundingRounds,
+  fetchStartupById, updateStartup, upsertFundingRounds,
   uploadPitchDeck, uploadStartupImage, StartupProfile,
 } from '@/api/startups';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -43,7 +43,7 @@ export default function EditStartupPage() {
     elevator_pitch: '', logo_url: '', banner_url: '',
   });
 
-  const [founders, setFounders] = useState<{ name: string; linkedin_url: string; display_order: number }[]>([]);
+  const [founders, setFounders] = useState<{ name: string; linkedin_url: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function EditStartupPage() {
 
       if (data.founders) {
         setFounders(data.founders.map(f => ({
-          name: f.name, linkedin_url: f.linkedin_url || '', display_order: f.display_order,
+          name: f.name, linkedin_url: f.linkedin_url || '', user_id: f.user_id || '', ments_username: f.ments_username || '', avatar_url: '', display_order: f.display_order,
         })));
       }
       if (data.funding_rounds) {
@@ -170,9 +170,24 @@ export default function EditStartupPage() {
       if (updateError) throw new Error(updateError.message);
 
       await Promise.all([
-        upsertFounders(id, founders.filter(f => f.name).map(f => ({
-          name: f.name, linkedin_url: f.linkedin_url || undefined, display_order: f.display_order,
-        }))),
+        fetch(`/api/startups/${id}/founders`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            founders: founders.filter(f => f.name).map(f => ({
+              name: f.name,
+              user_id: f.user_id || null,
+              ments_username: f.ments_username || null,
+              display_order: f.display_order,
+            })),
+            startupName: profileData.brand_name,
+          }),
+        }).then(async r => {
+          if (!r.ok) {
+            const d = await r.json();
+            throw new Error(d.error || 'Failed to save founders');
+          }
+        }),
         upsertFundingRounds(id, fundingRounds.filter(r => r.round_type || r.amount || r.investor)),
       ]);
 

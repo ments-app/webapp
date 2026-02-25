@@ -58,6 +58,9 @@ export type StartupFounder = {
   startup_id: string;
   name: string;
   linkedin_url: string | null;
+  user_id: string | null;
+  ments_username: string | null;
+  status: 'pending' | 'accepted' | 'declined';
   display_order: number;
   created_at: string;
 };
@@ -279,8 +282,18 @@ export async function deleteStartup(id: string): Promise<{ error: PostgrestError
 
 export async function upsertFounders(
   startupId: string,
-  founders: { name: string; linkedin_url?: string; display_order: number }[]
+  founders: { name: string; linkedin_url?: string; user_id?: string; ments_username?: string; display_order: number }[]
 ): Promise<{ error: PostgrestError | null }> {
+  // Get existing founders to preserve accepted statuses
+  const { data: existing } = await supabase
+    .from('startup_founders')
+    .select('user_id, status')
+    .eq('startup_id', startupId);
+
+  const acceptedUserIds = new Set(
+    (existing || []).filter((f: { user_id: string | null; status: string }) => f.user_id && f.status === 'accepted').map((f: { user_id: string | null }) => f.user_id)
+  );
+
   // Delete existing founders and re-insert
   const { error: deleteError } = await supabase
     .from('startup_founders')
@@ -291,9 +304,18 @@ export async function upsertFounders(
 
   if (founders.length === 0) return { error: null };
 
+  // Set status: if user_id is linked, check if they were already accepted
+  const rows = founders.map(f => ({
+    ...f,
+    startup_id: startupId,
+    status: f.user_id
+      ? acceptedUserIds.has(f.user_id) ? 'accepted' : 'pending'
+      : 'accepted', // name-only founders are auto-accepted
+  }));
+
   const { error } = await supabase
     .from('startup_founders')
-    .insert(founders.map(f => ({ ...f, startup_id: startupId })));
+    .insert(rows);
 
   return { error };
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createStartup, upsertFounders, upsertFundingRounds, uploadPitchDeck, uploadStartupImage } from '@/api/startups';
+import { createStartup, upsertFundingRounds, uploadPitchDeck, uploadStartupImage } from '@/api/startups';
 import { Step1Identity } from './Step1Identity';
 import { Step2Description } from './Step2Description';
 import { Step3Branding } from './Step3Branding';
@@ -12,10 +12,18 @@ import { Step5Edge } from './Step5Edge';
 import { Step6Financials } from './Step6Financials';
 import { Step7Media } from './Step7Media';
 import { Step8Visibility } from './Step8Visibility';
-import { ChevronLeft, ChevronRight, Send, SkipForward } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, Check, Rocket } from 'lucide-react';
 
-const STEPS = ['Identity', 'Description', 'Branding', 'Positioning', 'Edge', 'Financials', 'Media', 'Visibility'];
-const OPTIONAL_STEPS = [2, 3, 4, 5, 6]; // 0-indexed: Branding, Positioning, Edge, Financials, Media
+const STEPS = [
+  { label: 'Identity', short: 'Identity' },
+  { label: 'Description', short: 'Describe' },
+  { label: 'Branding', short: 'Brand' },
+  { label: 'Positioning', short: 'Position' },
+  { label: 'Edge', short: 'Edge' },
+  { label: 'Financials', short: 'Finance' },
+  { label: 'Media', short: 'Media' },
+  { label: 'Publish', short: 'Publish' },
+];
 
 export function StartupCreateWizard() {
   const { user } = useAuth();
@@ -66,8 +74,8 @@ export function StartupCreateWizard() {
   });
 
   // Related data
-  const [founders, setFounders] = useState<{ name: string; linkedin_url: string; display_order: number }[]>([
-    { name: '', linkedin_url: '', display_order: 0 },
+  const [founders, setFounders] = useState<{ name: string; linkedin_url: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([
+    { name: '', linkedin_url: '', user_id: '', ments_username: '', avatar_url: '', display_order: 0 },
   ]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
 
@@ -186,9 +194,26 @@ export function StartupCreateWizard() {
 
       const validFounders = founders.filter(f => f.name.trim());
       if (validFounders.length > 0) {
-        promises.push(upsertFounders(startup.id, validFounders.map(f => ({
-          name: f.name, linkedin_url: f.linkedin_url || undefined, display_order: f.display_order,
-        }))));
+        promises.push(
+          fetch(`/api/startups/${startup.id}/founders`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              founders: validFounders.map(f => ({
+                name: f.name,
+                user_id: f.user_id || null,
+                ments_username: f.ments_username || null,
+                display_order: f.display_order,
+              })),
+              startupName: profileData.brand_name,
+            }),
+          }).then(async r => {
+            if (!r.ok) {
+              const d = await r.json();
+              throw new Error(d.error || 'Failed to save founders');
+            }
+          })
+        );
       }
 
       const validRounds = fundingRounds.filter(r => r.round_type || r.amount || r.investor);
@@ -206,37 +231,80 @@ export function StartupCreateWizard() {
     }
   };
 
+  const progress = ((step + 1) / STEPS.length) * 100;
+
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Progress Bar */}
+    <div className="max-w-2xl mx-auto px-4 sm:px-0">
+      {/* Progress Steps */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-2">
-          {STEPS.map((label, i) => (
-            <button
-              key={label}
-              onClick={() => { if (i < step) setStep(i); }}
-              className={`hidden sm:block text-xs font-medium transition-colors ${
-                i === step ? 'text-primary' : i < step ? 'text-foreground cursor-pointer hover:text-primary' : 'text-muted-foreground'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        {/* Desktop step indicators */}
+        <div className="hidden sm:block">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Rocket className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">{STEPS[step].label}</span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {step + 1} / {STEPS.length}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          {/* Step dots */}
+          <div className="flex items-center justify-between mt-3">
+            {STEPS.map((s, i) => (
+              <button
+                key={s.label}
+                onClick={() => { if (i < step) setStep(i); }}
+                disabled={i > step}
+                className="flex flex-col items-center gap-1 group"
+              >
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-300 ${
+                  i < step
+                    ? 'bg-primary text-primary-foreground cursor-pointer group-hover:ring-2 group-hover:ring-primary/20'
+                    : i === step
+                      ? 'bg-primary text-primary-foreground ring-4 ring-primary/15'
+                      : 'bg-muted text-muted-foreground'
+                }`}>
+                  {i < step ? <Check className="h-3 w-3" /> : i + 1}
+                </div>
+                <span className={`text-[10px] font-medium transition-colors ${
+                  i === step ? 'text-primary' : i < step ? 'text-foreground' : 'text-muted-foreground/60'
+                }`}>
+                  {s.short}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-300"
-            style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-          />
-        </div>
-        <div className="flex justify-between mt-2 sm:hidden">
-          <span className="text-xs text-muted-foreground">Step {step + 1} of {STEPS.length}</span>
-          <span className="text-xs font-medium text-primary">{Math.round(((step + 1) / STEPS.length) * 100)}%</span>
+
+        {/* Mobile progress */}
+        <div className="sm:hidden">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Rocket className="h-3.5 w-3.5 text-primary" />
+              <span className="text-sm font-semibold text-foreground">{STEPS[step].label}</span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {step + 1} / {STEPS.length}
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Step Content */}
-      <div className="min-h-[400px]">
+      {/* Step Content Card */}
+      <div className="bg-card border border-border/40 rounded-2xl p-6 sm:p-8 min-h-[420px] shadow-sm">
         {step === 0 && (
           <Step1Identity data={profileData} onChange={handleProfileChange} />
         )}
@@ -285,54 +353,57 @@ export function StartupCreateWizard() {
         {step === 7 && (
           <Step8Visibility data={profileData} onChange={handleProfileChange} />
         )}
+
+        {/* Error */}
+        {error && (
+          <div className="mt-6 p-3.5 bg-red-500/10 border border-red-500/15 rounded-xl text-sm text-red-600 flex items-start gap-2">
+            <span className="shrink-0 mt-0.5">!</span>
+            <span>{error}</span>
+          </div>
+        )}
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
       {/* Navigation */}
-      <div className="flex items-center justify-between mt-8 pt-6 border-t border-border/50">
-        <button
-          onClick={() => setStep(s => s - 1)}
-          disabled={step === 0}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
-        >
-          <ChevronLeft className="h-4 w-4" /> Back
-        </button>
-
-        <div className="flex gap-2">
-          {/* Skip button for optional steps */}
-          {OPTIONAL_STEPS.includes(step) && (
+      <div className="flex items-center justify-between mt-6 mb-8">
+        <div>
+          {step > 0 ? (
             <button
-              onClick={() => setStep(s => s + 1)}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setStep(s => s - 1)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-xl hover:bg-accent/50 transition-colors"
             >
-              <SkipForward className="h-4 w-4" /> Skip
+              <ChevronLeft className="h-4 w-4" /> Back
             </button>
+          ) : (
+            <div />
           )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/startups/my')}
+            className="px-4 py-2.5 text-sm font-medium text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            Skip for now
+          </button>
 
           {step === STEPS.length - 1 ? (
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || !canProceed()}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all disabled:opacity-40 shadow-sm"
             >
               {isSubmitting ? (
                 <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              Submit
+              Publish
             </button>
           ) : (
             <button
               onClick={() => setStep(s => s + 1)}
               disabled={!canProceed() || isUploading}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-6 py-2.5 text-sm font-semibold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all disabled:opacity-40 shadow-sm"
             >
               Next <ChevronRight className="h-4 w-4" />
             </button>

@@ -29,7 +29,11 @@ export default function CreateStartupPage() {
 
   return (
     <DashboardLayout>
-      <div className="py-4">
+      <div className="py-6 sm:py-10">
+        <div className="max-w-2xl mx-auto px-4 sm:px-0 mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Create your startup profile</h1>
+          <p className="text-sm text-muted-foreground mt-1">Fill in the details to get your startup listed on the platform.</p>
+        </div>
         <StartupCreateWizard />
       </div>
     </DashboardLayout>
