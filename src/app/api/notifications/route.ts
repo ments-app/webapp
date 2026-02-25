@@ -81,11 +81,11 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, limit);
 
-    // Extract unique actor IDs from the data JSON field to look up user info
+    // Extract unique actor IDs — check both top-level column and data JSON field
     const actorIds = new Set<string>();
     for (const n of merged) {
       const d = n.data || {};
-      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id;
+      const actorId = n.actor_id || d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id;
       if (actorId) actorIds.add(actorId);
     }
 
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     // Map to the shape expected by the frontend
     const mapped = merged.map((n) => {
       const d = n.data || {};
-      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id || null;
+      const actorId = n.actor_id || d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id || null;
       const actor = actorId ? actorMap[actorId] : null;
 
       return {
@@ -119,9 +119,9 @@ export async function GET(request: NextRequest) {
         content: n.message || d.message || d.content || null,
         created_at: n.created_at,
         actor_id: actorId,
-        actor_name: actor?.full_name || d.actor_name || d.sender_name || null,
-        actor_username: actor?.username || d.actor_username || d.sender_username || null,
-        actor_avatar_url: actor?.avatar_url || d.actor_avatar_url || d.sender_avatar_url || null,
+        actor_name: actor?.full_name || n.actor_name || d.actor_name || d.sender_name || null,
+        actor_username: actor?.username || n.actor_username || d.actor_username || d.sender_username || null,
+        actor_avatar_url: actor?.avatar_url || n.actor_avatar_url || d.actor_avatar_url || d.sender_avatar_url || null,
         post_id: d.post_id || d.postId || null,
         notification_source: n.notification_source,
         is_read: n.is_read,
