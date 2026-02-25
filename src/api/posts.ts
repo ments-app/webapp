@@ -24,9 +24,12 @@ export type PostPollOption = {
   position: number;
 };
 
+export type PollType = 'single_choice' | 'multiple_choice';
+
 export type CreatePollData = {
   question: string;
   options: string[];
+  poll_type: PollType;
 };
 
 export type PollVote = {
@@ -60,6 +63,7 @@ export type PostPoll = {
   id: string;
   post_id: string;
   question: string;
+  poll_type: PollType;
   created_at: string;
   options?: PostPollOption[];
 };
@@ -113,6 +117,20 @@ export type PostResponse = {
 };
 
 /**
+ * Supabase returns `poll:post_polls(...)` as an array because the
+ * relation is technically one-to-many.  This helper collapses the array
+ * into a single object (or null) to match the `Post.poll` type.
+ */
+export function normalizePostPoll(raw: Record<string, unknown>): Record<string, unknown> {
+  if (!raw.poll) return { ...raw, poll: null };
+  if (Array.isArray(raw.poll)) {
+    const first = raw.poll[0] ?? null;
+    return { ...raw, poll: first };
+  }
+  return raw;
+}
+
+/**
  * Fetch posts for a specific environment (paginated)
  * Optimized to eliminate N+1 queries by using aggregated joins
  */
@@ -135,7 +153,7 @@ export async function fetchPosts(
 
     if (error) {
       console.warn('RPC function not available, falling back to optimized query:', error.message);
-      
+
       // Fallback: Optimized query with batch counting
       // Build the query - only filter by environment_id if it's not the default/null UUID
       let query = supabase
@@ -147,12 +165,12 @@ export async function fetchPosts(
           media:post_media(*),
           poll:post_polls(*, options:post_poll_options(*))
         `, { count: 'exact' });
-      
+
       // Only filter by environment_id if it's not the default/null UUID
       if (environmentId && environmentId !== '00000000-0000-0000-0000-000000000000') {
         query = query.eq('environment_id', environmentId);
       }
-      
+
       const { data: posts, error: postsError, count } = await query
         .eq('deleted', false)
         .is('parent_post_id', null)
@@ -165,7 +183,7 @@ export async function fetchPosts(
 
       // Batch fetch all likes and replies counts in two queries instead of N queries
       const postIds = posts.map((p: { id: string }) => p.id);
-      
+
       const [likesResult, repliesResult] = await Promise.all([
         // Get likes counts for all posts in one query
         supabase
@@ -200,8 +218,8 @@ export async function fetchPosts(
         });
       }
 
-      // Attach counts to posts
-      const postsWithCounts = posts.map((post: { id: string }) => ({
+      // Attach counts to posts and normalize poll from array to single object
+      const postsWithCounts = posts.map((post: { id: string }) => normalizePostPoll({
         ...post,
         likes: likesMap.get(post.id) || 0,
         replies: repliesMap.get(post.id) || 0,
@@ -222,7 +240,7 @@ export async function fetchPosts(
 
     const hasMore = postsWithCounts.length === limit;
     return { data: postsWithCounts, error: null, hasMore };
-    
+
   } catch (err) {
     console.error('Error in fetchPosts:', err);
     return { data: null, error: err as PostgrestError };
@@ -283,11 +301,11 @@ export async function fetchPostById(postId: string): Promise<PostResponse> {
       return { data: null, error };
     }
 
-    const postWithCounts = {
+    const postWithCounts = normalizePostPoll({
       ...data,
       likes: likesResult.count || 0,
       replies: repliesResult.count || 0,
-    } as Post;
+    }) as Post;
 
     return { data: postWithCounts, error: null };
   } catch (err) {
@@ -388,7 +406,7 @@ export async function createPost(
         content,
         post_type: postType,
       }),
-    }).catch(() => {}); // Fire-and-forget
+    }).catch(() => { }); // Fire-and-forget
   }
 
   // Handle mentions if post was created successfully
@@ -396,7 +414,7 @@ export async function createPost(
     try {
       // Extract mentioned usernames from content
       const mentionedUsernames = extractMentions(content);
-      
+
       if (mentionedUsernames.length > 0) {
         // Look up user IDs from usernames
         const { data: users } = await supabase
@@ -431,6 +449,7 @@ export async function createPollPost(
   content: string,
   pollQuestion: string,
   pollOptions: string[],
+  pollType: PollType = 'single_choice',
   parentPostId: string | null = null
 ): Promise<PostResponse> {
   try {
@@ -454,6 +473,7 @@ export async function createPollPost(
         {
           post_id: post.id,
           question: pollQuestion,
+          poll_type: pollType,
         },
       ])
       .select()
@@ -627,14 +647,24 @@ export async function unlikePost(postId: string, userId: string): Promise<{ erro
 }
 
 /**
- * Vote on a poll option
+ * Vote on a poll option.
+ *
+ * Behaviour:
+ * - single_choice: click same option = toggle off, click different = switch
+ * - multiple_choice: each option toggles independently
+ *
+ * Vote counts are managed by DB triggers on post_poll_votes
+ * (trigger_increment_poll_option_votes / trigger_decrement_poll_option_votes),
+ * so we only insert/delete rows — no manual count updates needed.
+ *
+ * Returns fresh vote counts for all options so the client can sync state.
  */
 export async function votePollOption(optionId: string, userId: string) {
   try {
-    // 1. Fetch option metadata (poll_id + current vote count)
+    // 1. Fetch option metadata to get poll_id
     const { data: optionData, error: optionError } = await supabase
       .from('post_poll_options')
-      .select('poll_id, votes')
+      .select('poll_id')
       .eq('id', optionId)
       .single();
 
@@ -644,8 +674,23 @@ export async function votePollOption(optionId: string, userId: string) {
 
     const pollId = optionData.poll_id;
 
-    // 2. Check if user already voted for THIS specific option
-    // Use maybeSingle() to avoid PGRST116 error when no row exists
+    // 1b. Fetch poll_type separately — gracefully fallback to 'single_choice'
+    //     if the column doesn't exist yet (migration not run)
+    let pollType = 'single_choice';
+    try {
+      const { data: pollData } = await supabase
+        .from('post_polls')
+        .select('poll_type')
+        .eq('id', pollId)
+        .single();
+      if (pollData?.poll_type) {
+        pollType = pollData.poll_type;
+      }
+    } catch {
+      // poll_type column may not exist yet — default to single_choice
+    }
+
+    // 2. Check if user already voted for THIS specific option (toggle off)
     const { data: existingVoteForOption, error: checkOptionError } = await supabase
       .from('post_poll_votes')
       .select('id')
@@ -657,7 +702,7 @@ export async function votePollOption(optionId: string, userId: string) {
       return { data: null, error: checkOptionError };
     }
 
-    // 3. Same option clicked → REMOVE vote
+    // 3. Same option clicked → REMOVE vote (works for both poll types)
     if (existingVoteForOption) {
       const { error: deleteError } = await supabase
         .from('post_poll_votes')
@@ -668,165 +713,116 @@ export async function votePollOption(optionId: string, userId: string) {
         return { data: null, error: deleteError };
       }
 
-      // Re-fetch fresh count before decrementing to avoid stale read issues
-      const { data: freshOption } = await supabase
-        .from('post_poll_options')
-        .select('votes')
-        .eq('id', optionId)
-        .single();
-
-      const freshVotes = freshOption?.votes ?? optionData.votes ?? 0;
-      const { error: decrementError } = await supabase
-        .from('post_poll_options')
-        .update({ votes: Math.max(0, freshVotes - 1) })
-        .eq('id', optionId);
-
-      if (decrementError) {
-        // Count update failed — re-insert the vote to keep DB consistent
-        await supabase
-          .from('post_poll_votes')
-          .insert([{ poll_option_id: optionId, user_id: userId }]);
-        return { data: null, error: decrementError };
-      }
+      // Small delay to let DB trigger propagate the count update
+      await new Promise(r => setTimeout(r, 50));
+      const freshOptions = await fetchPollOptionCounts(pollId);
 
       return {
-        data: { success: true, voted_option_id: optionId, action: 'removed', previous_option_id: null },
+        data: {
+          success: true,
+          voted_option_id: optionId,
+          action: 'removed' as const,
+          previous_option_id: null,
+          options: freshOptions,
+        },
         error: null,
       };
     }
 
-    // 4. Check if user has voted for ANY other option in this poll
-    const { data: existingVotes, error: checkPollError } = await supabase
-      .from('post_poll_votes')
-      .select(`
-        id,
-        poll_option_id,
-        post_poll_options!inner(
-          id,
-          poll_id,
-          votes
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('post_poll_options.poll_id', pollId);
-
-    if (checkPollError) {
-      return { data: null, error: checkPollError };
-    }
-
     let previousOptionId: string | null = null;
 
-    // 5. If user has an existing vote on this poll → remove it first
-    if (existingVotes && existingVotes.length > 0) {
-      const previousVote = existingVotes[0];
-      previousOptionId = previousVote.poll_option_id;
+    // 4. For single_choice: remove any existing vote in this poll first.
+    //    Use a two-step query (get option IDs → filter votes with .in()) instead of
+    //    an !inner join filter, which can silently return empty results in Supabase.
+    if (pollType === 'single_choice') {
+      const { data: pollOptions } = await supabase
+        .from('post_poll_options')
+        .select('id')
+        .eq('poll_id', pollId);
 
-      const { error: deleteError } = await supabase
-        .from('post_poll_votes')
-        .delete()
-        .eq('id', previousVote.id);
+      if (pollOptions && pollOptions.length > 0) {
+        const pollOptionIds = pollOptions.map((o: { id: string }) => o.id);
 
-      if (deleteError) {
-        return { data: null, error: deleteError };
-      }
+        const { data: existingVotes, error: checkPollError } = await supabase
+          .from('post_poll_votes')
+          .select('id, poll_option_id')
+          .eq('user_id', userId)
+          .in('poll_option_id', pollOptionIds);
 
-      // Fix: post_poll_options is a single object (many-to-one), not an array
-      const previousOption = Array.isArray(previousVote.post_poll_options)
-        ? previousVote.post_poll_options[0]
-        : previousVote.post_poll_options;
+        if (checkPollError) {
+          return { data: null, error: checkPollError };
+        }
 
-      if (previousOption) {
-        // Re-fetch fresh count to avoid stale read
-        const { data: freshPrevOption } = await supabase
-          .from('post_poll_options')
-          .select('votes')
-          .eq('id', previousOptionId)
-          .single();
+        if (existingVotes && existingVotes.length > 0) {
+          const previousVote = existingVotes[0];
+          previousOptionId = previousVote.poll_option_id;
 
-        const freshPrevVotes = freshPrevOption?.votes ?? previousOption.votes ?? 0;
-        const { error: decrementError } = await supabase
-          .from('post_poll_options')
-          .update({ votes: Math.max(0, freshPrevVotes - 1) })
-          .eq('id', previousOptionId);
-
-        if (decrementError) {
-          // Count update failed — re-insert the deleted vote to stay consistent
-          await supabase
+          const { error: deleteError } = await supabase
             .from('post_poll_votes')
-            .insert([{ poll_option_id: previousOptionId, user_id: userId }]);
-          return { data: null, error: decrementError };
+            .delete()
+            .eq('id', previousVote.id);
+
+          if (deleteError) {
+            return { data: null, error: deleteError };
+          }
         }
       }
     }
+    // For multiple_choice: no need to remove other votes
 
-    // 6. Insert new vote
+    // 5. Insert new vote
     const { error: insertError } = await supabase
       .from('post_poll_votes')
       .insert([{ poll_option_id: optionId, user_id: userId }]);
 
     if (insertError) {
-      // Insert failed — restore the previous vote if one was removed
+      // Rollback: restore the previous vote if one was removed (single_choice)
       if (previousOptionId) {
         await supabase
           .from('post_poll_votes')
           .insert([{ poll_option_id: previousOptionId, user_id: userId }]);
-        // Also restore previous option's count
-        const { data: prevOpt } = await supabase
-          .from('post_poll_options').select('votes').eq('id', previousOptionId).single();
-        if (prevOpt) {
-          await supabase
-            .from('post_poll_options')
-            .update({ votes: (prevOpt.votes ?? 0) + 1 })
-            .eq('id', previousOptionId);
-        }
       }
       return { data: null, error: insertError };
     }
 
-    // 7. Increment new option count — re-fetch fresh count first
-    const { data: freshOption } = await supabase
-      .from('post_poll_options')
-      .select('votes')
-      .eq('id', optionId)
-      .single();
-
-    const freshVotes = freshOption?.votes ?? optionData.votes ?? 0;
-    const { error: incrementError } = await supabase
-      .from('post_poll_options')
-      .update({ votes: freshVotes + 1 })
-      .eq('id', optionId);
-
-    if (incrementError) {
-      // Count update failed — rollback: delete inserted vote, restore previous
-      await supabase
-        .from('post_poll_votes')
-        .delete()
-        .eq('poll_option_id', optionId)
-        .eq('user_id', userId);
-      if (previousOptionId) {
-        await supabase
-          .from('post_poll_votes')
-          .insert([{ poll_option_id: previousOptionId, user_id: userId }]);
-        const { data: prevOpt } = await supabase
-          .from('post_poll_options').select('votes').eq('id', previousOptionId).single();
-        if (prevOpt) {
-          await supabase
-            .from('post_poll_options')
-            .update({ votes: (prevOpt.votes ?? 0) + 1 })
-            .eq('id', previousOptionId);
-        }
-      }
-      return { data: null, error: incrementError };
-    }
+    // Small delay to let DB trigger propagate the count update
+    await new Promise(r => setTimeout(r, 50));
+    const freshOptions = await fetchPollOptionCounts(pollId);
 
     return {
-      data: { success: true, voted_option_id: optionId, action: 'added', previous_option_id: previousOptionId },
+      data: {
+        success: true,
+        voted_option_id: optionId,
+        action: 'added' as const,
+        previous_option_id: previousOptionId,
+        options: freshOptions,
+      },
       error: null,
     };
   } catch (error) {
     console.error('Error voting on poll option:', error);
     return { data: null, error };
   }
+}
+
+/**
+ * Fetch fresh vote counts for all options in a poll.
+ */
+async function fetchPollOptionCounts(
+  pollId: string
+): Promise<{ id: string; votes: number }[]> {
+  const { data, error } = await supabase
+    .from('post_poll_options')
+    .select('id, votes')
+    .eq('poll_id', pollId)
+    .order('position', { ascending: true });
+
+  if (error || !data) {
+    console.error('fetchPollOptionCounts error:', error);
+    return [];
+  }
+
+  return data;
 }
 
 /**
@@ -844,13 +840,13 @@ export async function checkUserLikedPost(postId: string, userId: string): Promis
     // Handle various error cases gracefully
     if (error) {
       // Table doesn't exist, permission denied, or other access issues
-      if (error.code === '42P01' || error.code === '401' || error.code === '403' || 
-          error.message?.includes('JWT') || error.message?.includes('permission') ||
-          error.message?.includes('relation') || error.message?.includes('does not exist')) {
+      if (error.code === '42P01' || error.code === '401' || error.code === '403' ||
+        error.message?.includes('JWT') || error.message?.includes('permission') ||
+        error.message?.includes('relation') || error.message?.includes('does not exist')) {
         // Silently return false for missing functionality
         return { liked: false, error: null };
       }
-      
+
       // For other errors, log them but don't spam the console
       if (!error.message?.includes('JWT')) {
         console.warn('post_likes query error:', error.code, error.message);
@@ -868,53 +864,49 @@ export async function checkUserLikedPost(postId: string, userId: string): Promis
 }
 
 /**
- * Check user's poll votes for a specific poll
+ * Check user's poll votes for a specific poll.
+ *
+ * Uses a two-step query (option IDs first, then votes with .in()) instead of
+ * an !inner join filter, which can silently return empty results in Supabase.
  */
 export async function checkUserPollVotes(pollId: string, userId: string): Promise<{ votes: { id: string; poll_id: string; user_id: string; option_id: string; created_at: string }[], error: PostgrestError | null }> {
   try {
-    const { error: tableCheckError } = await supabase
-      .from('post_poll_votes')
+    // Step 1: get all option IDs for this poll
+    const { data: pollOptions, error: optionsError } = await supabase
+      .from('post_poll_options')
       .select('id')
-      .limit(1);
+      .eq('poll_id', pollId);
 
-    if (tableCheckError && tableCheckError.code === '42P01') {
-      console.warn('post_poll_votes table does not exist');
+    if (optionsError) {
+      console.error('Error fetching poll options:', optionsError);
+      return { votes: [], error: optionsError };
+    }
+
+    if (!pollOptions || pollOptions.length === 0) {
       return { votes: [], error: null };
     }
 
+    const pollOptionIds = pollOptions.map((o: { id: string }) => o.id);
+
+    // Step 2: fetch this user's votes for those options
     const { data, error } = await supabase
       .from('post_poll_votes')
-      .select(`
-        id,
-        poll_option_id,
-        user_id,
-        created_at,
-        post_poll_options!inner (
-          id,
-          option_text,
-          poll_id
-        )
-      `)
+      .select('id, poll_option_id, user_id, created_at')
       .eq('user_id', userId)
-      .eq('post_poll_options.poll_id', pollId);
+      .in('poll_option_id', pollOptionIds);
 
     if (error) {
       console.error('Error checking poll votes:', error);
       return { votes: [], error };
     }
 
-    const votes = data?.map((vote: { id: string; poll_option_id: string; user_id: string; created_at: string; post_poll_options?: { poll_id: string } | { poll_id: string }[] }) => {
-      const pollOption = Array.isArray(vote.post_poll_options)
-        ? vote.post_poll_options[0]
-        : vote.post_poll_options;
-      return {
-        id: vote.id,
-        option_id: vote.poll_option_id,
-        user_id: vote.user_id,
-        created_at: vote.created_at,
-        poll_id: pollOption?.poll_id
-      };
-    }) || [];
+    const votes = (data ?? []).map((vote: { id: string; poll_option_id: string; user_id: string; created_at: string }) => ({
+      id: vote.id,
+      option_id: vote.poll_option_id,
+      user_id: vote.user_id,
+      created_at: vote.created_at,
+      poll_id: pollId,
+    }));
 
     return { votes, error: null };
   } catch (error) {
@@ -927,7 +919,7 @@ export async function checkUserPollVotes(pollId: string, userId: string): Promis
  * Get list of users who voted on a poll (only for poll creator)
  */
 export async function getPollVoters(
-  pollId: string, 
+  pollId: string,
   requesterId: string
 ): Promise<PollVotersResponse> {
   try {
@@ -951,8 +943,8 @@ export async function getPollVoters(
     // Check if requester is the poll creator
     const post = Array.isArray(pollData?.posts) ? pollData.posts[0] : pollData?.posts;
     if (post?.author_id !== requesterId) {
-      return { 
-        voters: [], 
+      return {
+        voters: [],
         error: {
           message: 'Only poll creators can view voter lists',
           details: 'Permission denied',
@@ -1020,8 +1012,8 @@ export async function getPollVoters(
     return { voters, error: null };
   } catch (error) {
     console.error('Error getting poll voters:', error);
-    return { 
-      voters: [], 
+    return {
+      voters: [],
       error: {
         message: 'Failed to get poll voters',
         details: String(error),
@@ -1036,7 +1028,7 @@ export async function getPollVoters(
  * Get poll statistics for creators
  */
 export async function getPollStats(
-  pollId: string, 
+  pollId: string,
   requesterId: string
 ): Promise<{
   stats: {
@@ -1072,8 +1064,8 @@ export async function getPollStats(
     // Check if requester is the poll creator
     const post = Array.isArray(pollData?.posts) ? pollData.posts[0] : pollData?.posts;
     if (post?.author_id !== requesterId) {
-      return { 
-        stats: null, 
+      return {
+        stats: null,
         error: {
           message: 'Only poll creators can view detailed stats',
           details: 'Permission denied',
@@ -1084,10 +1076,15 @@ export async function getPollStats(
     }
 
     // Get unique voter count
-    const { count: uniqueVoters, error: votersError } = await supabase
+    // Count distinct voters by fetching user_ids and deduplicating
+    const { data: voterRows, error: votersError } = await supabase
       .from('post_poll_votes')
-      .select('user_id, post_poll_options!inner(poll_id)', { count: 'exact', head: true })
+      .select('user_id, post_poll_options!inner(poll_id)')
       .eq('post_poll_options.poll_id', pollId);
+
+    const uniqueVoters = voterRows
+      ? new Set(voterRows.map((r: { user_id: string }) => r.user_id)).size
+      : 0;
 
     if (votersError) {
       return { stats: null, error: votersError };
@@ -1104,15 +1101,15 @@ export async function getPollStats(
     return {
       stats: {
         totalVotes,
-        uniqueVoters: uniqueVoters || 0,
+        uniqueVoters,
         optionBreakdown
       },
       error: null
     };
   } catch (error) {
     console.error('Error getting poll stats:', error);
-    return { 
-      stats: null, 
+    return {
+      stats: null,
       error: {
         message: 'Failed to get poll statistics',
         details: String(error),

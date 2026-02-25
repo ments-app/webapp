@@ -825,25 +825,25 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     const previousUserVotes = [...pollState.userVotedOptions];
     const previousHasVoted = pollState.hasUserVoted;
 
+    // Optimistic update
     const newVotes = { ...pollState.votes };
     let newUserVotes = [...pollState.userVotedOptions];
-    let action: 'added' | 'removed' = 'added';
-    let previousOptionId: string | null = null;
-
     const isRemovingVote = pollState.userVotedOptions.includes(optionId);
 
     if (isRemovingVote) {
-      action = 'removed';
       newUserVotes = newUserVotes.filter(id => id !== optionId);
       newVotes[optionId] = Math.max(0, (newVotes[optionId] || 1) - 1);
+    } else if (post.poll?.poll_type === 'multiple_choice') {
+      // Multiple choice: add to existing selections
+      newUserVotes = [...newUserVotes, optionId];
+      newVotes[optionId] = (newVotes[optionId] || 0) + 1;
     } else {
-      previousOptionId = pollState.userVotedOptions[0] || null;
-
+      // Single choice: switch vote
+      const previousOptionId = pollState.userVotedOptions[0] || null;
       if (previousOptionId) {
         newUserVotes = newUserVotes.filter(id => id !== previousOptionId);
         newVotes[previousOptionId] = Math.max(0, (newVotes[previousOptionId] || 1) - 1);
       }
-
       newUserVotes = [optionId];
       newVotes[optionId] = (newVotes[optionId] || 0) + 1;
     }
@@ -871,30 +871,35 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         return;
       }
 
-      if (data.action !== action) {
-        // Server action differed from client prediction — rebuild state from scratch
-        // using the pre-vote baseline (previousVotes) + server truth.
-        const serverVotes = { ...previousVotes };
-        const serverUserVotes: string[] = [];
-
-        if (data.action === 'removed') {
-          // Server removed the vote; no option should be selected
-          serverVotes[optionId] = Math.max(0, (serverVotes[optionId] || 1) - 1);
-        } else if (data.action === 'added') {
-          if (data.previous_option_id) {
-            serverVotes[data.previous_option_id] = Math.max(0, (serverVotes[data.previous_option_id] || 1) - 1);
-          }
-          serverUserVotes.push(optionId);
-          serverVotes[optionId] = (serverVotes[optionId] || 0) + 1;
-        }
-
-        setPollState(prev => ({
-          ...prev,
-          votes: serverVotes,
-          userVotedOptions: serverUserVotes,
-          hasUserVoted: serverUserVotes.length > 0,
-        }));
+      // Sync local state from server-returned fresh counts
+      const serverVotes: { [key: string]: number } = {};
+      if (data.options && Array.isArray(data.options)) {
+        data.options.forEach((opt: { id: string; votes: number }) => {
+          serverVotes[opt.id] = opt.votes;
+        });
       }
+
+      // Build updated user votes list based on server response.
+      // Use functional setState so we read current (not stale closure) state.
+      const action = data.action;
+      const pollType = post.poll?.poll_type;
+      setPollState(prev => {
+        let updatedUserVotes: string[];
+        if (action === 'removed') {
+          updatedUserVotes = prev.userVotedOptions.filter(id => id !== optionId);
+        } else if (pollType === 'multiple_choice') {
+          updatedUserVotes = [...new Set([...prev.userVotedOptions.filter(id => id !== optionId), optionId])];
+        } else {
+          // Single choice: exactly one vote
+          updatedUserVotes = [optionId];
+        }
+        return {
+          ...prev,
+          votes: Object.keys(serverVotes).length > 0 ? serverVotes : prev.votes,
+          userVotedOptions: updatedUserVotes,
+          hasUserVoted: updatedUserVotes.length > 0,
+        };
+      });
     } catch (error) {
       console.error('Error voting on poll:', error);
       setPollState(prev => ({
@@ -907,7 +912,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       isVotingRef.current = false;
       setPollState(prev => ({ ...prev, isVoting: false, votingOptionId: null }));
     }
-  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options]);
+  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options, post.poll?.poll_type]);
 
   // Lightbox handlers - consolidated state updates
   const openLightbox = useCallback((index: number) => {
@@ -930,7 +935,18 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     setUiState(prev => ({ ...prev, lightboxIndex: (prev.lightboxIndex + 1) % total }));
   }, [post.media]);
 
-  // Effects - optimized with proper dependencies
+  // Always initialize poll vote counts from post data (works for logged-out users too)
+  useEffect(() => {
+    if (post.poll?.options) {
+      const initialVotes: { [key: string]: number } = {};
+      post.poll.options.forEach(option => {
+        initialVotes[option.id] = option.votes;
+      });
+      setPollState(prev => ({ ...prev, votes: initialVotes }));
+    }
+  }, [post.poll?.options]);
+
+  // Check user-specific interactions (likes & poll votes)
   useEffect(() => {
     if (!user?.id) return;
 
@@ -948,17 +964,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
         if (post.poll && !pollResult.error) {
           const votedOptionIds = pollResult.votes.map(v => v.option_id);
-          const initialVotes: { [key: string]: number } = {};
-          if (post.poll.options) {
-            post.poll.options.forEach(option => {
-              initialVotes[option.id] = option.votes;
-            });
-          }
           setPollState(prev => ({
             ...prev,
             userVotedOptions: votedOptionIds,
             hasUserVoted: votedOptionIds.length > 0,
-            votes: initialVotes,
           }));
         }
       } catch (error) {
@@ -967,7 +976,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     };
 
     checkUserInteractions();
-  }, [user?.id, post.id, post.poll?.id]);
+  }, [user?.id, post.id, post.poll]);
 
   useEffect(() => {
     if (!uiState.isMenuOpen) return;
@@ -1271,13 +1280,11 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                 return (
                   <div key={option.id} className="relative">
                     <button
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${
-                        isSelected
-                          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]'
-                          : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
-                      } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${
-                        isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''
-                      }`}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${isSelected
+                        ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]'
+                        : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
+                        } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''
+                        }`}
                       onClick={() => handlePollVote(option.id)}
                       disabled={isDisabled}
                       aria-pressed={isSelected}
@@ -1325,6 +1332,9 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             <div className="mt-4 pt-3 border-t border-border">
               <p className="text-muted-foreground text-sm text-center">
                 {totalPollVotes} total vote{totalPollVotes !== 1 ? 's' : ''}
+                {post.poll.poll_type === 'multiple_choice' && (
+                  <span className="ml-2 text-xs opacity-60">· multiple choice</span>
+                )}
                 {pollState.hasUserVoted && (
                   <span className="ml-2 text-xs opacity-60">· tap your choice to deselect</span>
                 )}

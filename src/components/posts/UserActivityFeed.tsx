@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Post } from '@/api/posts';
+import { Post, normalizePostPoll } from '@/api/posts';
 import { PostCard } from './PostCard';
 import { supabase } from '@/utils/supabase';
 
@@ -74,7 +74,7 @@ export function UserActivityFeed({ userId, type }: Props) {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const withCounts = posts.map((p: any) => ({
+    const withCounts = posts.map((p: any) => normalizePostPoll({
       ...p,
       likes: likesMap.get(p.id) || 0,
       replies: repliesMap.get(p.id) || 0,
@@ -154,7 +154,7 @@ export function UserActivityFeed({ userId, type }: Props) {
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
-        {[1,2,3].map(i => (
+        {[1, 2, 3].map(i => (
           <div key={i} className="post-card animate-pulse">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-muted/30" />
@@ -186,7 +186,7 @@ export function UserActivityFeed({ userId, type }: Props) {
           <div className="text-center">
             <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
             <p className="text-destructive/80 mb-4">{error}</p>
-            <button 
+            <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
               onClick={() => window.location.reload()}
             >

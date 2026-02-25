@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAuthClient } from '@/utils/supabase-server';
 import { generatePersonalizedFeed } from '@/lib/feed/pipeline';
 import { FEED_PAGE_SIZE } from '@/lib/feed/constants';
+import { normalizePostPoll } from '@/api/posts';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,11 +101,11 @@ export async function GET(request: Request) {
     const postMap = new Map(
       fullPosts.map((p: Record<string, unknown>) => [
         p.id as string,
-        {
+        normalizePostPoll({
           ...p,
           likes: likesMap.get(p.id as string) || 0,
           replies: repliesMap.get(p.id as string) || 0,
-        },
+        }),
       ])
     );
 
@@ -205,7 +206,7 @@ async function serveChronological(
     }
   });
 
-  const postsWithCounts = chronoPosts.map((p: Record<string, unknown>) => ({
+  const postsWithCounts = chronoPosts.map((p: Record<string, unknown>) => normalizePostPoll({
     ...p,
     likes: likesMap.get(p.id as string) || 0,
     replies: repliesMap.get(p.id as string) || 0,
