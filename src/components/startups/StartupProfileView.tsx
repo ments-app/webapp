@@ -4,7 +4,7 @@ import { StartupProfile } from '@/api/startups';
 import {
   Rocket, Globe, Mail, Phone, FileText, TrendingUp, Users, Award,
   Building, Bookmark, BookmarkCheck, ExternalLink, Eye, MapPin,
-  Calendar, Zap, Target, BarChart3, Linkedin,
+  Calendar, Zap, Target, BarChart3,
   Briefcase, Hash, Lightbulb, Crown, Gem, ChevronRight, Mic, Clock
 } from 'lucide-react';
 import Link from 'next/link';
@@ -315,10 +315,6 @@ export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark 
                       </span>
                     ) : isPending && f.ments_username ? (
                       <span className="text-xs text-muted-foreground mt-0.5">@{f.ments_username}</span>
-                    ) : f.linkedin_url ? (
-                      <a href={f.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5">
-                        <Linkedin className="h-3 w-3" /> LinkedIn <ExternalLink className="h-2.5 w-2.5" />
-                      </a>
                     ) : null}
                   </div>
                 </Wrapper>

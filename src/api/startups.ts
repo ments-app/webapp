@@ -57,7 +57,6 @@ export type StartupFounder = {
   id: string;
   startup_id: string;
   name: string;
-  linkedin_url: string | null;
   user_id: string | null;
   ments_username: string | null;
   status: 'pending' | 'accepted' | 'declined';
@@ -282,7 +281,7 @@ export async function deleteStartup(id: string): Promise<{ error: PostgrestError
 
 export async function upsertFounders(
   startupId: string,
-  founders: { name: string; linkedin_url?: string; user_id?: string; ments_username?: string; display_order: number }[],
+  founders: { name: string; user_id?: string; ments_username?: string; display_order: number }[],
   startupName?: string
 ): Promise<{ error: PostgrestError | null }> {
   // Get existing founders to preserve accepted statuses

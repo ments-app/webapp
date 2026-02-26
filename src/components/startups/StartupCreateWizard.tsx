@@ -74,8 +74,8 @@ export function StartupCreateWizard() {
   });
 
   // Related data
-  const [founders, setFounders] = useState<{ name: string; linkedin_url: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([
-    { name: '', linkedin_url: '', user_id: '', ments_username: '', avatar_url: '', display_order: 0 },
+  const [founders, setFounders] = useState<{ name: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([
+    { name: '', user_id: '', ments_username: '', avatar_url: '', display_order: 0 },
   ]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
 
@@ -196,7 +196,6 @@ export function StartupCreateWizard() {
       if (validFounders.length > 0) {
         promises.push(upsertFounders(startup.id, validFounders.map(f => ({
           name: f.name,
-          linkedin_url: f.linkedin_url || undefined,
           user_id: f.user_id || undefined,
           ments_username: f.ments_username || undefined,
           display_order: f.display_order,

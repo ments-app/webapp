@@ -5,7 +5,6 @@ import { MentsUserSearch } from './MentsUserSearch';
 
 type Founder = {
   name: string;
-  linkedin_url: string;
   user_id: string;
   ments_username: string;
   avatar_url: string;
@@ -25,7 +24,7 @@ const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rou
 
 export function Step2Description({ data, founders, onChange, onFoundersChange }: Step2Props) {
   const addFounder = () => {
-    onFoundersChange([...founders, { name: '', linkedin_url: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
+    onFoundersChange([...founders, { name: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
   };
 
   const removeFounder = (index: number) => {

@@ -43,7 +43,7 @@ export default function EditStartupPage() {
     elevator_pitch: '', logo_url: '', banner_url: '',
   });
 
-  const [founders, setFounders] = useState<{ name: string; linkedin_url: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([]);
+  const [founders, setFounders] = useState<{ name: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function EditStartupPage() {
 
       if (data.founders) {
         setFounders(data.founders.map(f => ({
-          name: f.name, linkedin_url: f.linkedin_url || '', user_id: f.user_id || '', ments_username: f.ments_username || '', avatar_url: '', display_order: f.display_order,
+          name: f.name, user_id: f.user_id || '', ments_username: f.ments_username || '', avatar_url: '', display_order: f.display_order,
         })));
       }
       if (data.funding_rounds) {
@@ -171,7 +171,7 @@ export default function EditStartupPage() {
 
       await Promise.all([
         upsertFounders(id, founders.filter(f => f.name).map(f => ({
-          name: f.name, linkedin_url: f.linkedin_url || undefined, user_id: f.user_id || undefined, ments_username: f.ments_username || undefined, display_order: f.display_order,
+          name: f.name, user_id: f.user_id || undefined, ments_username: f.ments_username || undefined, display_order: f.display_order,
         })), profileData.brand_name),
         upsertFundingRounds(id, fundingRounds.filter(r => r.round_type || r.amount || r.investor)),
       ]);
