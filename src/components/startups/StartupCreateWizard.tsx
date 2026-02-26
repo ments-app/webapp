@@ -74,8 +74,8 @@ export function StartupCreateWizard() {
   });
 
   // Related data
-  const [founders, setFounders] = useState<{ name: string; email: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([
-    { name: '', email: '', user_id: '', ments_username: '', avatar_url: '', display_order: 0 },
+  const [founders, setFounders] = useState<{ name: string; role: string; email: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([
+    { name: '', role: '', email: '', user_id: '', ments_username: '', avatar_url: '', display_order: 0 },
   ]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
 
@@ -201,9 +201,11 @@ export function StartupCreateWizard() {
             body: JSON.stringify({
               founders: validFounders.map(f => ({
                 name: f.name,
+                role: f.role || null,
                 email: f.email || null,
                 user_id: f.user_id || null,
                 ments_username: f.ments_username || null,
+                avatar_url: f.avatar_url || null,
                 display_order: f.display_order,
               })),
               startupName: profileData.brand_name,

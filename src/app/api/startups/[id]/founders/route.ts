@@ -113,7 +113,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
-    const rows = founders.map((f: { name: string; email?: string | null; user_id?: string | null; ments_username?: string | null; display_order: number }) => {
+    const rows = founders.map((f: { name: string; role?: string | null; avatar_url?: string | null; email?: string | null; user_id?: string | null; ments_username?: string | null; display_order: number }) => {
       // Auto-link if we found a Ments user for this email
       const resolvedUser = (!f.user_id && f.email) ? emailToUserId[f.email] : null;
       const userId = f.user_id || resolvedUser?.id || null;
@@ -122,9 +122,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return {
         startup_id: id,
         name: f.name,
+        role: f.role || null,
         email: (!userId && f.email) ? f.email : null, // only store email for non-Ments founders
         user_id: userId,
         ments_username: mentsUsername,
+        avatar_url: f.avatar_url || null,
         display_order: f.display_order,
         status: userId
           ? acceptedUserIds.has(userId) ? 'accepted' : 'pending'

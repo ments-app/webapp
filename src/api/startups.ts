@@ -57,10 +57,12 @@ export type StartupFounder = {
   id: string;
   startup_id: string;
   name: string;
+  role: string | null;
   linkedin_url: string | null;
   email: string | null;
   user_id: string | null;
   ments_username: string | null;
+  avatar_url: string | null;
   status: 'pending' | 'accepted' | 'declined';
   display_order: number;
   created_at: string;

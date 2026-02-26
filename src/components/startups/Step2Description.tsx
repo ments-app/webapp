@@ -5,6 +5,7 @@ import { MentsUserSearch } from './MentsUserSearch';
 
 type Founder = {
   name: string;
+  role: string;
   email: string;
   user_id: string;
   ments_username: string;
@@ -25,7 +26,7 @@ const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rou
 
 export function Step2Description({ data, founders, onChange, onFoundersChange }: Step2Props) {
   const addFounder = () => {
-    onFoundersChange([...founders, { name: '', email: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
+    onFoundersChange([...founders, { name: '', role: '', email: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
   };
 
   const removeFounder = (index: number) => {
@@ -139,6 +140,13 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
                   value={founder.name}
                   onChange={(e) => updateFounder(index, 'name', e.target.value)}
                   placeholder="Full name"
+                  className={inputClass}
+                />
+                <input
+                  type="text"
+                  value={founder.role}
+                  onChange={(e) => updateFounder(index, 'role', e.target.value)}
+                  placeholder="Role (e.g. CEO, CTO, CPO)"
                   className={inputClass}
                 />
                 <MentsUserSearch

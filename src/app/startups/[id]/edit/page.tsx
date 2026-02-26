@@ -47,7 +47,7 @@ export default function EditStartupPage() {
     elevator_pitch: '', logo_url: '', banner_url: '',
   });
 
-  const [founders, setFounders] = useState<{ name: string; email: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([]);
+  const [founders, setFounders] = useState<{ name: string; role: string; email: string; user_id: string; ments_username: string; avatar_url: string; display_order: number }[]>([]);
   const [fundingRounds, setFundingRounds] = useState<{ investor: string; amount: string; round_type: string; round_date: string; is_public: boolean }[]>([]);
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export default function EditStartupPage() {
 
       if (data.founders) {
         setFounders(data.founders.map(f => ({
-          name: f.name, email: f.email || '', user_id: f.user_id || '', ments_username: f.ments_username || '', avatar_url: '', display_order: f.display_order,
+          name: f.name, role: f.role || '', email: f.email || '', user_id: f.user_id || '', ments_username: f.ments_username || '', avatar_url: f.avatar_url || '', display_order: f.display_order,
         })));
       }
       if (data.funding_rounds) {
@@ -184,9 +184,11 @@ export default function EditStartupPage() {
           body: JSON.stringify({
             founders: founders.filter(f => f.name).map(f => ({
               name: f.name,
+              role: f.role || null,
               email: f.email || null,
               user_id: f.user_id || null,
               ments_username: f.ments_username || null,
+              avatar_url: f.avatar_url || null,
               display_order: f.display_order,
             })),
             startupName: profileData.brand_name,
