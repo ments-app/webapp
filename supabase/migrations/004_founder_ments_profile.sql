@@ -5,6 +5,10 @@ ALTER TABLE public.startup_founders
   ADD COLUMN IF NOT EXISTS status text DEFAULT 'accepted'
     CHECK (status IN ('pending', 'accepted', 'declined'));
 
+-- Remove linkedin_url — founders are linked via Ments profiles instead
+ALTER TABLE public.startup_founders
+  DROP COLUMN IF EXISTS linkedin_url;
+
 -- Index for lookups
 CREATE INDEX IF NOT EXISTS idx_startup_founders_user_id ON public.startup_founders(user_id) WHERE user_id IS NOT NULL;
 
