@@ -15,16 +15,20 @@ import {
   fetchStartupById, updateStartup, upsertFundingRounds,
   uploadPitchDeck, uploadStartupImage, StartupProfile,
 } from '@/api/startups';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function EditStartupPage() {
   const { user } = useAuth();
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUploadingDeck, setIsUploadingDeck] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -54,8 +58,12 @@ export default function EditStartupPage() {
         setLoading(false);
         return;
       }
-      if (data.owner_id !== user?.id) {
-        setError('You do not own this startup');
+      const isOwner = data.owner_id === user?.id;
+      const isCofounder = !isOwner && (data.founders || []).some(
+        f => f.user_id === user?.id && f.status === 'accepted'
+      );
+      if (!isOwner && !isCofounder) {
+        setError('You do not have access to edit this startup');
         setLoading(false);
         return;
       }
@@ -200,6 +208,25 @@ export default function EditStartupPage() {
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/startups/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || 'Failed to delete startup');
+        setShowDeleteConfirm(false);
+      } else {
+        router.push('/startups');
+      }
+    } catch {
+      setError('Failed to delete startup');
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -298,6 +325,43 @@ export default function EditStartupPage() {
             )}
             Save Changes
           </button>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="pt-6 border-t border-red-500/20">
+          <h3 className="text-sm font-semibold text-red-500 mb-1">Danger Zone</h3>
+          <p className="text-xs text-muted-foreground mb-3">Permanently delete this startup profile. This action cannot be undone.</p>
+          {showDeleteConfirm ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-foreground">Are you sure?</span>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deleting ? (
+                  <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Yes, delete
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-xl hover:bg-accent/50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Startup
+            </button>
+          )}
         </div>
       </div>
     </DashboardLayout>

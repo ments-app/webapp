@@ -35,6 +35,7 @@ const businessModelLabels: Record<string, string> = {
 type Props = {
   startup: StartupProfile;
   isOwner?: boolean;
+  isCofounder?: boolean;
   onBookmark?: () => void;
   onUnbookmark?: () => void;
 };
@@ -69,7 +70,7 @@ function hasContactDetails(startup: StartupProfile): boolean {
   );
 }
 
-export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark }: Props) {
+export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, onUnbookmark }: Props) {
   const location = buildLocation(startup);
   const StageIcon = stageIcons[startup.stage] || Rocket;
 
@@ -114,7 +115,7 @@ export function StartupProfileView({ startup, isOwner, onBookmark, onUnbookmark 
                     <TrendingUp className="h-3 w-3" /> Raising
                   </span>
                 )}
-                {isOwner ? (
+                {(isOwner || isCofounder) ? (
                   <Link
                     href={`/startups/${startup.id}/edit`}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"

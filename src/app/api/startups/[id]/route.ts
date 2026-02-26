@@ -1,11 +1,11 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
-import { fetchStartupById, updateStartup, deleteStartup } from '@/api/startups';
+import { fetchStartupById, updateStartup } from '@/api/startups';
 import { cacheClearByPrefix } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const supabase = createAdminClient();
@@ -55,23 +55,54 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = createAdminClient();
-    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session) {
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { error } = await deleteStartup(id);
+    const supabase = createAdminClient();
+
+    // Verify user is owner or accepted cofounder
+    const { data: startup } = await supabase
+      .from('startup_profiles')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+
+    if (!startup) {
+      return NextResponse.json({ error: 'Startup not found' }, { status: 404 });
+    }
+
+    const isOwner = startup.owner_id === user.id;
+    if (!isOwner) {
+      const { data: founder } = await supabase
+        .from('startup_founders')
+        .select('id')
+        .eq('startup_id', id)
+        .eq('user_id', user.id)
+        .eq('status', 'accepted')
+        .single();
+
+      if (!founder) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    const { error } = await supabase
+      .from('startup_profiles')
+      .delete()
+      .eq('id', id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Invalidate startups cache on delete
     cacheClearByPrefix('startups');
 
     return NextResponse.json({ success: true });

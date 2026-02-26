@@ -50,6 +50,9 @@ export default function StartupDetailPage() {
   };
 
   const isOwner = user?.id === startup?.owner_id;
+  const isCofounder = !isOwner && (startup?.founders || []).some(
+    f => f.user_id === user?.id && f.status === 'accepted'
+  );
 
   return (
     <DashboardLayout>
@@ -70,6 +73,7 @@ export default function StartupDetailPage() {
           <StartupProfileView
             startup={startup}
             isOwner={isOwner}
+            isCofounder={isCofounder}
             onBookmark={handleBookmark}
             onUnbookmark={handleUnbookmark}
           />

@@ -106,7 +106,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           founder_name: f.name,
         },
       }));
-      await supabase.from('inapp_notification').insert(notifInserts);
+      const { error: notifError } = await supabase.from('inapp_notification').insert(notifInserts);
+      if (notifError) {
+        console.error('Failed to insert cofounder notifications:', notifError.message);
+      }
     }
 
     return NextResponse.json({ success: true });

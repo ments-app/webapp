@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 
 /**
  * POST /api/startups/founders/respond
@@ -8,8 +8,8 @@ import { createAuthClient } from '@/utils/supabase-server';
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createAuthClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -20,6 +20,9 @@ export async function POST(request: Request) {
     if (!founderId || !['accept', 'decline'].includes(action)) {
       return NextResponse.json({ error: 'Invalid request. Required: founderId, action (accept|decline)' }, { status: 400 });
     }
+
+    // Use admin client to bypass RLS for DB operations
+    const supabase = createAdminClient();
 
     // Verify this founder record belongs to the current user
     const { data: founder, error: fetchError } = await supabase
