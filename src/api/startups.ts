@@ -58,6 +58,7 @@ export type StartupFounder = {
   startup_id: string;
   name: string;
   linkedin_url: string | null;
+  email: string | null;
   user_id: string | null;
   ments_username: string | null;
   status: 'pending' | 'accepted' | 'declined';

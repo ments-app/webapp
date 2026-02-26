@@ -1,11 +1,11 @@
 "use client";
 
-import { Plus, X, UserCircle } from 'lucide-react';
+import { Plus, X, UserCircle, Mail } from 'lucide-react';
 import { MentsUserSearch } from './MentsUserSearch';
 
 type Founder = {
   name: string;
-  linkedin_url: string;
+  email: string;
   user_id: string;
   ments_username: string;
   avatar_url: string;
@@ -25,7 +25,7 @@ const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rou
 
 export function Step2Description({ data, founders, onChange, onFoundersChange }: Step2Props) {
   const addFounder = () => {
-    onFoundersChange([...founders, { name: '', linkedin_url: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
+    onFoundersChange([...founders, { name: '', email: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
   };
 
   const removeFounder = (index: number) => {
@@ -49,7 +49,7 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
       user_id: user.user_id,
       ments_username: user.ments_username,
       avatar_url: user.avatar_url || '',
-      // Auto-fill name if empty
+      email: '', // clear email when linked to Ments profile
       name: updated[index].name.trim() || user.full_name,
     };
     onFoundersChange(updated);
@@ -151,6 +151,19 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
                   onUnlink={() => unlinkMentsUser(index)}
                   placeholder="Link their Ments profile..."
                 />
+                {/* Email — only shown when not linked to a Ments profile */}
+                {!founder.user_id && (
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={founder.email}
+                      onChange={(e) => updateFounder(index, 'email', e.target.value)}
+                      placeholder="Email (to send invite if not on Ments)"
+                      className={`${inputClass} pl-9`}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           ))}

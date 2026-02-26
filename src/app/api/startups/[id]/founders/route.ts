@@ -1,5 +1,6 @@
 import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
+import { sendCofounderInviteEmail } from '@/utils/cofounder-invite-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,16 +41,31 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Use admin client for all DB operations (bypasses RLS so we can send notifications to other users)
     const supabase = createAdminClient();
 
-    // Get existing founders to preserve accepted statuses
+    // Fetch actor's name for invite emails
+    const { data: actorRow } = await supabase
+      .from('users')
+      .select('full_name, username')
+      .eq('id', user.id)
+      .maybeSingle();
+    const inviterName = actorRow?.full_name || actorRow?.username || 'Someone';
+
+    // Get existing founders to preserve accepted statuses and already-invited emails
     const { data: existing } = await supabase
       .from('startup_founders')
-      .select('user_id, status')
+      .select('user_id, email, status')
       .eq('startup_id', id);
 
     const acceptedUserIds = new Set(
       (existing || [])
         .filter((f: { user_id: string | null; status: string }) => f.user_id && f.status === 'accepted')
         .map((f: { user_id: string | null }) => f.user_id)
+    );
+
+    // Track emails that were already invited so we don't spam
+    const alreadyInvitedEmails = new Set(
+      (existing || [])
+        .filter((f: { email: string | null; user_id: string | null }) => f.email && !f.user_id)
+        .map((f: { email: string | null }) => f.email as string)
     );
 
     // Delete existing founders and re-insert
@@ -66,27 +82,66 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ success: true });
     }
 
-    const rows = founders.map((f: { name: string; user_id?: string | null; ments_username?: string | null; display_order: number }) => ({
-      startup_id: id,
-      name: f.name,
-      user_id: f.user_id || null,
-      ments_username: f.ments_username || null,
-      display_order: f.display_order,
-      status: f.user_id
-        ? acceptedUserIds.has(f.user_id) ? 'accepted' : 'pending'
-        : 'accepted',
-    }));
+    // For founders with email but no user_id, check if they're already on Ments via auth.users
+    const emailFounders: { email: string }[] = founders.filter(
+      (f: { user_id?: string | null; email?: string | null }) => !f.user_id && f.email
+    );
+
+    const emailToUserId: Record<string, { id: string; username: string }> = {};
+    if (emailFounders.length > 0) {
+      try {
+        // Single batch call — lists all auth users and filters in memory
+        const { data: { users: authUsers } } = await supabase.auth.admin.listUsers({ perPage: 10000 });
+        const emailSet = new Set(emailFounders.map(f => f.email));
+        const matches = (authUsers || []).filter(u => u.email && emailSet.has(u.email));
+
+        if (matches.length > 0) {
+          const { data: profiles } = await supabase
+            .from('users')
+            .select('id, username')
+            .in('id', matches.map(u => u.id));
+
+          for (const match of matches) {
+            const profile = profiles?.find(p => p.id === match.id);
+            if (profile && match.email) {
+              emailToUserId[match.email] = { id: profile.id, username: profile.username };
+            }
+          }
+        }
+      } catch {
+        // non-critical, continue without auto-linking
+      }
+    }
+
+    const rows = founders.map((f: { name: string; email?: string | null; user_id?: string | null; ments_username?: string | null; display_order: number }) => {
+      // Auto-link if we found a Ments user for this email
+      const resolvedUser = (!f.user_id && f.email) ? emailToUserId[f.email] : null;
+      const userId = f.user_id || resolvedUser?.id || null;
+      const mentsUsername = f.ments_username || resolvedUser?.username || null;
+
+      return {
+        startup_id: id,
+        name: f.name,
+        email: (!userId && f.email) ? f.email : null, // only store email for non-Ments founders
+        user_id: userId,
+        ments_username: mentsUsername,
+        display_order: f.display_order,
+        status: userId
+          ? acceptedUserIds.has(userId) ? 'accepted' : 'pending'
+          : 'accepted',
+      };
+    });
 
     const { data: inserted, error: insertError } = await supabase
       .from('startup_founders')
       .insert(rows)
-      .select('id, user_id, name, status');
+      .select('id, user_id, email, name, status');
 
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    // Send notifications for newly pending founders using admin client (bypasses RLS)
+    // Send in-app notifications for newly pending Ments founders
     const pendingFounders = (inserted || []).filter(
       (f: { id: string; user_id: string | null; name: string; status: string }) => f.status === 'pending' && f.user_id
     );
@@ -109,6 +164,24 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const { error: notifError } = await supabase.from('inapp_notification').insert(notifInserts);
       if (notifError) {
         console.error('Failed to insert cofounder notifications:', notifError.message);
+      }
+    }
+
+    // Send invite emails to new non-Ments founders (skip already-invited emails)
+    const inviteFounders = (inserted || []).filter(
+      (f: { email: string | null; user_id: string | null }) => f.email && !f.user_id
+    );
+
+    for (const f of inviteFounders) {
+      if (alreadyInvitedEmails.has(f.email)) continue; // don't re-invite
+      try {
+        await sendCofounderInviteEmail({
+          toEmail: f.email,
+          startupName: startupName || 'a startup',
+          inviterName,
+        });
+      } catch (emailErr) {
+        console.error(`Failed to send invite email to ${f.email}:`, emailErr);
       }
     }
 
