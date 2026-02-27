@@ -1,0 +1,392 @@
+openapi: "3.0.0"
+info:
+  title: Ments API
+  version: "1.0"
+  description: Internal API for the Ments webapp (Next.js App Router)
+
+paths:
+
+  # ─── AUTH & VERIFICATION ───────────────────────────────────────────
+
+  /api/auth/callback:
+    post:
+      summary: OAuth callback handler (Supabase Google OAuth)
+
+  /api/verify/send:
+    post:
+      summary: Generate and send 6-digit email verification code
+      body: { email }
+
+  /api/verify/confirm:
+    post:
+      summary: Verify code and mark user as verified
+      body: { email, code }
+
+  /api/onboarding:
+    post:
+      summary: Complete initial onboarding (sets user role)
+      body: { role }
+
+  # ─── USERS & PROFILES ──────────────────────────────────────────────
+
+  /api/users:
+    get:
+      summary: Fetch user by id, email, or username
+      params: { id?, email?, username? }
+
+  /api/users/search:
+    get:
+      summary: Search users by query string
+      params: { q }
+
+  /api/users/by-id/[id]:
+    get:
+      summary: Get user by ID
+
+  /api/users/profile-completion:
+    get:
+      summary: Get profile completion percentage for authenticated user
+
+  /api/users/[username]/profile:
+    get:
+      summary: Get full profile details for a user
+
+  /api/users/[username]/follow:
+    post:
+      summary: Follow or unfollow a user (toggles)
+
+  /api/users/[username]/followers:
+    get:
+      summary: List followers of user
+
+  /api/users/[username]/following:
+    get:
+      summary: List users that this user follows
+
+  /api/users/[username]/education:
+    get:
+      summary: Get education records for user
+
+  /api/users/[username]/work-experience:
+    get:
+      summary: Get work experience records for user
+
+  /api/users/[username]/portfolios:
+    get:
+      summary: Get portfolio items for user
+
+  /api/users/[username]/positions:
+    get:
+      summary: Get career positions for user
+
+  # ─── POSTS ─────────────────────────────────────────────────────────
+
+  /api/posts:
+    get:
+      summary: Fetch posts with pagination
+      params: { limit?, offset?, author_id? }
+    post:
+      summary: Create a new post
+      body: { content, media?, poll? }
+
+  /api/posts/[postId]/replies:
+    get:
+      summary: Get replies (comments) for a post
+    post:
+      summary: Add a reply to a post
+      body: { content }
+
+  # ─── FEED ──────────────────────────────────────────────────────────
+
+  /api/feed:
+    get:
+      summary: Get personalized AI-ranked feed for authenticated user
+      notes: Falls back to chronological if AI pipeline fails. Cached per user (15–30 min TTL).
+
+  /api/feed/refresh:
+    post:
+      summary: Invalidate and rebuild feed cache for authenticated user
+
+  /api/feed/analytics:
+    get:
+      summary: Get feed analytics data (impressions, CTR, engagement)
+
+  /api/feed/events:
+    get:
+      summary: Get tracked feed events (impression, click, dwell, like, share)
+
+  /api/feed/extract-topics:
+    get:
+      summary: Extract topics from posts using Groq AI
+
+  /api/feed/experiments:
+    post:
+      summary: Create a new A/B test experiment
+      body: { name, variants, allocation }
+
+  /api/feed/experiments/[id]:
+    get:
+      summary: Get experiment definition and current status
+
+  /api/feed/experiments/[id]/results:
+    get:
+      summary: Get results and metrics for an experiment
+
+  # ─── MESSAGES & CONVERSATIONS ──────────────────────────────────────
+
+  /api/conversations:
+    get:
+      summary: List all conversations for authenticated user
+    post:
+      summary: Start a new conversation
+      body: { participant_id }
+
+  /api/conversations/[conversationId]:
+    get:
+      summary: Get conversation details and metadata
+
+  /api/messages:
+    get:
+      summary: Fetch messages for a conversation (paginated)
+      params: { conversation_id, limit?, cursor? }
+    post:
+      summary: Send a new message
+      body: { conversation_id, content }
+
+  /api/messages/reactions:
+    post:
+      summary: Add emoji reaction to a message
+      body: { message_id, emoji }
+    delete:
+      summary: Remove emoji reaction
+      body: { message_id, emoji }
+
+  /api/messages/read:
+    post:
+      summary: Mark messages as read
+      body: { conversation_id }
+
+  # ─── STARTUPS ──────────────────────────────────────────────────────
+
+  /api/startups:
+    get:
+      summary: List startups (cached)
+      params: { limit?, offset?, category? }
+    post:
+      summary: Create a new startup profile
+
+  /api/startups/[id]:
+    get:
+      summary: Get startup details
+    post:
+      summary: Update startup profile
+
+  /api/startups/[id]/view:
+    post:
+      summary: Track a startup profile view event
+
+  /api/startups/[id]/bookmark:
+    post:
+      summary: Bookmark or unbookmark a startup (toggles)
+
+  /api/startups/[id]/founders:
+    get:
+      summary: Get founders for a startup
+    post:
+      summary: Add co-founder (invite by email or Ments username)
+      body: { email?, ments_username?, role }
+
+  /api/startups/[id]/funding:
+    post:
+      summary: Add a funding round to startup
+      body: { round_type, amount, currency, date }
+
+  /api/startups/founders/respond:
+    post:
+      summary: Accept or decline a co-founder invitation
+      body: { startup_id, status: "accepted" | "declined" }
+
+  # ─── PROJECTS ──────────────────────────────────────────────────────
+
+  /api/users/[username]/projects:
+    get:
+      summary: List projects for user
+    post:
+      summary: Create a new project
+      body: { title, description }
+
+  /api/users/[username]/projects/[projectId]:
+    get:
+      summary: Get project details
+    post:
+      summary: Update project
+
+  /api/users/[username]/projects/[projectId]/slides:
+    get:
+      summary: Get project slides
+    post:
+      summary: Add/update project slides
+
+  /api/users/[username]/projects/[projectId]/text_sections:
+    get:
+      summary: Get project text sections
+    post:
+      summary: Add/update text sections
+
+  /api/users/[username]/projects/[projectId]/links:
+    get:
+      summary: Get project links
+    post:
+      summary: Add/update project links
+
+  # ─── EVENTS ────────────────────────────────────────────────────────
+
+  /api/events:
+    get:
+      summary: List events (cached, filterable)
+      params: { limit?, offset?, category? }
+    post:
+      summary: Create a new event
+
+  /api/events/[id]:
+    get:
+      summary: Get event details
+    post:
+      summary: Update event
+
+  /api/events/[id]/join:
+    post:
+      summary: Join an event
+
+  # ─── COMPETITIONS ──────────────────────────────────────────────────
+
+  /api/competitions:
+    get:
+      summary: List competitions
+    post:
+      summary: Create a competition
+
+  /api/competitions/[id]:
+    get:
+      summary: Get competition details
+
+  /api/competitions/[id]/join:
+    post:
+      summary: Join a competition
+
+  /api/competitions/[id]/entries:
+    get:
+      summary: Get competition entries
+
+  # ─── GIGS & JOBS ───────────────────────────────────────────────────
+
+  /api/gigs:
+    get:
+      summary: List gigs
+    post:
+      summary: Create a gig
+
+  /api/gigs/[id]:
+    get:
+      summary: Get gig details
+
+  /api/jobs:
+    get:
+      summary: List jobs
+    post:
+      summary: Create a job
+
+  /api/jobs/[id]:
+    get:
+      summary: Get job details
+
+  # ─── RESOURCES ─────────────────────────────────────────────────────
+
+  /api/resources:
+    get:
+      summary: List resources (cached)
+
+  /api/resources/[id]:
+    get:
+      summary: Get resource details
+
+  /api/resources/recommendations:
+    get:
+      summary: Get personalized resource recommendations for authenticated user
+
+  # ─── APPLICATIONS ──────────────────────────────────────────────────
+
+  /api/applications/start:
+    post:
+      summary: Start a new program application
+      body: { program_id }
+
+  /api/applications/check:
+    get:
+      summary: Check if user has an existing application
+      params: { program_id }
+
+  /api/applications/[id]:
+    get:
+      summary: Get application details
+
+  /api/applications/[id]/answer:
+    post:
+      summary: Submit answer to an application question
+      body: { question_id, answer }
+
+  /api/applications/[id]/submit:
+    post:
+      summary: Submit completed application
+
+  # ─── DISCOVERY ─────────────────────────────────────────────────────
+
+  /api/search:
+    get:
+      summary: Global search across users, posts, startups
+      params: { q, type?: "users" | "posts" | "startups" }
+
+  /api/trending:
+    get:
+      summary: Get trending topics
+
+  /api/recommendations:
+    get:
+      summary: Personalized recommendations for authenticated user
+
+  # ─── NOTIFICATIONS ─────────────────────────────────────────────────
+
+  /api/notifications:
+    post:
+      summary: Fetch notifications for authenticated user
+
+  /api/push-notification:
+    post:
+      summary: Handle push notification delivery
+
+  /api/push-on-mention:
+    post:
+      summary: Send push notification when user is mentioned
+
+  /api/push-on-reply:
+    post:
+      summary: Send push notification on reply
+
+  # ─── MISC ──────────────────────────────────────────────────────────
+
+  /api/environments:
+    get:
+      summary: List environments/communities
+
+  /api/chat-categories:
+    get:
+      summary: Get chat category options
+
+  /api/conversation-categories:
+    get:
+      summary: Get conversation category options
+
+  /api/cache/clear:
+    get:
+      summary: Manually clear cache by prefix
+      params: { prefix }
