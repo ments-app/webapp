@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 
 // Quick ping to verify route registration
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
@@ -12,11 +12,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 export async function POST(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
     const { username } = await params;
-    const { followerId, follow } = await req.json();
+    const { follow } = await req.json();
 
-    if (!username || !followerId || typeof follow !== 'boolean') {
+    if (!username || typeof follow !== 'boolean') {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Derive follower identity from session — never trust client-supplied followerId
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const followerId = user.id;
 
     const supabase = createAdminClient();
 
