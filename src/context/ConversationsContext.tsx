@@ -47,62 +47,43 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchConversations = useCallback(async () => {
+  // Single consolidated fetch function — replaces 3 separate functions
+  // to avoid 3 separate API calls per page load per user
+  const fetchAllData = useCallback(async () => {
     if (!user?.id) return;
-    
-    try {
-      const response = await fetch(`/api/conversations?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
-      } else {
-        console.error('Failed to fetch conversations:', response.status);
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
 
-  const fetchCategories = useCallback(async () => {
-    if (!user?.id) return;
-    
     try {
-      const response = await fetch(`/api/chat-categories?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
+      const [convRes, catRes, convCatRes] = await Promise.allSettled([
+        fetch(`/api/conversations?userId=${user.id}`),
+        fetch(`/api/chat-categories?userId=${user.id}`),
+        fetch(`/api/conversation-categories?userId=${user.id}`),
+      ]);
+
+      if (convRes.status === 'fulfilled' && convRes.value.ok) {
+        const data = await convRes.value.json();
+        setConversations(data);
+      }
+
+      if (catRes.status === 'fulfilled' && catRes.value.ok) {
+        const data = await catRes.value.json();
         setCategories(data);
       }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  }, [user?.id]);
 
-  const fetchConversationCategories = useCallback(async () => {
-    if (!user?.id) return;
-    
-    try {
-      const response = await fetch(`/api/conversation-categories?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Transform the data into a map of conversation_id -> [category_ids]
+      if (convCatRes.status === 'fulfilled' && convCatRes.value.ok) {
+        const data = await convCatRes.value.json();
         const mappings: Record<string, string[]> = {};
-        data.forEach((item: {
-          conversation_id: string;
-          category_id: string;
-        }) => {
+        data.forEach((item: { conversation_id: string; category_id: string }) => {
           if (!mappings[item.conversation_id]) {
             mappings[item.conversation_id] = [];
           }
           mappings[item.conversation_id].push(item.category_id);
         });
-        
         setConversationCategories(mappings);
       }
     } catch (error) {
-      console.error('Error fetching conversation categories:', error);
+      console.error('Error fetching conversation data:', error);
+    } finally {
+      setLoading(false);
     }
   }, [user?.id]);
 
@@ -111,27 +92,18 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    
-    const fetchAllData = async () => {
-      await Promise.all([
-        fetchConversations(),
-        fetchCategories(),
-        fetchConversationCategories()
-      ]);
-      setLoading(false);
-    };
-    
+
     fetchAllData();
-  }, [user?.id, fetchCategories, fetchConversationCategories, fetchConversations]);
+  }, [user?.id, fetchAllData]);
 
   // Filter conversations by search query and active category
   const filteredConversations = conversations.filter(conv => {
     // Search filter
-    const matchesSearch = 
+    const matchesSearch =
       conv.other_full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.other_username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.last_message?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     // Category filter
     let matchesCategory = true;
     if (activeTab === 'all') {
@@ -141,13 +113,13 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       const conversationCategoryIds = conversationCategories[conv.conversation_id] || [];
       matchesCategory = conversationCategoryIds.includes(activeTab);
     }
-    
+
     return matchesSearch && matchesCategory;
   });
 
   const refetchConversations = async () => {
     setLoading(true);
-    await fetchConversations();
+    await fetchAllData();
   };
 
   const clearUnreadCount = useCallback((conversationId: string) => {

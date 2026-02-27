@@ -37,7 +37,7 @@ export function useMessages(conversationId: string, userId: string) {
       }
 
       const response = await fetch(`/api/messages?${params}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch messages');
@@ -68,7 +68,7 @@ export function useMessages(conversationId: string, userId: string) {
 
   const loadMoreMessages = useCallback(() => {
     if (!hasMore || loadingMore || messages.length === 0) return;
-    
+
     const oldestMessage = messages[0];
     if (oldestMessage) {
       fetchMessages(oldestMessage.id);
@@ -83,7 +83,6 @@ export function useMessages(conversationId: string, userId: string) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
         },
         body: JSON.stringify({
           conversation_id: conversationId,
@@ -136,7 +135,6 @@ export function useMessages(conversationId: string, userId: string) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
           const newMessage = payload.new as Message;
-          console.log('New message received:', newMessage);
 
           // Add the new message to the end of the list
           setMessages(prev => [...prev, newMessage]);
@@ -158,10 +156,9 @@ export function useMessages(conversationId: string, userId: string) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
           const updatedMessage = payload.new as Message;
-          console.log('Message updated:', updatedMessage);
 
           // Update the message in the list
-          setMessages(prev => prev.map(msg => 
+          setMessages(prev => prev.map(msg =>
             msg.id === updatedMessage.id ? updatedMessage : msg
           ));
         }
@@ -187,7 +184,6 @@ export function useMessages(conversationId: string, userId: string) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId, // Assuming this is how auth is handled
         },
         body: JSON.stringify({
           ...request,
@@ -216,9 +212,6 @@ export function useMessages(conversationId: string, userId: string) {
     try {
       const response = await fetch(`/api/messages/${messageId}`, {
         method: 'DELETE',
-        headers: {
-          'x-user-id': userId,
-        }
       });
 
       if (!response.ok) {
@@ -240,7 +233,6 @@ export function useMessages(conversationId: string, userId: string) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
         },
         body: JSON.stringify({ content: newContent })
       });
