@@ -25,13 +25,12 @@ export function useTyping(conversationId: string, userId: string, username: stri
       .channel(`typing:${conversationId}`)
       .on('broadcast', { event: 'typing' }, (payload: { payload: TypingEvent }) => {
         const typingEvent = payload.payload;
-        
+
         if (typingEvent.user_id === userId) {
           // Ignore our own typing events
           return;
         }
 
-        console.log('Typing event received:', typingEvent);
 
         if (typingEvent.is_typing) {
           // Add user to typing list
@@ -130,7 +129,7 @@ export function useTyping(conversationId: string, userId: string, username: stri
       if (stopTypingTimeoutRef.current) {
         clearTimeout(stopTypingTimeoutRef.current);
       }
-      
+
       stopTypingTimeoutRef.current = setTimeout(() => {
         stopTyping();
       }, 2000);
@@ -146,7 +145,7 @@ export function useTyping(conversationId: string, userId: string, username: stri
   useEffect(() => {
     const typingTimeout = typingTimeoutRef.current;
     const stopTypingTimeout = stopTypingTimeoutRef.current;
-    
+
     return () => {
       if (typingTimeout) {
         clearTimeout(typingTimeout);
@@ -169,14 +168,14 @@ export function useTyping(conversationId: string, userId: string, username: stri
 
 // Hook for managing typing indicators in input fields
 export function useTypingInput(
-  conversationId: string, 
-  userId: string, 
+  conversationId: string,
+  userId: string,
   username: string,
   onSendMessage?: () => void
 ) {
   const { typingUsers, isTyping, handleTextChange, handleSendMessage } = useTyping(
-    conversationId, 
-    userId, 
+    conversationId,
+    userId,
     username
   );
 
@@ -195,7 +194,7 @@ export function useTypingInput(
 
   const formatTypingMessage = useCallback(() => {
     if (typingUsers.length === 0) return '';
-    
+
     if (typingUsers.length === 1) {
       return `${typingUsers[0]} is typing...`;
     } else if (typingUsers.length === 2) {

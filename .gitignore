@@ -46,3 +46,10 @@ next-env.d.ts
 
 # personal docs
 personal documentation/
+
+# AI tooling (agent-browser, skills)
+.agent/
+.agents/
+.windsurf/
+skills/
+skills-lock.json
