@@ -206,7 +206,7 @@ export function useMessages(conversationId: string, userId: string) {
     } finally {
       setSending(false);
     }
-  }, [conversationId, userId]);
+  }, [conversationId]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
     try {
@@ -225,7 +225,7 @@ export function useMessages(conversationId: string, userId: string) {
       console.error('Error deleting message:', err);
       throw err;
     }
-  }, [userId]);
+  }, []);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     try {
@@ -249,7 +249,7 @@ export function useMessages(conversationId: string, userId: string) {
       console.error('Error editing message:', err);
       throw err;
     }
-  }, [userId]);
+  }, []);
 
   return {
     messages,
