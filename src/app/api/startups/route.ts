@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { fetchStartups, createStartup } from '@/api/startups';
 import { cacheGet, cacheSet, cacheClearByPrefix } from '@/lib/cache';
@@ -47,24 +47,23 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = createAdminClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
+    // Use cookie-based auth client — properly reads session from the request cookies
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const { data, error } = await createStartup({
       ...body,
-      owner_id: session.user.id,
+      owner_id: user.id,
     });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Invalidate startups cache on creation
     cacheClearByPrefix(CACHE_PREFIX);
 
     return NextResponse.json({ data }, { status: 201 });

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
-import { ArrowLeft, Share2, Trophy, Users, Clock, ChevronDown, CheckCircle, Loader2, X, FolderOpen, Plus, LogOut } from 'lucide-react';
+import { ArrowLeft, Share2, Trophy, Users, Clock, ChevronDown, CheckCircle, Loader2, X, FolderOpen, Plus, LogOut, Bookmark, BookmarkCheck, Star, CalendarRange, HelpCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
@@ -23,6 +23,37 @@ type Competition = {
   has_leaderboard: boolean;
   prize_pool: string | null;
   banner_image_url: string | null;
+  // Extended fields
+  tags?: string[];
+  is_featured?: boolean;
+  domain?: string | null;
+  organizer_name?: string | null;
+  participation_type?: string;
+  team_size_min?: number;
+  team_size_max?: number;
+  eligibility_criteria?: string | null;
+};
+
+type CompetitionRound = {
+  id: string;
+  round_number: number;
+  title: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+type CompetitionFaq = {
+  id: string;
+  question: string;
+  answer: string;
+  order_index: number;
+};
+
+const domainLabels: Record<string, string> = {
+  hackathon: 'Hackathon', case_study: 'Case Study', quiz: 'Quiz', design: 'Design',
+  coding: 'Coding', business_plan: 'Business Plan', research: 'Research',
+  marketing: 'Marketing', other: 'Other',
 };
 
 type CompetitionEntry = {
@@ -78,6 +109,11 @@ export default function CompetitionDetailsPage() {
   const [participants, setParticipants] = useState(0);
   const [entries, setEntries] = useState<(CompetitionEntry & { project?: ProjectLite | null; username?: string | null })[]>([]);
   const [aboutOpen, setAboutOpen] = useState(true);
+  const [rounds, setRounds] = useState<CompetitionRound[]>([]);
+  const [faqs, setFaqs] = useState<CompetitionFaq[]>([]);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSavingBookmark] = useState(false);
 
   // Join button state
   const [joined, setJoined] = useState(false);
@@ -99,15 +135,19 @@ export default function CompetitionDetailsPage() {
     (async () => {
       setLoading(true);
       try {
-        const [compRes, entriesRes] = await Promise.all([
+        const [compRes, entriesRes, roundsRes, faqsRes] = await Promise.all([
           fetch(`/api/competitions/${encodeURIComponent(id)}`, { cache: 'no-store' }),
           fetch(`/api/competitions/${encodeURIComponent(id)}/entries`, { cache: 'no-store' }),
+          supabase.from('competition_rounds').select('*').eq('competition_id', id).order('round_number'),
+          supabase.from('competition_faqs').select('*').eq('competition_id', id).order('order_index'),
         ]);
         const compJson = await compRes.json();
         const entriesJson = await entriesRes.json();
         if (cancelled) return;
         setComp(compJson.data || null);
         setParticipants(compJson.participants || 0);
+        setRounds((roundsRes.data ?? []) as CompetitionRound[]);
+        setFaqs((faqsRes.data ?? []) as CompetitionFaq[]);
 
         const baseEntries: CompetitionEntry[] = Array.isArray(entriesJson.data) ? entriesJson.data : [];
         // Fetch project details for entries using the username-based API
@@ -172,20 +212,31 @@ export default function CompetitionDetailsPage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Check if user already joined this competition
+  // Check if user already joined + check saved state
   useEffect(() => {
     if (!id || !user) { setCheckingJoin(false); return; }
     let cancelled = false;
     (async () => {
       setCheckingJoin(true);
       try {
-        const { data } = await supabase
-          .from('competition_entries')
-          .select('submitted_by')
-          .eq('competition_id', id)
-          .eq('submitted_by', user.id)
-          .maybeSingle();
-        if (!cancelled) setJoined(!!data);
+        const [entryRes, savedRes] = await Promise.all([
+          supabase
+            .from('competition_entries')
+            .select('submitted_by')
+            .eq('competition_id', id)
+            .eq('submitted_by', user.id)
+            .maybeSingle(),
+          supabase
+            .from('saved_competitions')
+            .select('id')
+            .eq('competition_id', id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+        ]);
+        if (!cancelled) {
+          setJoined(!!entryRes.data);
+          setSaved(!!savedRes.data);
+        }
       } catch { }
       if (!cancelled) setCheckingJoin(false);
     })();
@@ -293,6 +344,27 @@ export default function CompetitionDetailsPage() {
     }
   };
 
+  const handleToggleSave = async () => {
+    if (!user || !comp) return;
+    setSavingBookmark(true);
+    try {
+      if (saved) {
+        await supabase
+          .from('saved_competitions')
+          .delete()
+          .eq('competition_id', comp.id)
+          .eq('user_id', user.id);
+        setSaved(false);
+      } else {
+        await supabase
+          .from('saved_competitions')
+          .insert({ competition_id: comp.id, user_id: user.id });
+        setSaved(true);
+      }
+    } catch { }
+    setSavingBookmark(false);
+  };
+
   const bannerUrl = useMemo(() => resolveBannerUrl(comp?.banner_image_url), [comp?.banner_image_url]);
   const ended = comp ? isEnded(comp) : false;
 
@@ -314,6 +386,17 @@ export default function CompetitionDetailsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1" />
+          {user && (
+            <Button
+              variant="ghost" size="icon"
+              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300' : 'bg-accent/30 hover:bg-accent/60'}`}
+              onClick={handleToggleSave}
+              disabled={saving}
+              aria-label={saved ? 'Unsave' : 'Save'}
+            >
+              {saved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+            </Button>
+          )}
           <Button variant="ghost" size="icon" className="rounded-xl bg-accent/30 hover:bg-accent/60 border border-border/50" onClick={share} aria-label="Share">
             <Share2 className="h-5 w-5" />
           </Button>
@@ -326,7 +409,36 @@ export default function CompetitionDetailsPage() {
           )}
           <div className="absolute inset-0 bg-black/35" />
           <div className="relative p-5 md:p-8">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {comp?.is_featured && (
+                <span className="flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                  <Star className="h-3 w-3 fill-white" /> Featured
+                </span>
+              )}
+              {comp?.domain && (
+                <span className="text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                  {domainLabels[comp.domain] ?? comp.domain}
+                </span>
+              )}
+              {comp?.participation_type === 'team' && (
+                <span className="text-xs font-semibold bg-blue-500/70 text-white px-2 py-0.5 rounded-full">
+                  Team ({comp.team_size_min}–{comp.team_size_max})
+                </span>
+              )}
+            </div>
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white drop-shadow max-w-3xl">{comp?.title || (loading ? 'Loading…' : 'Competition')}</h1>
+            {comp?.organizer_name && (
+              <p className="text-white/70 text-sm mt-1">by {comp.organizer_name}</p>
+            )}
+            {(comp?.tags ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(comp?.tags ?? []).slice(0, 5).map((tag) => (
+                  <span key={tag} className="text-[10px] font-medium bg-white/10 text-white/80 px-1.5 py-0.5 rounded-full">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -495,6 +607,81 @@ export default function CompetitionDetailsPage() {
             </div>
           )}
         </div>
+
+        {/* Eligibility */}
+        {comp?.eligibility_criteria && (
+          <div className="mt-6 rounded-2xl border border-border/60 bg-card/70 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+              <h3 className="text-base font-semibold">Eligibility</h3>
+            </div>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{comp.eligibility_criteria}</p>
+          </div>
+        )}
+
+        {/* Rounds Timeline */}
+        {rounds.length > 0 && (
+          <div className="mt-6 rounded-2xl border border-border/60 bg-card/70 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarRange className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+              <h3 className="text-base font-semibold">Timeline</h3>
+            </div>
+            <div className="relative">
+              <div className="absolute left-3 top-0 bottom-0 w-px bg-border/60" />
+              <div className="space-y-5 pl-8">
+                {rounds.map((round, i) => {
+                  const now = Date.now();
+                  const start = round.start_date ? Date.parse(round.start_date) : null;
+                  const end = round.end_date ? Date.parse(round.end_date) : null;
+                  const active = start && end ? now >= start && now <= end : false;
+                  const done = end ? now > end : false;
+                  return (
+                    <div key={round.id} className="relative">
+                      <div className={`absolute -left-5 top-0.5 h-4 w-4 rounded-full border-2 ${done ? 'bg-emerald-500 border-emerald-500' : active ? 'bg-blue-500 border-blue-500' : 'bg-background border-border'}`} />
+                      <div className={`text-xs font-semibold uppercase tracking-wide mb-0.5 ${done ? 'text-emerald-600 dark:text-emerald-300' : active ? 'text-blue-600 dark:text-blue-300' : 'text-muted-foreground'}`}>
+                        Round {round.round_number}{active ? ' · Active' : done ? ' · Completed' : ''}
+                      </div>
+                      <div className="font-semibold text-foreground">{round.title}</div>
+                      {round.description && <p className="text-sm text-muted-foreground mt-0.5">{round.description}</p>}
+                      {(round.start_date || round.end_date) && (
+                        <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                          {round.start_date && <span>Start: {format(new Date(round.start_date), 'dd MMM yyyy')}</span>}
+                          {round.end_date && <span>End: {format(new Date(round.end_date), 'dd MMM yyyy')}</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FAQs */}
+        {faqs.length > 0 && (
+          <div className="mt-6 rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
+            <div className="flex items-center gap-2 px-5 pt-5 pb-3">
+              <HelpCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+              <h3 className="text-base font-semibold">FAQs</h3>
+            </div>
+            <div className="divide-y divide-border/60">
+              {faqs.map((faq) => (
+                <div key={faq.id}>
+                  <button
+                    className="w-full flex items-center justify-between px-5 py-3.5 text-left text-sm font-medium hover:bg-muted/20 transition-colors"
+                    onClick={() => setOpenFaq(openFaq === faq.id ? null : faq.id)}
+                  >
+                    <span>{faq.question}</span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 ml-2 transition-transform ${openFaq === faq.id ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openFaq === faq.id && (
+                    <div className="px-5 pb-4 text-sm text-muted-foreground">{faq.answer}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Entries */}
         <div className="mt-6">

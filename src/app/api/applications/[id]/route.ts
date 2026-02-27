@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 
 export async function GET(
   _req: NextRequest,
@@ -7,11 +7,20 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // Verify session — only the application owner may read their application
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
     const admin = createAdminClient();
     const { data, error } = await admin
       .from('applications')
       .select('*')
       .eq('id', id)
+      .eq('user_id', user.id)   // ← enforce ownership; prevents cross-user reads
       .single();
 
     if (error || !data) {

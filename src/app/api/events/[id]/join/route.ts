@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Use service role key to bypass RLS for insert operations
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: eventId } = await params;
-    const body = await req.json();
-    const userId = body.userId;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    // Always derive userId from the verified session — never trust the request body
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const userId = user.id;
+
+    const admin = createAdminClient();
 
     // Check if event exists and is active
-    const { data: event, error: eventError } = await getSupabase()
+    const { data: event, error: eventError } = await admin
       .from('events')
       .select('id, is_active')
       .eq('id', eventId)
@@ -34,25 +32,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Event is no longer active' }, { status: 400 });
     }
 
-    // Check if user already joined
-    const { data: existing } = await getSupabase()
-      .from('event_participants')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (existing) {
-      return NextResponse.json({ error: 'Already joined', alreadyJoined: true }, { status: 409 });
-    }
-
-    // Insert participant record
-    const { error: insertError } = await getSupabase()
+    // Insert participant record — rely on the unique constraint to detect duplicates atomically
+    const { error: insertError } = await admin
       .from('event_participants')
       .insert({ event_id: eventId, user_id: userId });
 
     if (insertError) {
+      // Unique constraint violation → already joined
+      if (insertError.code === '23505') {
+        return NextResponse.json({ error: 'Already joined', alreadyJoined: true }, { status: 409 });
+      }
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unexpected error';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: eventId } = await params;
+
+    // Derive userId from the verified session
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from('event_participants')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

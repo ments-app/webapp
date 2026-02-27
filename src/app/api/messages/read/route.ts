@@ -5,18 +5,16 @@ import { createAuthClient } from '@/utils/supabase-server';
 export async function PATCH(req: NextRequest) {
   try {
     const supabase = await createAuthClient();
-    const body = await req.json();
-    const { conversation_id, message_ids } = body;
 
-    // Get user from headers (set by middleware) or body (fallback)
-    let user_id = req.headers.get('x-user-id');
-    if (!user_id && body.user_id) {
-      user_id = body.user_id; // Fallback for backward compatibility
-    }
-
-    if (!user_id) {
+    // Verify session — always use session, never trust body user_id
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const user_id = user.id;
+
+    const body = await req.json();
+    const { conversation_id, message_ids } = body;
 
     if (!conversation_id) {
       return NextResponse.json({ error: 'Missing conversation_id' }, { status: 400 });
@@ -72,13 +70,21 @@ export async function PATCH(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createAuthClient();
-    const { searchParams } = new URL(req.url);
-    const user_id = searchParams.get('userId');
-    const conversation_id = searchParams.get('conversationId');
 
-    if (!user_id) {
-      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    // Verify session — derive user_id from session
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+
+    const { searchParams } = new URL(req.url);
+    // Accept userId param for compatibility but enforce it matches session
+    const requestedUserId = searchParams.get('userId');
+    if (requestedUserId && requestedUserId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const user_id = user.id;
+    const conversation_id = searchParams.get('conversationId');
 
     if (conversation_id) {
       // Get unread count for specific conversation

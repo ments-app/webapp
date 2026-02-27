@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
@@ -43,6 +43,15 @@ type CompetitionItem = {
   external_url?: string | null;
   prize_pool?: string | null;
   banner_image_url?: string | null;
+  // Extended fields
+  tags?: string[];
+  is_featured?: boolean;
+  domain?: string | null;
+  organizer_name?: string | null;
+  participation_type?: string;
+  team_size_min?: number;
+  team_size_max?: number;
+  participant_count?: number;
 };
 
 type EventItem = {
@@ -54,9 +63,13 @@ type EventItem = {
   event_url?: string | null;
   banner_image_url?: string | null;
   event_type: string;
-  category?: string | null; // 'event' | 'meetup' | 'workshop'
+  category?: string | null; // 'event' | 'meetup' | 'workshop' | 'conference' | 'seminar'
   is_active: boolean;
   created_at: string;
+  // Extended fields
+  tags?: string[];
+  is_featured?: boolean;
+  organizer_name?: string | null;
 };
 
 type JobItem = {
@@ -162,6 +175,12 @@ const Stat = ({ icon: Icon, children }: { icon: typeof Users; children: React.Re
 
 // --- Competition cards (updated with working Join + click navigation) ---
 
+const domainLabels: Record<string, string> = {
+  hackathon: 'Hackathon', case_study: 'Case Study', quiz: 'Quiz', design: 'Design',
+  coding: 'Coding', business_plan: 'Business Plan', research: 'Research',
+  marketing: 'Marketing', other: 'Other',
+};
+
 const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionItem; user: { id: string } | null; onJoinSuccess?: () => void }) => {
   const ended = isEnded(c);
   const deadlineLabel = c.deadline ? (ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')) : 'Open';
@@ -169,20 +188,30 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
   const [joined, setJoined] = useState(false);
   const [joining, setJoining] = useState(false);
   const [checkingJoin, setCheckingJoin] = useState(true);
+  const [participantCount, setParticipantCount] = useState<number | null>(c.participant_count ?? null);
 
-  // Check if user already joined
+  // Check if user already joined + get participant count
   useEffect(() => {
     if (!user) { setCheckingJoin(false); return; }
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('competition_entries')
-          .select('submitted_by')
-          .eq('competition_id', c.id)
-          .eq('submitted_by', user.id)
-          .maybeSingle();
-        if (!cancelled) setJoined(!!data);
+        const [entryRes, countRes] = await Promise.all([
+          supabase
+            .from('competition_entries')
+            .select('submitted_by')
+            .eq('competition_id', c.id)
+            .eq('submitted_by', user.id)
+            .maybeSingle(),
+          supabase
+            .from('competition_entries')
+            .select('*', { count: 'exact', head: true })
+            .eq('competition_id', c.id),
+        ]);
+        if (!cancelled) {
+          setJoined(!!entryRes.data);
+          setParticipantCount(countRes.count ?? 0);
+        }
       } catch { }
       if (!cancelled) setCheckingJoin(false);
     })();
@@ -231,9 +260,38 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
         <div className="absolute inset-0 bg-black/30" />
         <div className="absolute inset-0 flex items-end md:items-center justify-start p-5 md:p-8">
           <div>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {c.is_featured && (
+                <span className="flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                  <Star className="h-3 w-3 fill-white" /> Featured
+                </span>
+              )}
+              {c.domain && (
+                <span className="text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                  {domainLabels[c.domain] ?? c.domain}
+                </span>
+              )}
+              {c.participation_type === 'team' && (
+                <span className="text-xs font-semibold bg-blue-500/70 text-white px-2 py-0.5 rounded-full">
+                  Team ({c.team_size_min}–{c.team_size_max})
+                </span>
+              )}
+            </div>
             <div className="text-white/95 text-xl md:text-2xl font-extrabold drop-shadow">{c.title}</div>
+            {c.organizer_name && (
+              <p className="text-slate-200/70 text-xs mt-0.5">by {c.organizer_name}</p>
+            )}
             {c.description && (
               <p className="text-slate-200/80 text-xs md:text-sm mt-1 line-clamp-2 max-w-2xl">{c.description}</p>
+            )}
+            {(c.tags ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(c.tags ?? []).slice(0, 4).map((tag) => (
+                  <span key={tag} className="text-[10px] font-medium bg-white/10 text-white/80 px-1.5 py-0.5 rounded-full">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -243,7 +301,7 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
       <div className="p-5 md:p-6">
         <div className="mt-1 text-muted-foreground text-sm truncate">{deadlineLabel}</div>
         <div className="mt-4 flex flex-wrap items-center gap-4">
-          <Stat icon={Users}>Participants: --</Stat>
+          <Stat icon={Users}>{participantCount !== null ? `${participantCount} registered` : 'Participants: —'}</Stat>
           <Stat icon={Clock}>{deadlineLabel}</Stat>
           {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
         </div>
@@ -342,13 +400,22 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            {c.is_featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />}
             <h4 className="text-base sm:text-lg font-semibold text-foreground truncate">{c.title}</h4>
+            {c.domain && (
+              <span className="text-xs font-medium bg-violet-400/10 text-violet-700 dark:text-violet-300 border border-violet-400/30 px-2 py-0.5 rounded-full shrink-0">
+                {domainLabels[c.domain] ?? c.domain}
+              </span>
+            )}
             {ended ? (
               <span className="text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Ended</span>
             ) : (
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Active</span>
             )}
           </div>
+          {c.organizer_name && (
+            <p className="text-xs text-muted-foreground mt-0.5">by {c.organizer_name}</p>
+          )}
           {c.description && (
             <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{c.description}</p>
           )}
@@ -357,7 +424,19 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
               <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')}</Stat>
             )}
             {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+            {c.participation_type === 'team' && (
+              <Stat icon={Users}>Team ({c.team_size_min}–{c.team_size_max})</Stat>
+            )}
           </div>
+          {(c.tags ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {(c.tags ?? []).slice(0, 3).map((tag) => (
+                <span key={tag} className="text-[10px] font-medium bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded-full">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex sm:flex-col gap-2 justify-center sm:justify-center">
           <button
@@ -386,58 +465,141 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
 
 // --- Event row card ---
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const EventRowCard = ({ event, user: _user }: { event: EventItem; user: { id: string } | null }) => {
+const EVENT_CATEGORY_LABELS: Record<string, string> = {
+  event: 'Event', meetup: 'Meetup', workshop: 'Workshop', conference: 'Conference', seminar: 'Seminar',
+};
+
+const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
   const ended = isEnded(event);
-  const categoryLabel = event.category === 'meetup' ? 'Meetup' : event.category === 'workshop' ? 'Workshop' : 'Event';
+  const categoryLabel = EVENT_CATEGORY_LABELS[event.category ?? 'event'] ?? 'Event';
+
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [checkingJoin, setCheckingJoin] = useState(true);
+
+  useEffect(() => {
+    if (!user) { setCheckingJoin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('event_participants')
+          .select('user_id')
+          .eq('event_id', event.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (!cancelled) setJoined(!!data);
+      } catch { }
+      if (!cancelled) setCheckingJoin(false);
+    })();
+    return () => { cancelled = true; };
+  }, [event.id, user]);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || ended) return;
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/events/${encodeURIComponent(event.id)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setJoined(true);
+      } else if (json.alreadyJoined) {
+        setJoined(true);
+      }
+    } catch { }
+    setJoining(false);
+  };
 
   return (
-    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 sm:p-5 flex flex-col sm:flex-row gap-3 sm:gap-4 hover:bg-card/80 transition">
-      <div className="relative h-36 sm:h-24 w-full sm:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
-        {(() => {
-          const url = resolveBannerUrl(event.banner_image_url);
-          return url ? (
-            <Image src={url} alt={event.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 160px" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
-          );
-        })()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h4 className="text-base sm:text-lg font-semibold text-foreground truncate">{event.title}</h4>
-          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full shrink-0">
-            {categoryLabel}
+    <Link href={`/hub/event/${encodeURIComponent(event.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 hover:bg-card/80 transition">
+      <div className="p-4 sm:p-5 flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="relative h-36 sm:h-24 w-full sm:w-32 rounded-xl overflow-hidden flex-shrink-0 bg-muted/40">
+          {(() => {
+            const url = resolveBannerUrl(event.banner_image_url);
+            return url ? (
+              <Image src={url} alt={event.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 160px" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+            );
+          })()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {event.is_featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+            <h4 className="text-base sm:text-lg font-semibold text-foreground truncate">{event.title}</h4>
+            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full shrink-0">
+              {categoryLabel}
+            </span>
+            {ended ? (
+              <span className="text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Ended</span>
+            ) : (
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Upcoming</span>
+            )}
+          </div>
+          {event.organizer_name && (
+            <p className="text-xs text-muted-foreground mt-0.5">by {event.organizer_name}</p>
+          )}
+          {event.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{event.description}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-3 sm:gap-4">
+            {event.event_date && (
+              <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(event.event_date), 'dd MMM, yyyy')}</Stat>
+            )}
+            {event.location && <Stat icon={MapPin}>{event.location}</Stat>}
+          </div>
+          {(event.tags ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {(event.tags ?? []).slice(0, 3).map((tag) => (
+                <span key={tag} className="text-[10px] font-medium bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded-full">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex sm:flex-col gap-2 justify-center sm:justify-center">
+          <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition w-full sm:w-auto">
+            View Details
           </span>
-          {ended ? (
-            <span className="text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Ended</span>
-          ) : (
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Upcoming</span>
-          )}
-        </div>
-        {event.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{event.description}</p>
-        )}
-        <div className="mt-2 flex flex-wrap items-center gap-3 sm:gap-4">
-          {event.event_date && (
-            <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(event.event_date), 'dd MMM, yyyy')}</Stat>
-          )}
-          {event.location && <Stat icon={MapPin}>{event.location}</Stat>}
-        </div>
-      </div>
-      <div className="flex sm:flex-col gap-2 justify-center">
-        {event.event_url && (
-          <a
-            href={event.event_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition w-full sm:w-auto"
+          <button
+            onClick={handleJoin}
+            disabled={joined || joining || checkingJoin || !user || ended}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${joined
+              ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+              : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+              }`}
           >
-            View <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
+            {checkingJoin ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : joined ? (
+              <><CheckCircle className="h-4 w-4" /> Registered</>
+            ) : joining ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>Register <ArrowRight className="h-4 w-4" /></>
+            )}
+          </button>
+          {event.event_url && (
+            <a
+              href={event.event_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-muted-foreground px-4 py-2 sm:px-3 text-xs font-medium hover:bg-accent/60 active:scale-95 transition w-full sm:w-auto"
+            >
+              External Link <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
@@ -639,6 +801,13 @@ function HubPageContent() {
     router.replace(`/hub?tab=${newTab}`, { scroll: false });
   };
 
+  // Search + filter state (events tab)
+  const [eventsSearch, setEventsSearch] = useState('');
+  const [filterDomain, setFilterDomain] = useState('');
+  const [filterMode, setFilterMode] = useState('');
+  const [filterPrize, setFilterPrize] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
   // Events tab data
   const [featured, setFeatured] = useState<CompetitionItem | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionItem[]>([]);
@@ -759,19 +928,34 @@ function HubPageContent() {
     return () => { cancelled = true; };
   }, [tab, user]);
 
-  // Filter events by sub-category
+  // Filter competitions by search + filters
+  const filteredCompetitions = useMemo(() => {
+    const q = eventsSearch.toLowerCase();
+    return competitions.filter((c) => {
+      if (q && !c.title.toLowerCase().includes(q) && !(c.description ?? '').toLowerCase().includes(q)) return false;
+      if (filterDomain && c.domain !== filterDomain) return false;
+      if (filterPrize && !c.prize_pool) return false;
+      return true;
+    });
+  }, [competitions, eventsSearch, filterDomain, filterPrize]);
+
+  // Filter events by sub-category + search + mode
   const filteredEvents = useMemo(() => {
-    if (eventCategory === 'all') return events;
-    // Map sub-category key to the category value stored in DB
+    const q = eventsSearch.toLowerCase();
     const categoryMap: Record<string, string> = {
-      events: 'event',
-      meetups: 'meetup',
-      workshops: 'workshop',
+      events: 'event', meetups: 'meetup', workshops: 'workshop',
+      conference: 'conference', seminar: 'seminar',
     };
-    const dbCategory = categoryMap[eventCategory];
-    if (!dbCategory) return events;
-    return events.filter(ev => (ev.category || 'event') === dbCategory);
-  }, [eventCategory, events]);
+    return events.filter((ev) => {
+      if (eventCategory !== 'all') {
+        const dbCategory = categoryMap[eventCategory];
+        if (dbCategory && (ev.category || 'event') !== dbCategory) return false;
+      }
+      if (q && !ev.title.toLowerCase().includes(q) && !(ev.description ?? '').toLowerCase().includes(q)) return false;
+      if (filterMode && ev.event_type !== filterMode) return false;
+      return true;
+    });
+  }, [eventCategory, events, eventsSearch, filterMode]);
 
   // Determine what to show based on selected sub-category
   const showCompetitions = eventCategory === 'all' || eventCategory === 'competitions';
@@ -794,6 +978,97 @@ function HubPageContent() {
         {/* Events tab — with sub-category pills */}
         {tab === 'events' && (
           <div className="mt-6 space-y-6">
+            {/* Search + filter bar */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    value={eventsSearch}
+                    onChange={(e) => setEventsSearch(e.target.value)}
+                    placeholder="Search competitions & events..."
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-border/60 bg-card/60 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 backdrop-blur-sm"
+                  />
+                  {eventsSearch && (
+                    <button onClick={() => setEventsSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowFilters((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                    showFilters || filterDomain || filterMode || filterPrize
+                      ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                      : 'border-border/60 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-card/80'
+                  }`}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filters
+                  {(filterDomain || filterMode || filterPrize) && (
+                    <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">
+                      {[filterDomain, filterMode, filterPrize].filter(Boolean).length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {showFilters && (
+                <div className="flex flex-wrap gap-3 p-3 rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Domain</label>
+                    <select
+                      value={filterDomain}
+                      onChange={(e) => setFilterDomain(e.target.value)}
+                      className="rounded-lg border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-emerald-500/50"
+                    >
+                      <option value="">Any</option>
+                      <option value="hackathon">Hackathon</option>
+                      <option value="case_study">Case Study</option>
+                      <option value="quiz">Quiz</option>
+                      <option value="design">Design</option>
+                      <option value="coding">Coding</option>
+                      <option value="business_plan">Business Plan</option>
+                      <option value="research">Research</option>
+                      <option value="marketing">Marketing</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Mode</label>
+                    <select
+                      value={filterMode}
+                      onChange={(e) => setFilterMode(e.target.value)}
+                      className="rounded-lg border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-emerald-500/50"
+                    >
+                      <option value="">Any</option>
+                      <option value="online">Online</option>
+                      <option value="in-person">In-person</option>
+                      <option value="hybrid">Hybrid</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filterPrize}
+                        onChange={(e) => setFilterPrize(e.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-border/60 text-emerald-500"
+                      />
+                      <span className="text-xs font-medium text-foreground">With Prize</span>
+                    </label>
+                  </div>
+                  {(filterDomain || filterMode || filterPrize) && (
+                    <button
+                      onClick={() => { setFilterDomain(''); setFilterMode(''); setFilterPrize(false); }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground self-end"
+                    >
+                      <XIcon className="h-3 w-3" /> Clear
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Sub-category filter pills */}
             <div className="flex flex-wrap gap-2">
               {EVENT_CATEGORIES.map(cat => (
@@ -828,10 +1103,10 @@ function HubPageContent() {
                       <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                       <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                     </>
-                  ) : competitions.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No competitions yet.</div>
+                  ) : filteredCompetitions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">{eventsSearch || filterDomain || filterPrize ? 'No competitions match your filters.' : 'No competitions yet.'}</div>
                   ) : (
-                    competitions.map(c => <CompetitionRowCard key={c.id} c={c} user={user} />)
+                    filteredCompetitions.map(c => <CompetitionRowCard key={c.id} c={c} user={user} />)
                   )}
                 </div>
               </div>

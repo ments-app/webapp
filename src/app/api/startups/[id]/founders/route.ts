@@ -4,6 +4,7 @@ import { sendCofounderInviteEmail } from '@/utils/cofounder-invite-email';
 
 export const dynamic = 'force-dynamic';
 
+// GET — founders list is public (shown on startup profiles)
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -36,10 +37,24 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { founders, startupName } = await request.json();
-
     // Use admin client for all DB operations (bypasses RLS so we can send notifications to other users)
     const supabase = createAdminClient();
+
+    // Enforce ownership — only the startup owner may manage the founders list
+    const { data: startup } = await supabase
+      .from('startup_profiles')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+
+    if (!startup) {
+      return NextResponse.json({ error: 'Startup not found' }, { status: 404 });
+    }
+    if (startup.owner_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { founders, startupName } = await request.json();
 
     // Fetch actor's name for invite emails
     const { data: actorRow } = await supabase
@@ -82,7 +97,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ success: true });
     }
 
-    // For founders with email but no user_id, check if they're already on Ments via auth.users
+    // For founders with email but no user_id, check if they're already on Ments
+    // Query the users table directly by email — O(1) vs listing all 10k auth users
     const emailFounders: { email: string }[] = founders.filter(
       (f: { user_id?: string | null; email?: string | null }) => !f.user_id && f.email
     );
@@ -90,22 +106,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const emailToUserId: Record<string, { id: string; username: string }> = {};
     if (emailFounders.length > 0) {
       try {
-        // Single batch call — lists all auth users and filters in memory
-        const { data: { users: authUsers } } = await supabase.auth.admin.listUsers({ perPage: 10000 });
-        const emailSet = new Set(emailFounders.map(f => f.email));
-        const matches = (authUsers || []).filter(u => u.email && emailSet.has(u.email));
+        const emailList = emailFounders.map(f => f.email);
+        // Direct table lookup is far more efficient than auth.admin.listUsers(perPage:10000)
+        const { data: ments_users } = await supabase
+          .from('users')
+          .select('id, username, email')
+          .in('email', emailList);
 
-        if (matches.length > 0) {
-          const { data: profiles } = await supabase
-            .from('users')
-            .select('id, username')
-            .in('id', matches.map(u => u.id));
-
-          for (const match of matches) {
-            const profile = profiles?.find(p => p.id === match.id);
-            if (profile && match.email) {
-              emailToUserId[match.email] = { id: profile.id, username: profile.username };
-            }
+        for (const mu of (ments_users || [])) {
+          if (mu.email) {
+            emailToUserId[mu.email] = { id: mu.id, username: mu.username };
           }
         }
       } catch {
@@ -113,7 +123,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
-    const rows = founders.map((f: { name: string; role?: string | null; avatar_url?: string | null; email?: string | null; user_id?: string | null; ments_username?: string | null; display_order: number }) => {
+    const rows = founders.map((f: {
+      name: string;
+      role?: string | null;
+      avatar_url?: string | null;
+      email?: string | null;
+      user_id?: string | null;
+      ments_username?: string | null;
+      display_order: number;
+    }) => {
       // Auto-link if we found a Ments user for this email
       const resolvedUser = (!f.user_id && f.email) ? emailToUserId[f.email] : null;
       const userId = f.user_id || resolvedUser?.id || null;
