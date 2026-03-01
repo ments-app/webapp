@@ -10,8 +10,13 @@ import { TrendingPosts } from '@/components/feed/TrendingPosts';
 import { NewPostsNotifier } from '@/components/feed/NewPostsNotifier';
 import { FeedTrackingProvider } from '@/context/FeedTrackingContext';
 import { Loader2 } from 'lucide-react';
+import type { Post } from '@/api/posts';
 
-export function PersonalizedFeed() {
+interface PersonalizedFeedProps {
+  prependPostRef?: React.MutableRefObject<((post: Post) => void) | null>;
+}
+
+export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {}) {
   const {
     posts,
     isLoading,
@@ -20,7 +25,20 @@ export function PersonalizedFeed() {
     hasMore,
     loadMore,
     refresh,
+    prependPost,
   } = usePersonalizedFeed();
+
+  // Expose prependPost to the parent via the ref
+  useEffect(() => {
+    if (prependPostRef) {
+      prependPostRef.current = prependPost;
+    }
+    return () => {
+      if (prependPostRef) {
+        prependPostRef.current = null;
+      }
+    };
+  }, [prependPostRef, prependPost]);
 
   const { newPostCount, dismiss } = useRealtimeFeedUpdates();
   const { suggestedUsers, trendingPosts, isLoading: recsLoading, followUser } = useFeedRecommendations();

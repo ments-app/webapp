@@ -96,14 +96,6 @@ export function MobileNavBar() {
         </Link>
 
         <Link
-          href="/messages"
-          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/messages') ? 'text-primary' : 'text-muted-foreground'}`}
-        >
-          <Image src="/icons/message.svg" alt="Messages" width={20} height={20} />
-          <span className="text-[11px] font-medium mt-1">Messages</span>
-        </Link>
-
-        <Link
           href="/startups"
           className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/startups') ? 'text-primary' : 'text-muted-foreground'}`}
         >

@@ -139,7 +139,7 @@ function StartupsPageContent() {
     if (!user?.id) return;
     const wasUpvoted = upvotedIds.has(startupId);
 
-    setUpvotedIds(prev => { const n = new Set(prev); wasUpvoted ? n.delete(startupId) : n.add(startupId); return n; });
+    setUpvotedIds(prev => { const n = new Set(prev); if (wasUpvoted) { n.delete(startupId); } else { n.add(startupId); } return n; });
     setStartups(prev => prev.map(s => s.id === startupId ? { ...s, _votes: Math.max(0, s._votes + (wasUpvoted ? -1 : 1)) } : s));
     setVotingIds(prev => new Set(prev).add(startupId));
 
@@ -151,7 +151,7 @@ function StartupsPageContent() {
       }
     } catch {
       // Revert optimistic update on error
-      setUpvotedIds(prev => { const n = new Set(prev); wasUpvoted ? n.add(startupId) : n.delete(startupId); return n; });
+      setUpvotedIds(prev => { const n = new Set(prev); if (wasUpvoted) { n.add(startupId); } else { n.delete(startupId); } return n; });
       setStartups(prev => prev.map(s => s.id === startupId ? { ...s, _votes: Math.max(0, s._votes + (wasUpvoted ? 1 : -1)) } : s));
     } finally {
       setVotingIds(prev => { const n = new Set(prev); n.delete(startupId); return n; });

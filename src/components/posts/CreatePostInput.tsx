@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Image as ImageIcon, X, BarChart2, VideoIcon, Plus, Trash2, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { createPost, createPollPost, type CreatePollData } from '@/api/posts';
+import { createPost, createPollPost, type CreatePollData, type Post } from '@/api/posts';
 import { supabase } from '@/utils/supabase';
 import { type CompressedResult } from '@/utils/mediaCompressor';
 import { MentionDropdown } from './MentionDropdown';
@@ -177,7 +177,7 @@ function ZoomableImage({ src, alt, onSwipe }: { src: string; alt?: string; onSwi
 
 
 type CreatePostInputProps = {
-  onPostCreated?: () => void;
+  onPostCreated?: (post: Post) => void;
   initialPostType?: 'text' | 'media' | 'poll';
 };
 
@@ -744,6 +744,57 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         await notifyMentionedUsers(postData.id, user.id, Array.from(mentionedUsers.values()));
       }
 
+      // Build optimistic post so the feed can show it instantly
+      const optimisticPost: Post = {
+        id: postData!.id,
+        author_id: user.id,
+        environment_id: environmentId!,
+        parent_post_id: null,
+        content: processedContent,
+        post_type: postData!.post_type ?? (postType === 'poll' ? 'poll' : selectedImages.length > 0 ? 'media' : 'text'),
+        created_at: postData!.created_at ?? new Date().toISOString(),
+        deleted: false,
+        likes: 0,
+        replies: 0,
+        author: {
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || 'you',
+          avatar_url: user.user_metadata?.avatar_url,
+          full_name: user.user_metadata?.full_name,
+          is_verified: false,
+        },
+        environment: selectedEnvironment
+          ? { id: selectedEnvironment.id, name: selectedEnvironment.name, picture: selectedEnvironment.picture ?? undefined }
+          : undefined,
+        media: postType === 'media' && imagePreviews.length > 0
+          ? imagePreviews.map((url, i) => ({
+              id: `optimistic-${i}`,
+              post_id: postData!.id,
+              media_url: url,
+              media_type: (selectedImages[i]?.type?.startsWith('video/') ? 'video' : 'photo') as 'video' | 'photo',
+              created_at: new Date().toISOString(),
+            }))
+          : [],
+        poll: postType === 'poll'
+          ? {
+              id: `optimistic-poll-${postData!.id}`,
+              post_id: postData!.id,
+              question: pollData.question,
+              poll_type: pollData.poll_type,
+              created_at: new Date().toISOString(),
+              options: pollData.options
+                .filter((o) => o.trim())
+                .map((text, i) => ({
+                  id: `optimistic-opt-${i}`,
+                  poll_id: `optimistic-poll-${postData!.id}`,
+                  option_text: text,
+                  votes: 0,
+                  position: i,
+                })),
+            }
+          : null,
+      };
+
       // Reset form
       setContent('');
       setSelectedImages([]);
@@ -753,7 +804,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       setPostType('text');
       setMentionedUsers(new Map());
 
-      if (onPostCreated) onPostCreated();
+      if (onPostCreated) onPostCreated(optimisticPost);
     } catch (err) {
       console.error('Error creating post:', err);
       setError(err instanceof Error ? err.message : 'Failed to create post');

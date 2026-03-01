@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { useRouter } from 'next/navigation';
@@ -8,17 +8,19 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PersonalizedFeed } from '@/components/feed/PersonalizedFeed';
 import { CreatePostInput } from '@/components/posts/CreatePostInput';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import type { Post } from '@/api/posts';
 
 import { ArrowRight, Image as ImageIcon, VideoIcon, BarChart2, Plus, X } from 'lucide-react';
 
 function AuthenticatedHome() {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [feedKey, setFeedKey] = useState(0);
+  const prependPostRef = useRef<((post: Post) => void) | null>(null);
 
-  const handlePostCreated = useCallback(() => {
+  const handlePostCreated = useCallback((post: Post) => {
     setShowCreateModal(false);
-    setFeedKey((k) => k + 1);
+    // Instantly prepend the new post at the top of the feed
+    prependPostRef.current?.(post);
   }, []);
 
   return (
@@ -53,7 +55,7 @@ function AuthenticatedHome() {
           </div>
         </div>
 
-        <PersonalizedFeed key={feedKey} />
+        <PersonalizedFeed prependPostRef={prependPostRef} />
       </div>
 
       {/* FAB */}

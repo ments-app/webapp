@@ -629,7 +629,7 @@ export default function CompetitionDetailsPage() {
             <div className="relative">
               <div className="absolute left-3 top-0 bottom-0 w-px bg-border/60" />
               <div className="space-y-5 pl-8">
-                {rounds.map((round, i) => {
+                {rounds.map((round) => {
                   const now = Date.now();
                   const start = round.start_date ? Date.parse(round.start_date) : null;
                   const end = round.end_date ? Date.parse(round.end_date) : null;
