@@ -132,6 +132,14 @@ export function usePersonalizedFeed() {
     await fetchFeed(false);
   }, [fetchFeed]);
 
+  // Instantly prepend a newly created post to the top of the feed
+  const prependPost = useCallback((post: Post) => {
+    setState((prev) => ({
+      ...prev,
+      posts: [post, ...prev.posts.filter((p) => p.id !== post.id)],
+    }));
+  }, []);
+
   return {
     posts: state.posts,
     isLoading: state.isLoading,
@@ -143,5 +151,6 @@ export function usePersonalizedFeed() {
     variant: state.variant,
     loadMore,
     refresh,
+    prependPost,
   };
 }

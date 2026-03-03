@@ -59,7 +59,14 @@ interface SidebarData {
   suggestedUsers: SuggestedUser[];
 }
 
-const POLL_INTERVAL = 30_000; // 30 seconds
+// Increase poll interval from 30s → 5 minutes.
+// At 10K users, 30s = 140K req/min; 5 min = 14K req/min (10x reduction).
+// Real-time channels handle urgent updates (messages, notifications).
+const POLL_INTERVAL = 300_000; // 5 minutes
+
+// Cache suggested users in memory so we don't re-query every cycle.
+let suggestedUsersCache: { users: SuggestedUser[]; fetchedAt: number } | null = null;
+const SUGGESTED_USERS_CACHE_TTL = 600_000; // 10 minutes
 
 export function useSidebarData() {
   const { user } = useAuth();
@@ -75,33 +82,53 @@ export function useSidebarData() {
   const [isLoading, setIsLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchAll = useCallback(async () => {
+  // Fetch only lightweight counts — not full data sets.
+  // Heavy data (environments, suggested users) are fetched once and cached.
+  const fetchCounts = useCallback(async () => {
     if (!user) return;
-
     const userId = user.id;
 
     try {
-      // Resolve username for follow-based queries
-      let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
-      if (!username) {
-        const { data: uRow } = await supabase
-          .from('users')
-          .select('username')
-          .eq('id', userId)
-          .maybeSingle();
-        username = uRow?.username?.toLowerCase();
-      }
-
-      const [messagesRes, notifRes, envRes, convRes, notifListRes, postsRes, suggestedRes] = await Promise.allSettled([
+      const [messagesRes, notifRes, convRes] = await Promise.allSettled([
         fetch(`/api/messages/read?userId=${userId}`),
         fetch(`/api/notifications?userId=${userId}&unreadOnly=true&limit=1`),
-        fetch('/api/environments'),
         fetch(`/api/conversations?userId=${userId}&limit=5`),
-        // Full notifications list for activity widget
+      ]);
+
+      const update: Partial<SidebarData> = {};
+
+      if (messagesRes.status === 'fulfilled' && messagesRes.value.ok) {
+        const json = await messagesRes.value.json();
+        update.unreadMessages = json.total_unread_count ?? 0;
+      }
+
+      if (notifRes.status === 'fulfilled' && notifRes.value.ok) {
+        const json = await notifRes.value.json();
+        update.unreadNotifications = json.pagination?.total ?? 0;
+      }
+
+      if (convRes.status === 'fulfilled' && convRes.value.ok) {
+        const json = await convRes.value.json();
+        update.recentConversations = Array.isArray(json) ? json : [];
+      }
+
+      setData(prev => ({ ...prev, ...update }));
+    } catch {
+      // Sidebar data is non-critical
+    }
+  }, [user]);
+
+  // Fetch heavy data only once on mount (or when cache is stale).
+  const fetchHeavyData = useCallback(async () => {
+    if (!user) return;
+    const userId = user.id;
+
+    try {
+      const [envRes, notifListRes, postsResult, suggestedResult] = await Promise.allSettled([
+        fetch('/api/environments'),
         fetch(`/api/notifications?userId=${userId}&page=1&limit=10`),
-        // User's own posts — query supabase directly for author_id match
+        // User's own posts — use Supabase COUNT for likes/replies instead of fetching all rows
         (async () => {
-          const postIds: string[] = [];
           const { data: posts } = await supabase
             .from('posts')
             .select('id, content, post_type, created_at')
@@ -113,9 +140,9 @@ export function useSidebarData() {
 
           if (!posts || posts.length === 0) return [];
 
-          posts.forEach((p: { id: string }) => postIds.push(p.id));
+          const postIds = posts.map((p: { id: string }) => p.id);
 
-          // Batch fetch likes + replies counts
+          // Batch fetch counts (still 2 queries, but limited by post count = 5)
           const [likesRes, repliesRes] = await Promise.all([
             supabase.from('post_likes').select('post_id').in('post_id', postIds),
             supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
@@ -137,18 +164,21 @@ export function useSidebarData() {
             replies: repliesMap.get(p.id) || 0,
           }));
         })(),
-        // Suggested users: random users not already followed
+        // Suggested users — use client-side cache to avoid re-querying
         (async () => {
-          // Get IDs user already follows
+          // Return cached if still fresh
+          if (suggestedUsersCache && (Date.now() - suggestedUsersCache.fetchedAt) < SUGGESTED_USERS_CACHE_TTL) {
+            return suggestedUsersCache.users;
+          }
+
           const { data: followRows } = await supabase
             .from('user_follows')
             .select('followee_id')
             .eq('follower_id', userId);
 
           const followingIds = new Set((followRows || []).map((r: { followee_id: string }) => r.followee_id));
-          followingIds.add(userId); // exclude self
+          followingIds.add(userId);
 
-          // Fetch a pool of users
           const { data: users } = await supabase
             .from('users')
             .select('id, username, full_name, avatar_url, tagline, is_verified')
@@ -157,60 +187,39 @@ export function useSidebarData() {
 
           if (!users) return [];
 
-          // Filter out already-followed and self, take 5
-          return users
+          const result = users
             .filter((u: { id: string }) => !followingIds.has(u.id))
             .slice(0, 5) as SuggestedUser[];
+
+          // Cache the result
+          suggestedUsersCache = { users: result, fetchedAt: Date.now() };
+          return result;
         })(),
       ]);
 
       const update: Partial<SidebarData> = {};
 
-      // Unread messages
-      if (messagesRes.status === 'fulfilled' && messagesRes.value.ok) {
-        const json = await messagesRes.value.json();
-        update.unreadMessages = json.total_unread_count ?? 0;
-      }
-
-      // Unread notifications count
-      if (notifRes.status === 'fulfilled' && notifRes.value.ok) {
-        const json = await notifRes.value.json();
-        update.unreadNotifications = json.pagination?.total ?? 0;
-      }
-
-      // Environments
       if (envRes.status === 'fulfilled' && envRes.value.ok) {
         const json = await envRes.value.json();
         update.environments = Array.isArray(json) ? json : [];
       }
 
-      // Recent conversations
-      if (convRes.status === 'fulfilled' && convRes.value.ok) {
-        const json = await convRes.value.json();
-        update.recentConversations = Array.isArray(json) ? json : [];
-      }
-
-      // Notifications list for activity widget
       if (notifListRes.status === 'fulfilled' && notifListRes.value.ok) {
         const json = await notifListRes.value.json();
         update.notifications = Array.isArray(json.data) ? json.data : [];
       }
 
-      // My posts
-      if (postsRes.status === 'fulfilled') {
-        update.myPosts = postsRes.value as UserPost[];
+      if (postsResult.status === 'fulfilled') {
+        update.myPosts = postsResult.value as UserPost[];
       }
 
-      // Suggested users
-      if (suggestedRes.status === 'fulfilled') {
-        update.suggestedUsers = suggestedRes.value as SuggestedUser[];
+      if (suggestedResult.status === 'fulfilled') {
+        update.suggestedUsers = suggestedResult.value as SuggestedUser[];
       }
 
       setData(prev => ({ ...prev, ...update }));
     } catch {
-      // Silently ignore — sidebar data is non-critical
-    } finally {
-      setIsLoading(false);
+      // Non-critical
     }
   }, [user]);
 
@@ -229,13 +238,20 @@ export function useSidebarData() {
       return;
     }
 
-    fetchAll();
-    intervalRef.current = setInterval(fetchAll, POLL_INTERVAL);
+    // Initial load: fetch everything
+    const init = async () => {
+      await Promise.all([fetchCounts(), fetchHeavyData()]);
+      setIsLoading(false);
+    };
+    init();
+
+    // Only poll the lightweight counts at the reduced interval
+    intervalRef.current = setInterval(fetchCounts, POLL_INTERVAL);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [user, fetchAll]);
+  }, [user, fetchCounts, fetchHeavyData]);
 
-  return { ...data, isLoading, refetch: fetchAll };
+  return { ...data, isLoading, refetch: fetchCounts };
 }

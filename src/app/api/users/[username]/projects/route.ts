@@ -58,16 +58,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       return /^https?:\/\//i.test(t) ? t : `https://${t}`;
     };
 
-    // resolve user id
+    // verify session
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // resolve user id and verify it matches session
     const { data: userRow } = await supabase
       .from('users')
       .select('id, username')
       .eq('username', username)
       .maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (userRow.id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const insert = {
-      owner_id: userRow.id,
+      owner_id: user.id,
       title,
       category,
       tagline,

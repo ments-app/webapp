@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/theme/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +46,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} antialiased`}
         suppressHydrationWarning
       >
+        <GoogleAnalytics />
         <AuthProvider>
           <ThemeProvider>
             <NotificationProvider>

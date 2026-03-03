@@ -8,15 +8,22 @@ export const dynamic = 'force-dynamic';
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = createAdminClient();
-    const { data: { session } } = await supabase.auth.getSession();
 
-    const { data, error } = await fetchStartupById(id, session?.user?.id);
+    // Optionally resolve the current user for bookmark check — non-blocking if unauthenticated
+    let userId: string | undefined;
+    try {
+      const authClient = await createAuthClient();
+      const { data: { user } } = await authClient.auth.getUser();
+      userId = user?.id;
+    } catch {
+      // Not authenticated — continue without bookmark info
+    }
+
+    const { data, error } = await fetchStartupById(id, userId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
     if (!data) {
       return NextResponse.json({ error: 'Startup not found' }, { status: 404 });
     }
@@ -31,11 +38,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = createAdminClient();
-    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session) {
+    // Verify the requesting user's session
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const admin = createAdminClient();
+
+    // Enforce ownership — only the startup owner may update it
+    const { data: startup } = await admin
+      .from('startup_profiles')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+
+    if (!startup) {
+      return NextResponse.json({ error: 'Startup not found' }, { status: 404 });
+    }
+    if (startup.owner_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -45,7 +69,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Invalidate startups cache on update
     cacheClearByPrefix('startups');
 
     return NextResponse.json({ data });
@@ -61,7 +84,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
     const authClient = await createAuthClient();
     const { data: { user } } = await authClient.auth.getUser();
-
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -111,4 +133,3 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

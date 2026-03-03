@@ -8,15 +8,23 @@ import type {
 // GET: List all conversations for a user with optimized query
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
   const limit = parseInt(searchParams.get('limit') || '20');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-  }
 
   try {
     const supabase = await createAuthClient();
+
+    // Verify session — derive userId from the authenticated session
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    // Accept userId param for backward-compatibility but enforce it matches session
+    const requestedUserId = searchParams.get('userId');
+    if (requestedUserId && requestedUserId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const userId = user.id;
 
     // Get basic conversation data first
     const { data: conversationData, error } = await supabase
@@ -116,11 +124,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createAuthClient();
-    const body: CreateConversationRequest = await req.json();
-    const { user1_id, user2_id, initial_message } = body;
 
-    if (!user1_id || !user2_id) {
-      return NextResponse.json({ error: 'Missing user1_id or user2_id' }, { status: 400 });
+    // Verify session
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const body: CreateConversationRequest = await req.json();
+    const { user2_id, initial_message } = body;
+    // Always derive user1_id from the session — prevents impersonation
+    const user1_id = user.id;
+
+    if (!user2_id) {
+      return NextResponse.json({ error: 'Missing user2_id' }, { status: 400 });
     }
 
     if (user1_id === user2_id) {

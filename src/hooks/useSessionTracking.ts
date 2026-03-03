@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from 'react';
-import { SESSION_HEARTBEAT_INTERVAL_MS } from '@/lib/feed/constants';
+// Use a longer heartbeat interval (2 min) to reduce DB writes at scale.
+// At 10K users, 30s heartbeats = 20K writes/min; 120s = 5K writes/min.
+const SESSION_HEARTBEAT_INTERVAL_MS = 120_000; // 2 minutes
 
 function generateSessionId(): string {
   return `s_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

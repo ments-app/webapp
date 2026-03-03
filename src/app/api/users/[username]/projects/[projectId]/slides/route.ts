@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 
 const getSupabase = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     const { username, projectId } = await params;
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
+    // Verify session and ownership
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json().catch(() => ({}));
     const { slide_url, caption = null, slide_number } = body || {};
     if (!slide_url || typeof slide_number !== 'number') {
@@ -51,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
 
     const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (userRow.id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { data: project } = await getSupabase()
       .from('projects')

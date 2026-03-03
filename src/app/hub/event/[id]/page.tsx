@@ -5,7 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
-import { ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown, Calendar, User, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown,
+  Calendar, CheckCircle, Loader2, LogOut, Bookmark, BookmarkCheck, Star,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
@@ -23,9 +26,13 @@ type EventDetail = {
   created_by: string;
   created_at: string;
   is_active: boolean;
+  // Extended fields
+  tags?: string[];
+  is_featured?: boolean;
+  organizer_name?: string | null;
+  category?: string | null;
 };
 
-// Resolve a banner URL that might be a storage path
 function resolveBannerUrl(raw?: string | null): string | null {
   if (!raw) return null;
   if (raw.startsWith('s3://')) {
@@ -37,19 +44,12 @@ function resolveBannerUrl(raw?: string | null): string | null {
       return toProxyUrl(`https://${bucket}.s3.amazonaws.com/${key}`);
     }
   }
-  if (/^https?:\/\//i.test(raw)) return toProxyUrl(raw);
-  const buckets = ['media', 'public', 'banners', 'images'];
-  for (const bucket of buckets) {
-    try {
-      const path = raw.startsWith(bucket + '/') ? raw.slice(bucket.length + 1) : raw;
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-      if (data?.publicUrl) return toProxyUrl(data.publicUrl);
-    } catch { }
-  }
-  if (raw.startsWith('/storage/v1/object/public/')) {
-    const full = `${location.origin}${raw}`;
-    return toProxyUrl(full);
-  }
+  if (raw.includes('/storage/v1/object/public/')) return raw;
+  if (raw.startsWith('http')) return toProxyUrl(raw);
+  try {
+    const { data } = supabase.storage.from('media').getPublicUrl(raw);
+    if (data?.publicUrl) return data.publicUrl;
+  } catch { }
   return null;
 }
 
@@ -65,6 +65,10 @@ const eventTypeColors: Record<string, string> = {
   hybrid: 'text-amber-700 dark:text-amber-300 bg-amber-400/10 border-amber-500/30 dark:border-amber-400/30',
 };
 
+const categoryLabels: Record<string, string> = {
+  event: 'Event', meetup: 'Meetup', workshop: 'Workshop', conference: 'Conference', seminar: 'Seminar',
+};
+
 export default function EventDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -75,13 +79,17 @@ export default function EventDetailsPage() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [participants, setParticipants] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(true);
-  const [organizerName, setOrganizerName] = useState<string | null>(null);
 
   // Join state
   const [joined, setJoined] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [unjoining, setUnjoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [checkingJoin, setCheckingJoin] = useState(true);
+
+  // Bookmark state
+  const [saved, setSaved] = useState(false);
+  const [savingBookmark, setSavingBookmark] = useState(false);
 
   // Fetch event details
   useEffect(() => {
@@ -95,17 +103,6 @@ export default function EventDetailsPage() {
         if (cancelled) return;
         setEvent(json.data || null);
         setParticipants(json.participants || 0);
-
-        // Fetch organizer name
-        if (json.data?.created_by) {
-          try {
-            const userRes = await fetch(`/api/users/by-id/${encodeURIComponent(json.data.created_by)}`, { cache: 'no-store' });
-            const userJson = await userRes.json();
-            if (!cancelled && userJson?.data) {
-              setOrganizerName(userJson.data.full_name || userJson.data.username || null);
-            }
-          } catch { }
-        }
       } catch (e) {
         console.error('Failed to load event details', e);
         if (!cancelled) {
@@ -119,33 +116,39 @@ export default function EventDetailsPage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Check if user already joined this event
+  // Check join + saved state
   useEffect(() => {
-    if (!id || !user) {
-      setCheckingJoin(false);
-      return;
-    }
+    if (!id || !user) { setCheckingJoin(false); return; }
     let cancelled = false;
     (async () => {
       setCheckingJoin(true);
       try {
-        const { data } = await supabase
-          .from('event_participants')
-          .select('id')
-          .eq('event_id', id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (!cancelled) setJoined(!!data);
-      } catch {
-        // Silently fail — user just won't see "Joined" state
-      } finally {
-        if (!cancelled) setCheckingJoin(false);
-      }
+        const [participantRes, savedRes] = await Promise.all([
+          supabase
+            .from('event_participants')
+            .select('user_id')
+            .eq('event_id', id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('saved_events')
+            .select('id')
+            .eq('event_id', id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+        ]);
+        if (!cancelled) {
+          setJoined(!!participantRes.data);
+          setSaved(!!savedRes.data);
+        }
+      } catch { }
+      if (!cancelled) setCheckingJoin(false);
     })();
     return () => { cancelled = true; };
   }, [id, user]);
 
   const bannerUrl = useMemo(() => resolveBannerUrl(event?.banner_image_url), [event?.banner_image_url]);
+  const isPast = event?.event_date ? Date.parse(event.event_date) < Date.now() : false;
 
   const handleJoin = async () => {
     if (!user || !event) return;
@@ -164,13 +167,58 @@ export default function EventDetailsPage() {
       } else if (json.alreadyJoined) {
         setJoined(true);
       } else {
-        setJoinError(json.error || 'Failed to join');
+        setJoinError(json.error || 'Failed to register');
       }
     } catch {
       setJoinError('Network error. Please try again.');
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleLeave = async () => {
+    if (!user || !event) return;
+    setUnjoining(true);
+    setJoinError(null);
+    try {
+      const res = await fetch(`/api/events/${encodeURIComponent(event.id)}/join`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setJoined(false);
+        setParticipants(p => Math.max(0, p - 1));
+      } else {
+        setJoinError(json.error || 'Failed to leave');
+      }
+    } catch {
+      setJoinError('Network error. Please try again.');
+    } finally {
+      setUnjoining(false);
+    }
+  };
+
+  const handleToggleSave = async () => {
+    if (!user || !event) return;
+    setSavingBookmark(true);
+    try {
+      if (saved) {
+        await supabase
+          .from('saved_events')
+          .delete()
+          .eq('event_id', event.id)
+          .eq('user_id', user.id);
+        setSaved(false);
+      } else {
+        await supabase
+          .from('saved_events')
+          .insert({ event_id: event.id, user_id: user.id });
+        setSaved(true);
+      }
+    } catch { }
+    setSavingBookmark(false);
   };
 
   const share = () => {
@@ -182,8 +230,6 @@ export default function EventDetailsPage() {
     }
   };
 
-  const isPast = event?.event_date ? Date.parse(event.event_date) < Date.now() : false;
-
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-4 md:py-6 px-4 sm:px-6 lg:px-8">
@@ -193,6 +239,17 @@ export default function EventDetailsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1" />
+          {user && (
+            <Button
+              variant="ghost" size="icon"
+              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300' : 'bg-accent/30 hover:bg-accent/60'}`}
+              onClick={handleToggleSave}
+              disabled={savingBookmark}
+              aria-label={saved ? 'Unsave' : 'Save'}
+            >
+              {saved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+            </Button>
+          )}
           <Button variant="ghost" size="icon" className="rounded-xl bg-accent/30 hover:bg-accent/60 border border-border/50" onClick={share} aria-label="Share">
             <Share2 className="h-5 w-5" />
           </Button>
@@ -214,15 +271,37 @@ export default function EventDetailsPage() {
                 <Image src={bannerUrl} alt={event.title} fill className="object-cover" priority sizes="(max-width: 768px) 100vw, 1024px" />
               )}
               <div className="absolute inset-0 bg-black/35" />
-              <div className="relative p-5 md:p-8 flex items-end min-h-[160px] md:min-h-[220px]">
-                <div>
-                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white drop-shadow max-w-3xl">{event.title}</h1>
+              <div className="relative p-5 md:p-8">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {event.is_featured && (
+                    <span className="flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                      <Star className="h-3 w-3 fill-white" /> Featured
+                    </span>
+                  )}
+                  {event.category && (
+                    <span className="text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                      {categoryLabels[event.category] ?? event.category}
+                    </span>
+                  )}
                   {event.event_type && (
-                    <span className={`inline-block mt-2 text-[11px] md:text-xs font-semibold px-2.5 py-0.5 rounded-full border ${eventTypeColors[event.event_type] || ''}`}>
+                    <span className={`inline-block text-[11px] md:text-xs font-semibold px-2.5 py-0.5 rounded-full border ${eventTypeColors[event.event_type] || ''}`}>
                       {eventTypeLabels[event.event_type] || event.event_type}
                     </span>
                   )}
                 </div>
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white drop-shadow max-w-3xl">{event.title}</h1>
+                {event.organizer_name && (
+                  <p className="text-white/70 text-sm mt-1">by {event.organizer_name}</p>
+                )}
+                {(event.tags ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {(event.tags ?? []).slice(0, 5).map((tag) => (
+                      <span key={tag} className="text-[10px] font-medium bg-white/10 text-white/80 px-1.5 py-0.5 rounded-full">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -240,7 +319,7 @@ export default function EventDetailsPage() {
                 )}
                 <span className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-card/70 border border-border/60">
                   <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                  <span>Participants: {participants}</span>
+                  <span>Attendees: {participants}</span>
                 </span>
                 {event.event_date && (
                   <span className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-card/70 border border-border/60">
@@ -254,16 +333,10 @@ export default function EventDetailsPage() {
                     <span>{event.location}</span>
                   </span>
                 )}
-                {organizerName && (
-                  <span className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-card/70 border border-border/60">
-                    <User className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                    <span>Organizer: {organizerName}</span>
-                  </span>
-                )}
               </div>
 
-              {/* Join / Visit button */}
-              <div className="flex items-center gap-3">
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
                 {event.event_url && (
                   <a
                     href={event.event_url}
@@ -276,34 +349,51 @@ export default function EventDetailsPage() {
                   </a>
                 )}
                 {!isPast && (
-                  <button
-                    onClick={handleJoin}
-                    disabled={joined || joining || checkingJoin || !user}
-                    className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 transition active:scale-95 border ${joined
-                        ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 cursor-default'
-                        : 'bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white border-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed'
-                      }`}
-                    title={!user ? 'Sign in to join' : undefined}
-                  >
-                    {checkingJoin ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : joined ? (
+                  <>
+                    {joined ? (
                       <>
-                        <CheckCircle className="h-4 w-4" />
-                        Joined
-                      </>
-                    ) : joining ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Joining...
+                        <span className="inline-flex items-center gap-2 rounded-xl font-semibold px-5 py-3 border bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40">
+                          <CheckCircle className="h-4 w-4" />
+                          Registered
+                        </span>
+                        <button
+                          onClick={handleLeave}
+                          disabled={unjoining}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-4 py-3 transition active:scale-95 border border-red-400/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50"
+                          title="Leave event"
+                        >
+                          {unjoining ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <LogOut className="h-4 w-4" />
+                          )}
+                          {unjoining ? 'Leaving...' : 'Leave'}
+                        </button>
                       </>
                     ) : (
-                      'Join Event'
+                      <button
+                        onClick={handleJoin}
+                        disabled={joining || checkingJoin || !user}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 transition active:scale-95 border bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white border-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!user ? 'Sign in to register' : undefined}
+                      >
+                        {checkingJoin ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : joining ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Registering...
+                          </>
+                        ) : (
+                          'Register for Event'
+                        )}
+                      </button>
                     )}
-                  </button>
+                  </>
                 )}
               </div>
             </div>
+
             {joinError && (
               <p className="mt-2 text-sm text-red-500">{joinError}</p>
             )}
@@ -321,6 +411,14 @@ export default function EventDetailsPage() {
                 <div className="px-5 pb-5 text-muted-foreground whitespace-pre-wrap">
                   {event.description || 'No description provided.'}
                 </div>
+              )}
+            </div>
+
+            {/* Attendees count card */}
+            <div className="mt-6">
+              <h3 className="text-lg md:text-xl font-bold">Attendees ({participants})</h3>
+              {participants === 0 && (
+                <p className="mt-3 text-sm text-muted-foreground">Be the first to register for this event!</p>
               )}
             </div>
           </>

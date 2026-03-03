@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: competitionId } = await params;
-    const body = await req.json();
-    const userId = body.userId;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    // Always derive userId from the verified session — never trust the request body
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const userId = user.id;
 
-    // Check if competition exists
-    const { data: comp, error: compError } = await getSupabase()
+    const admin = createAdminClient();
+
+    // Check if competition exists and hasn't ended
+    const { data: comp, error: compError } = await admin
       .from('competitions')
       .select('id, deadline')
       .eq('id', competitionId)
@@ -30,7 +29,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Competition not found' }, { status: 404 });
     }
 
-    // Check if deadline has passed
     if (comp.deadline) {
       const deadlineTime = Date.parse(comp.deadline);
       if (isFinite(deadlineTime) && deadlineTime < Date.now()) {
@@ -38,25 +36,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    // Check if user already joined
-    const { data: existing } = await getSupabase()
-      .from('competition_entries')
-      .select('submitted_by')
-      .eq('competition_id', competitionId)
-      .eq('submitted_by', userId)
-      .maybeSingle();
-
-    if (existing) {
-      return NextResponse.json({ error: 'Already joined', alreadyJoined: true }, { status: 409 });
+    // Read optional projectId from body (safe — userId comes from session not body)
+    let projectId: string | null = null;
+    try {
+      const body = await req.json();
+      projectId = body?.projectId ?? null;
+    } catch {
+      // body is optional
     }
 
-    // Insert entry record (project_id is nullable)
-    const projectId = body.projectId || null;
-    const { error: insertError } = await getSupabase()
+    // Insert entry record — rely on the unique constraint to detect duplicates atomically
+    const { error: insertError } = await admin
       .from('competition_entries')
       .insert({ competition_id: competitionId, submitted_by: userId, project_id: projectId });
 
     if (insertError) {
+      // Unique constraint violation → already joined
+      if (insertError.code === '23505') {
+        return NextResponse.json({ error: 'Already joined', alreadyJoined: true }, { status: 409 });
+      }
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
@@ -70,15 +68,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: competitionId } = await params;
-    const body = await req.json();
-    const userId = body.userId;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    // Derive userId from the verified session
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
+    const admin = createAdminClient();
+
     // Check if competition exists and hasn't ended
-    const { data: comp, error: compError } = await getSupabase()
+    const { data: comp, error: compError } = await admin
       .from('competitions')
       .select('id, deadline')
       .eq('id', competitionId)
@@ -98,12 +99,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }
     }
 
-    // Delete the entry
-    const { error: deleteError } = await getSupabase()
+    const { error: deleteError } = await admin
       .from('competition_entries')
       .delete()
       .eq('competition_id', competitionId)
-      .eq('submitted_by', userId);
+      .eq('submitted_by', user.id);
 
     if (deleteError) {
       return NextResponse.json({ error: deleteError.message }, { status: 500 });

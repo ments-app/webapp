@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 
 // GET /api/notifications?userId=...&page=...&limit=...&unreadOnly=...&type=...
 export async function GET(request: NextRequest) {
   try {
+    // Verify session — user may only read their own notifications
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    // Accept userId param for compatibility but always enforce it equals the session user
+    const requestedUserId = searchParams.get('userId');
+    if (requestedUserId && requestedUserId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const userId = user.id;
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
     const type = searchParams.get('type');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId parameter is required' }, { status: 400 });
-    }
 
     const offset = (page - 1) * limit;
     const perTableLimit = limit + 1;
@@ -71,7 +80,6 @@ export async function GET(request: NextRequest) {
       notification_source: 'inapp',
       read: n.is_read,
       user_id: n.recipient_id,
-      // Map actual column names to the field names used by the merging/actor-lookup logic below
       message: n.content,
       data: n.extra,
     }));
@@ -81,7 +89,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, limit);
 
-    // Extract unique actor IDs — check both top-level column and data JSON field
+    // Extract unique actor IDs
     const actorIds = new Set<string>();
     for (const n of merged) {
       const d = n.data || {};
@@ -103,11 +111,10 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch {
-        // non-critical, continue without actor info
+        // non-critical
       }
     }
 
-    // Map to the shape expected by the frontend
     const mapped = merged.map((n) => {
       const d = n.data || {};
       const actorId = n.actor_id || d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.requester_id || d.user_id || null;
@@ -125,7 +132,6 @@ export async function GET(request: NextRequest) {
         post_id: d.post_id || d.postId || null,
         notification_source: n.notification_source,
         is_read: n.is_read,
-        // Pass through extra data for actionable notifications (e.g. cofounder_request)
         data: n.type === 'cofounder_request' ? d : undefined,
       };
     });
@@ -146,44 +152,51 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH method to mark notifications as read — updates BOTH tables
+// PATCH — mark notifications as read
 export async function PATCH(request: NextRequest) {
   try {
+    // Verify session — user may only mark their own notifications read
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { userId, notificationIds, markAllAsRead } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    // Enforce session user matches any provided userId
+    if (userId && userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const targetUserId = user.id;
 
     const supabase = createAdminClient();
 
     if (markAllAsRead) {
-      // Mark all unread in both tables
       await Promise.all([
         supabase
           .from('notifications')
           .update({ read: true })
-          .eq('user_id', userId)
+          .eq('user_id', targetUserId)
           .eq('read', false),
         supabase
           .from('inapp_notification')
           .update({ is_read: true })
-          .eq('recipient_id', userId)
+          .eq('recipient_id', targetUserId)
           .eq('is_read', false),
       ]);
     } else if (notificationIds && Array.isArray(notificationIds)) {
-      // Update specific IDs in both tables (IDs will only match in one)
       await Promise.all([
         supabase
           .from('notifications')
           .update({ read: true })
-          .eq('user_id', userId)
+          .eq('user_id', targetUserId)
           .in('id', notificationIds),
         supabase
           .from('inapp_notification')
           .update({ is_read: true })
-          .eq('recipient_id', userId)
+          .eq('recipient_id', targetUserId)
           .in('id', notificationIds),
       ]);
     } else {
@@ -196,14 +209,20 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// HEAD method for unread count — counts BOTH tables
+// HEAD — unread count (used for badge in the nav)
 export async function HEAD(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return new NextResponse(null, { status: 401 });
+    }
 
-    if (!userId) {
-      return new NextResponse(null, { status: 400, headers: { 'X-Error': 'userId parameter is required' } });
+    // Accept userId param for compatibility but always enforce it equals session user
+    const { searchParams } = new URL(request.url);
+    const requestedUserId = searchParams.get('userId');
+    if (requestedUserId && requestedUserId !== user.id) {
+      return new NextResponse(null, { status: 403 });
     }
 
     const supabase = createAdminClient();
@@ -214,7 +233,7 @@ export async function HEAD(request: NextRequest) {
           const r = await supabase
             .from('notifications')
             .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
+            .eq('user_id', user.id)
             .eq('read', false);
           return r.count || 0;
         } catch { return 0; }
@@ -224,18 +243,16 @@ export async function HEAD(request: NextRequest) {
           const r = await supabase
             .from('inapp_notification')
             .select('id', { count: 'exact', head: true })
-            .eq('recipient_id', userId)
+            .eq('recipient_id', user.id)
             .eq('is_read', false);
           return r.count || 0;
         } catch { return 0; }
       })(),
     ]);
 
-    const totalUnread = legacyCount + inappCount;
-
     return new NextResponse(null, {
       status: 200,
-      headers: { 'X-Unread-Count': totalUnread.toString() },
+      headers: { 'X-Unread-Count': (legacyCount + inappCount).toString() },
     });
   } catch {
     return new NextResponse(null, { status: 500, headers: { 'X-Error': 'Internal server error' } });

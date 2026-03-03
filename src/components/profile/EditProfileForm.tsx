@@ -374,6 +374,8 @@ export default function EditProfileForm() {
 
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [avatarChanged, setAvatarChanged] = useState(false);
+  const [coverChanged, setCoverChanged] = useState(false);
   const avatarFileRef = useRef<File | null>(null);
   const coverFileRef = useRef<File | null>(null);
 
@@ -524,10 +526,10 @@ export default function EditProfileForm() {
       city !== (initial.current_city || '') ||
       bio !== (initial.about || '') ||
       skillsChanged ||
-      avatarFileRef.current !== null ||
-      coverFileRef.current !== null
+      avatarChanged ||
+      coverChanged
     );
-  }, [initial, fullName, username, tagline, city, bio, skills]);
+  }, [initial, fullName, username, tagline, city, bio, skills, avatarChanged, coverChanged]);
 
   const pickFile = (accept: string, cb: (file: File) => void) => {
     const input = document.createElement('input');
@@ -545,6 +547,7 @@ export default function EditProfileForm() {
       avatarFileRef.current = file;
       const url = URL.createObjectURL(file);
       setAvatarPreview(url);
+      setAvatarChanged(true);
     });
   };
 
@@ -553,6 +556,7 @@ export default function EditProfileForm() {
       coverFileRef.current = file;
       const url = URL.createObjectURL(file);
       setCoverPreview(url);
+      setCoverChanged(true);
     });
   };
 
@@ -663,9 +667,11 @@ export default function EditProfileForm() {
 
       if (upError) throw upError;
 
-      // Reset local refs
+      // Reset local refs and change flags
       avatarFileRef.current = null;
       coverFileRef.current = null;
+      setAvatarChanged(false);
+      setCoverChanged(false);
 
       // Optionally re-fetch to ensure state is accurate
       const { data: latest } = await supabase

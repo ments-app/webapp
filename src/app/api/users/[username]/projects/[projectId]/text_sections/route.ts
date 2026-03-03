@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 
 const getSupabase = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,12 +45,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     const { username, projectId } = await params;
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
+    // Verify session and ownership
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json().catch(() => ({}));
     const { heading, content, display_order = 0 } = body || {};
     if (!heading || !content) return NextResponse.json({ error: 'heading and content are required' }, { status: 400 });
 
     const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (userRow.id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { data: project } = await getSupabase()
       .from('projects')

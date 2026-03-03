@@ -36,24 +36,25 @@ export async function GET(req: NextRequest) {
   }
 }
 
-interface ReactionBody {
-  message_id: string;
-  user_id: string;
-  reaction: string;
-}
-
 // POST /api/messages/reactions
 export async function POST(req: NextRequest) {
   const supabase = await createAuthClient();
   try {
-    const body = (await req.json()) as ReactionBody;
-    const { message_id, user_id, reaction } = body;
-    if (!message_id || !user_id || !reaction) {
+    // Verify session — always use session user, never trust body user_id
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { message_id, reaction } = body;
+    if (!message_id || !reaction) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
     const { data, error } = await supabase
       .from('message_reactions')
-      .upsert([{ message_id, user_id, reaction }], { onConflict: 'user_id,message_id' })
+      .upsert([{ message_id, user_id: user.id, reaction }], { onConflict: 'user_id,message_id' })
       .select();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data && data[0] ? data[0] : null);
@@ -67,16 +68,22 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const supabase = await createAuthClient();
   try {
-    const body = (await req.json()) as ReactionBody;
-    const { message_id, user_id } = body;
-    if (!message_id || !user_id) {
+    // Verify session — always use session user, never trust body user_id
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { message_id } = body;
+    if (!message_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     const { error } = await supabase
       .from('message_reactions')
       .delete()
       .eq('message_id', message_id)
-      .eq('user_id', user_id);
+      .eq('user_id', user.id);   // ← enforce ownership
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {

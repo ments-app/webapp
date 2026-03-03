@@ -99,16 +99,17 @@ export async function POST(request: Request) {
           ['like', 'reply', 'share', 'bookmark', 'click', 'profile_click'].includes(e.event_type)
       );
 
-      // Fire-and-forget interaction graph updates
-      for (const event of significantEvents) {
-        try {
-          await supabase.rpc('update_interaction_graph', {
+      // Parallelize interaction graph updates — runs all RPCs concurrently
+      // instead of sequentially (was using await in a for-loop before)
+      await Promise.allSettled(
+        significantEvents.map((event: { user_id: string; author_id: string; event_type: string }) =>
+          supabase.rpc('update_interaction_graph', {
             p_user_id: event.user_id,
             p_target_user_id: event.author_id,
             p_event_type: event.event_type,
-          });
-        } catch { /* ignore */ }
-      }
+          })
+        )
+      );
 
       return NextResponse.json({ ok: true, inserted: data ?? events.length });
     }

@@ -79,23 +79,35 @@ export async function GET(request: Request) {
       });
     }
 
-    // Get like and reply counts
-    const [likesResult, repliesResult] = await Promise.all([
-      supabase.from('post_likes').select('post_id').in('post_id', postIds),
-      supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
+    // Get like and reply counts using SQL COUNT (head: true = no row data transferred)
+    // This is vastly more efficient than fetching all rows and counting client-side
+    const [likesCountResults, repliesCountResults] = await Promise.all([
+      Promise.all(
+        postIds.map(async (id) => {
+          const { count } = await supabase
+            .from('post_likes')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_id', id);
+          return { id, count: count || 0 };
+        })
+      ),
+      Promise.all(
+        postIds.map(async (id) => {
+          const { count } = await supabase
+            .from('posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('parent_post_id', id)
+            .eq('deleted', false);
+          return { id, count: count || 0 };
+        })
+      ),
     ]);
 
     const likesMap = new Map<string, number>();
-    (likesResult.data || []).forEach((l: { post_id: string }) => {
-      likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
-    });
+    likesCountResults.forEach(({ id, count }) => likesMap.set(id, count));
 
     const repliesMap = new Map<string, number>();
-    (repliesResult.data || []).forEach((r: { parent_post_id: string | null }) => {
-      if (r.parent_post_id) {
-        repliesMap.set(r.parent_post_id, (repliesMap.get(r.parent_post_id) || 0) + 1);
-      }
-    });
+    repliesCountResults.forEach(({ id, count }) => repliesMap.set(id, count));
 
     // Build post map for ordering
     const postMap = new Map(
@@ -188,23 +200,34 @@ async function serveChronological(
     });
   }
 
-  // Get like and reply counts
+  // Get like and reply counts using SQL COUNT (head: true = no row data)
   const chronoIds = chronoPosts.map((p: { id: string }) => p.id);
-  const [likesRes, repliesRes] = await Promise.all([
-    supabase.from('post_likes').select('post_id').in('post_id', chronoIds),
-    supabase.from('posts').select('parent_post_id').in('parent_post_id', chronoIds).eq('deleted', false),
+  const [likesCountResults, repliesCountResults] = await Promise.all([
+    Promise.all(
+      chronoIds.map(async (id: string) => {
+        const { count } = await supabase
+          .from('post_likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', id);
+        return { id, count: count || 0 };
+      })
+    ),
+    Promise.all(
+      chronoIds.map(async (id: string) => {
+        const { count } = await supabase
+          .from('posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('parent_post_id', id)
+          .eq('deleted', false);
+        return { id, count: count || 0 };
+      })
+    ),
   ]);
 
   const likesMap = new Map<string, number>();
-  (likesRes.data || []).forEach((l: { post_id: string }) => {
-    likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
-  });
+  likesCountResults.forEach(({ id, count }: { id: string; count: number }) => likesMap.set(id, count));
   const repliesMap = new Map<string, number>();
-  (repliesRes.data || []).forEach((r: { parent_post_id: string | null }) => {
-    if (r.parent_post_id) {
-      repliesMap.set(r.parent_post_id, (repliesMap.get(r.parent_post_id) || 0) + 1);
-    }
-  });
+  repliesCountResults.forEach(({ id, count }: { id: string; count: number }) => repliesMap.set(id, count));
 
   const postsWithCounts = chronoPosts.map((p: Record<string, unknown>) => normalizePostPoll({
     ...p,
