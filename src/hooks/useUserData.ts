@@ -18,6 +18,7 @@ interface UserData {
   fcm_token?: string;
   is_onboarding_done: boolean;
   last_seen?: string;
+  account_status?: 'active' | 'deactivated' | 'suspended' | 'deleted';
 }
 
 export function useUserData() {

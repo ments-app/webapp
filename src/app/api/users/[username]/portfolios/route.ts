@@ -93,6 +93,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
+    // Verify authenticated user owns this profile
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json().catch(() => ({}));
     const title = typeof body?.title === 'string' ? body.title : undefined;
     const description = typeof body?.description === 'string' ? body.description : undefined;
@@ -107,6 +111,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       .maybeSingle();
     if (userError) console.warn('[portfolios POST] user fetch error:', userError.message);
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // Ensure authenticated user matches the profile owner
+    if (authUser.id !== userRow.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // find latest portfolio or create one
     let portfolioId: string | undefined = undefined;
@@ -200,6 +209,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ u
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
+    // Verify authenticated user owns this profile
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get('id');
 
@@ -211,6 +224,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ u
       .maybeSingle();
     if (userError) console.warn('[portfolios DELETE] user fetch error:', userError.message);
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // Ensure authenticated user matches the profile owner
+    if (authUser.id !== userRow.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     let portfolioId = idParam || undefined;
     if (!portfolioId) {

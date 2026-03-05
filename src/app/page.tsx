@@ -14,6 +14,7 @@ import { ArrowRight, Image as ImageIcon, VideoIcon, BarChart2, Plus, X } from 'l
 
 function AuthenticatedHome() {
   const { user } = useAuth();
+  const { userData } = useUserData();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const prependPostRef = useRef<((post: Post) => void) | null>(null);
 
@@ -33,9 +34,9 @@ function AuthenticatedHome() {
         >
           <div className="flex items-center gap-3">
             <UserAvatar
-              src={user?.user_metadata?.avatar_url}
-              alt={user?.user_metadata?.full_name || 'User'}
-              fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+              src={userData?.avatar_url || user?.user_metadata?.avatar_url}
+              alt={userData?.full_name || user?.user_metadata?.full_name || 'User'}
+              fallbackText={userData?.full_name || user?.user_metadata?.full_name || user?.email || 'U'}
               size={36}
             />
             <div className="flex-1 px-4 py-2 bg-muted/50 rounded-full text-sm text-muted-foreground">

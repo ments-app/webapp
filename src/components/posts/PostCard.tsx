@@ -62,17 +62,6 @@ const formatTimeAgoShort = (date: Date): string => {
   return 'now';
 };
 
-// Memoized Google avatar check with proper dependencies
-const isGoogleAvatar = (url?: string | null): boolean => {
-  if (!url) return false;
-  try {
-    const u = new URL(url);
-    return u.hostname === 'lh3.googleusercontent.com';
-  } catch {
-    return false;
-  }
-};
-
 // Enhanced Video Thumbnail component with lazy loading optimization
 const VideoThumbnail = memo(({
   thumbnail,
@@ -1026,7 +1015,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         {/* Profile Picture */}
         <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
           <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
-            {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !uiState.imageError ? (
+            {post.author?.avatar_url && !uiState.imageError ? (
               <div className="relative w-full h-full">
                 <Image
                   src={toProxyUrl(post.author.avatar_url, { width: 56, quality: 82 })}

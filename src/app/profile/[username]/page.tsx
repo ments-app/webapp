@@ -333,11 +333,11 @@ export default function PublicProfilePage() {
       <div className="min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
-          {/* Cover image — using <img> to bypass Next.js Image restrictions */}
-          <div className="rounded-2xl overflow-hidden">
+          {/* Profile hero — banner + avatar + info */}
+          <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm mb-6 overflow-hidden">
+            {/* Cover image */}
             <div className="relative h-36 sm:h-44 md:h-52 w-full">
               {coverUrl && !imgError.cover ? (
-
                 <img
                   src={coverUrl}
                   alt="Cover image"
@@ -348,56 +348,28 @@ export default function PublicProfilePage() {
                 <div className="h-full w-full bg-gradient-to-br from-emerald-600 via-teal-500 to-cyan-500" />
               )}
             </div>
-          </div>
 
-          {/* Avatar overlapping cover bottom */}
-          <div className="relative -mt-12 ml-3 sm:-mt-14 sm:ml-5 mb-3 z-10">
-            <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
-              {avatarUrl && !imgError.avatar ? (
-
-                <img
-                  src={avatarUrl}
-                  alt={fullName}
-                  className="w-full h-full object-cover"
-                  onError={() => setImgError(prev => ({ ...prev, avatar: true }))}
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-                  <User className="h-12 w-12 text-white" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Profile info card */}
-          <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm -mt-2 mb-6">
-            <div className="px-4 py-4 sm:px-6 sm:py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
-                    <span className="truncate">{fullName}</span>
-                    {data?.user?.is_verified && (
-                      <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
-                    )}
-                  </h1>
-                  <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                    @{data?.user?.username || username}
-                  </span>
-                  {data?.user?.tagline && (
-                    <p className={`text-sm mt-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {data.user.tagline}
-                    </p>
-                  )}
-                  {city && (
-                    <p className={`text-sm mt-1 flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      <MapPin className="h-3.5 w-3.5" />
-                      {city}
-                    </p>
+            {/* Avatar + info */}
+            <div className="px-4 sm:px-6">
+              {/* Avatar overlapping cover */}
+              <div className="relative -mt-14 sm:-mt-16 mb-3 flex items-end justify-between">
+                <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
+                  {avatarUrl && !imgError.avatar ? (
+                    <img
+                      src={avatarUrl}
+                      alt={fullName}
+                      className="w-full h-full object-cover"
+                      onError={() => setImgError(prev => ({ ...prev, avatar: true }))}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                      <User className="h-12 w-12 text-white" />
+                    </div>
                   )}
                 </div>
 
-                {/* Edit / Follow / Message */}
-                <div className="flex-shrink-0 flex items-center gap-2">
+                {/* Edit / Follow / Message — aligned to the right of the avatar row */}
+                <div className="flex items-center gap-2 pb-1">
                   {authLoading || loading ? (
                     <Button disabled size="sm" className="rounded-full">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -423,26 +395,50 @@ export default function PublicProfilePage() {
                 </div>
               </div>
 
-              {/* Follower / Following stats */}
-              <div className="flex items-center gap-3 sm:gap-5 mt-4">
-                <Link
-                  href={`/profile/${encodeURIComponent(username)}/followers`}
-                  className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
-                >
-                  <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {loading ? '—' : data?.counts?.followers ?? 0}
-                  </span>
-                  <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Followers</span>
-                </Link>
-                <Link
-                  href={`/profile/${encodeURIComponent(username)}/following`}
-                  className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
-                >
-                  <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {loading ? '—' : data?.counts?.following ?? 0}
-                  </span>
-                  <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</span>
-                </Link>
+              {/* Name, username, tagline, city */}
+              <div className="pb-4 sm:pb-5">
+                <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+                  <span className="truncate">{fullName}</span>
+                  {data?.user?.is_verified && (
+                    <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
+                  )}
+                </h1>
+                <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  @{data?.user?.username || username}
+                </span>
+                {data?.user?.tagline && (
+                  <p className={`text-sm mt-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {data.user.tagline}
+                  </p>
+                )}
+                {city && (
+                  <p className={`text-sm mt-1 flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <MapPin className="h-3.5 w-3.5" />
+                    {city}
+                  </p>
+                )}
+
+                {/* Follower / Following stats */}
+                <div className="flex items-center gap-3 sm:gap-5 mt-3">
+                  <Link
+                    href={`/profile/${encodeURIComponent(username)}/followers`}
+                    className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
+                  >
+                    <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {loading ? '—' : data?.counts?.followers ?? 0}
+                    </span>
+                    <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Followers</span>
+                  </Link>
+                  <Link
+                    href={`/profile/${encodeURIComponent(username)}/following`}
+                    className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
+                  >
+                    <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {loading ? '—' : data?.counts?.following ?? 0}
+                    </span>
+                    <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</span>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

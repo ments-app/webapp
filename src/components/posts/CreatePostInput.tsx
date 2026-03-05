@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Image as ImageIcon, X, BarChart2, VideoIcon, Plus, Trash2, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserData } from '@/hooks/useUserData';
 import { createPost, createPollPost, type CreatePollData, type Post } from '@/api/posts';
 import { supabase } from '@/utils/supabase';
 import { type CompressedResult } from '@/utils/mediaCompressor';
@@ -198,6 +199,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
+  const { userData } = useUserData();
   const MAX_CONTENT = 500;
   const [postType, setPostType] = useState<'text' | 'media' | 'poll'>(initialPostType ?? 'text');
   const [envQuery, setEnvQuery] = useState('');
@@ -758,10 +760,10 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         replies: 0,
         author: {
           id: user.id,
-          username: user.user_metadata?.username || user.email?.split('@')[0] || 'you',
-          avatar_url: user.user_metadata?.avatar_url,
-          full_name: user.user_metadata?.full_name,
-          is_verified: false,
+          username: userData?.username || user.user_metadata?.username || user.email?.split('@')[0] || 'you',
+          avatar_url: userData?.avatar_url || user.user_metadata?.avatar_url,
+          full_name: userData?.full_name || user.user_metadata?.full_name,
+          is_verified: userData?.is_verified || false,
         },
         environment: selectedEnvironment
           ? { id: selectedEnvironment.id, name: selectedEnvironment.name, picture: selectedEnvironment.picture ?? undefined }
@@ -822,14 +824,14 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       {/* Author row: avatar + name + environment dropdown */}
       <div className="flex items-start gap-3 mb-4">
         <UserAvatar
-          src={user?.user_metadata?.avatar_url}
-          alt={user?.user_metadata?.full_name || 'User'}
-          fallbackText={user?.user_metadata?.full_name || user?.email || 'U'}
+          src={userData?.avatar_url || user?.user_metadata?.avatar_url}
+          alt={userData?.full_name || user?.user_metadata?.full_name || 'User'}
+          fallbackText={userData?.full_name || user?.user_metadata?.full_name || user?.email || 'U'}
           size={44}
         />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground truncate">
-            {user?.user_metadata?.full_name || user?.email || 'User'}
+            {userData?.full_name || user?.user_metadata?.full_name || user?.email || 'User'}
           </p>
           <div className="relative" ref={envDropdownRef}>
             <button

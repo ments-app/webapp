@@ -101,6 +101,42 @@ export async function middleware(req: NextRequest) {
 
     if (session?.user) {
       supabaseResponse.headers.set('x-user-id', session.user.id);
+
+      // ── Account Status Guard ──────────────────────────────
+      // For page navigations (not API/static/auth/reactivate),
+      // verify the user's account is active.
+      const pathname = req.nextUrl.pathname;
+      const isGuardedPage = !pathname.startsWith('/api/') &&
+        !pathname.startsWith('/_next/') &&
+        !pathname.startsWith('/auth/') &&
+        pathname !== '/reactivate' &&
+        pathname !== '/sw.js' &&
+        pathname !== '/manifest.json';
+
+      if (isGuardedPage) {
+        try {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('account_status')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile && profile.account_status === 'deactivated') {
+            // Redirect to reactivation page — don't sign out
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = '/reactivate';
+            redirectUrl.search = '';
+            return NextResponse.redirect(redirectUrl);
+          }
+
+          if (profile && (profile.account_status === 'deleted' || profile.account_status === 'suspended')) {
+            // Sign out and let the page load normally (no redirect loop)
+            await supabase.auth.signOut();
+          }
+        } catch {
+          // If the query fails, allow the request through
+        }
+      }
     }
   } catch (error) {
     console.error('Middleware error:', error);

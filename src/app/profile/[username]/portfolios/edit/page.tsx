@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { useUserData } from '@/hooks/useUserData';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState, useEffect, type ReactNode } from 'react';
 import { ArrowLeft, Plus, Trash2, Eye, Check } from 'lucide-react';
@@ -20,6 +21,14 @@ export default function EditPortfolioPage() {
   const params = useParams() as { username?: string };
   const username = (params?.username || '').toString();
   const router = useRouter();
+  const { userData } = useUserData();
+
+  // Redirect non-owners away
+  useEffect(() => {
+    if (userData && userData.username.toLowerCase() !== username.toLowerCase()) {
+      router.replace(`/profile/${encodeURIComponent(username)}/portfolios`);
+    }
+  }, [userData, username, router]);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
