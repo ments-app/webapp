@@ -392,7 +392,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             error: errorData
           });
           throw new Error(
-            errorData.error || 'Failed to load environments. Please try again later.'
+            errorData.error || 'Communities couldn\u2019t be loaded right now. Try again?'
           );
         }
 
@@ -770,30 +770,30 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
           : undefined,
         media: postType === 'media' && imagePreviews.length > 0
           ? imagePreviews.map((url, i) => ({
-              id: `optimistic-${i}`,
-              post_id: postData!.id,
-              media_url: url,
-              media_type: (selectedImages[i]?.type?.startsWith('video/') ? 'video' : 'photo') as 'video' | 'photo',
-              created_at: new Date().toISOString(),
-            }))
+            id: `optimistic-${i}`,
+            post_id: postData!.id,
+            media_url: url,
+            media_type: (selectedImages[i]?.type?.startsWith('video/') ? 'video' : 'photo') as 'video' | 'photo',
+            created_at: new Date().toISOString(),
+          }))
           : [],
         poll: postType === 'poll'
           ? {
-              id: `optimistic-poll-${postData!.id}`,
-              post_id: postData!.id,
-              question: pollData.question,
-              poll_type: pollData.poll_type,
-              created_at: new Date().toISOString(),
-              options: pollData.options
-                .filter((o) => o.trim())
-                .map((text, i) => ({
-                  id: `optimistic-opt-${i}`,
-                  poll_id: `optimistic-poll-${postData!.id}`,
-                  option_text: text,
-                  votes: 0,
-                  position: i,
-                })),
-            }
+            id: `optimistic-poll-${postData!.id}`,
+            post_id: postData!.id,
+            question: pollData.question,
+            poll_type: pollData.poll_type,
+            created_at: new Date().toISOString(),
+            options: pollData.options
+              .filter((o) => o.trim())
+              .map((text, i) => ({
+                id: `optimistic-opt-${i}`,
+                poll_id: `optimistic-poll-${postData!.id}`,
+                option_text: text,
+                votes: 0,
+                position: i,
+              })),
+          }
           : null,
       };
 
@@ -809,7 +809,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       if (onPostCreated) onPostCreated(optimisticPost);
     } catch (err) {
       console.error('Error creating post:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create post');
+      setError(err instanceof Error ? err.message : 'Your post couldn\u2019t be published. Please try again.');
     } finally {
       setIsSubmitting(false);
       setIsUploading(false);
@@ -901,7 +901,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
           ref={textareaRef}
           value={content}
           onChange={handleContentChange}
-          placeholder="What's on your mind? Type @ to mention someone"
+          placeholder="What's on your mind?"
           className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-card-foreground placeholder:text-muted-foreground min-h-[100px] sm:min-h-[140px] p-0 resize-none"
           spellCheck="false"
           autoComplete="off"

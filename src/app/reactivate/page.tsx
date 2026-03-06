@@ -24,7 +24,7 @@ export default function ReactivatePage() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to reactivate account');
+                throw new Error(data.error || 'We couldn\u2019t reactivate your account right now. Please try again.');
             }
 
             setIsDone(true);
@@ -34,7 +34,7 @@ export default function ReactivatePage() {
                 window.location.replace('/');
             }, 1500);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+            setError(err instanceof Error ? err.message : 'Something unexpected happened. Please try again.');
             setIsLoading(false);
         }
     };

@@ -6,17 +6,17 @@ import type {
   CreateCategoryResponse
 } from '@/types/messaging';
 
-// GET /api/chat-categories?userId=... - Get categories with unread counts
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-  }
-
+// GET /api/chat-categories - Get categories with unread counts
+export async function GET() {
   try {
     const supabase = await createAuthClient();
+
+    // Verify user from session — don't trust client-sent userId
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = user.id;
 
     // Get categories
     const { data: categories, error } = await supabase

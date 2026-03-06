@@ -49,7 +49,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to delete account');
+                throw new Error(data.error || 'Account deletion didn\u2019t go through. Please try again.');
             }
 
             setStep('done');
@@ -59,7 +59,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
                 window.location.replace('/');
             }, 2000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+            setError(err instanceof Error ? err.message : 'Something unexpected happened. Please try again.');
             setStep('confirm');
         }
     };
@@ -163,7 +163,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
                                 type="text"
                                 value={confirmText}
                                 onChange={(e) => setConfirmText(e.target.value)}
-                                placeholder="Enter your username"
+                                placeholder="Type your username to confirm"
                                 className="w-full px-4 py-2.5 border border-border bg-background text-foreground rounded-lg focus:ring-2 focus:ring-destructive/30 focus:border-destructive outline-none text-sm transition-colors"
                                 autoComplete="off"
                                 autoFocus

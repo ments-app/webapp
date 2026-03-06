@@ -38,7 +38,7 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
         setHasMore(Boolean(hasMore));
         setOffset((data?.length || 0));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load posts');
+        setError(err instanceof Error ? err.message : 'Couldn\u2019t load posts. Please try again.');
         console.error('Error loading posts:', err);
       } finally {
         setIsLoading(false);
@@ -131,7 +131,7 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
       <div className="max-w-3xl mx-auto">
         <div className="post-card border-destructive/20 bg-destructive/5">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
+            <h3 className="text-lg font-semibold text-destructive mb-2">Couldn&apos;t load posts</h3>
             <p className="text-destructive/80 mb-4">{error}</p>
             <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
@@ -154,7 +154,7 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
               <span className="text-2xl">💭</span>
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">No posts yet</h3>
-            <p className="text-muted-foreground">Be the first to share something amazing!</p>
+            <p className="text-muted-foreground">Be the first to share something in this community!</p>
           </div>
         </div>
       </div>

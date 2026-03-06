@@ -65,6 +65,7 @@ type ProfileData = {
     about?: string | null;
     bio?: string | null;
     skills?: string[] | null;
+    account_status?: string | null;
   };
   counts: {
     followers: number;
@@ -162,10 +163,17 @@ export default function PublicProfilePage() {
     const cachedData = getFromCache(cacheKey);
 
     if (cachedData) {
-      setData(cachedData);
-      setLoading(false);
-      setError(null);
-      return;
+      // For own profile, use cache immediately (no deactivated risk).
+      // For other profiles, skip cache entirely — always show loading spinner
+      // until fresh API data confirms account_status. This prevents any flash
+      // of profile content for deactivated accounts.
+      const isLikelyOwnProfile = viewerId && cachedData?.user?.id === viewerId;
+      if (isLikelyOwnProfile) {
+        setData(cachedData);
+        setLoading(false);
+        setError(null);
+        return;
+      }
     }
 
     abortControllerRef.current = new AbortController();
@@ -307,11 +315,33 @@ export default function PublicProfilePage() {
     return parts.join(' ');
   };
 
-  if (!username || (loading && !data)) {
+  if (!username || loading) {
     return (
       <DashboardLayout>
         <div className="min-h-screen flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Deactivated account — show immediately, before any profile content
+  if (data?.user?.account_status && data.user.account_status !== 'active') {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+            <User className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-foreground mb-2">Account Deactivated</h1>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              This account has been deactivated by the user. Their profile and content are currently hidden.
+            </p>
+          </div>
+          <Button onClick={() => router.back()} size="sm" variant="outline" className="rounded-full">
+            Go Back
+          </Button>
         </div>
       </DashboardLayout>
     );
@@ -327,6 +357,8 @@ export default function PublicProfilePage() {
       </DashboardLayout>
     );
   }
+
+
 
   return (
     <DashboardLayout>

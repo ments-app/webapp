@@ -68,11 +68,10 @@ export const ConversationsList = React.memo(function ConversationsList() {
         {/* All Tab */}
         <button
           onClick={() => setActiveTab('all')}
-          className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-            activeTab === 'all'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'all'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           All
         </button>
@@ -82,16 +81,15 @@ export const ConversationsList = React.memo(function ConversationsList() {
           <button
             key={category.id}
             onClick={() => setActiveTab(category.id)}
-            className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-              activeTab === category.id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === category.id
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
           >
             <div className="flex items-center gap-2">
               {category.color && (
-                <div 
-                  className="w-2 h-2 rounded-full" 
+                <div
+                  className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: category.color }}
                 />
               )}
@@ -107,7 +105,7 @@ export const ConversationsList = React.memo(function ConversationsList() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search messages…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-full border-none outline-none text-sm bg-transparent text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20"
@@ -132,63 +130,69 @@ export const ConversationsList = React.memo(function ConversationsList() {
           </div>
         ) : filteredConversations.length > 0 ? (
           <div className="space-y-1">
-            {filteredConversations.map((conversation) => (
-              <Link
-                key={conversation.conversation_id}
-                href={`/messages/${conversation.conversation_id}`}
-                onClick={() => clearUnreadCount(conversation.conversation_id)}
-                className="flex items-center gap-3 p-4 hover:bg-accent/30 transition-colors cursor-pointer border-l-4 border-transparent hover:border-primary"
-              >
-                {/* Avatar */}
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                    {(() => {
-                      const src = getProxiedImageUrl(conversation.other_avatar_url ?? null);
-                      return src ? (
-                        <Image
-                          src={src}
-                          alt={conversation.other_username || 'Avatar'}
-                          width={48}
-                          height={48}
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg">
-                          {(conversation.other_full_name || conversation.other_username || 'U').charAt(0).toUpperCase()}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-sm truncate text-foreground">
-                        {conversation.other_full_name || conversation.other_username || 'Unknown'}
-                      </h3>
-                      {conversation.other_is_verified && (
-                        <VerifyBadge className="ml-1" />
-                      )}
+            {filteredConversations.map((conversation) => {
+              const isDeactivated = conversation.other_account_status && conversation.other_account_status !== 'active';
+              return (
+                <Link
+                  key={conversation.conversation_id}
+                  href={`/messages/${conversation.conversation_id}`}
+                  onClick={() => clearUnreadCount(conversation.conversation_id)}
+                  className={`flex items-center gap-3 p-4 hover:bg-accent/30 transition-colors cursor-pointer border-l-4 border-transparent hover:border-primary ${isDeactivated ? 'opacity-60' : ''}`}
+                >
+                  {/* Avatar */}
+                  <div className="relative">
+                    <div className={`w-12 h-12 rounded-full overflow-hidden flex items-center justify-center font-semibold ${isDeactivated ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground'}`}>
+                      {(() => {
+                        if (isDeactivated) {
+                          return <span className="text-lg">?</span>;
+                        }
+                        const src = getProxiedImageUrl(conversation.other_avatar_url ?? null);
+                        return src ? (
+                          <Image
+                            src={src}
+                            alt={conversation.other_username || 'Avatar'}
+                            width={48}
+                            height={48}
+                            className="object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg">
+                            {(conversation.other_full_name || conversation.other_username || 'U').charAt(0).toUpperCase()}
+                          </span>
+                        );
+                      })()}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime(conversation.updated_at)}
-                    </span>
                   </div>
-                  <p className="text-sm truncate text-muted-foreground">
-                    {conversation.last_message || 'No messages yet'}
-                  </p>
-                </div>
 
-                {/* Unread indicator */}
-                {conversation.unread_count > 0 && (
-                  <div className="bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {conversation.unread_count > 9 ? '9+' : conversation.unread_count}
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-sm truncate text-foreground">
+                          {isDeactivated ? 'Deactivated User' : (conversation.other_full_name || conversation.other_username || 'Unknown')}
+                        </h3>
+                        {!isDeactivated && conversation.other_is_verified && (
+                          <VerifyBadge className="ml-1" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime(conversation.updated_at)}
+                      </span>
+                    </div>
+                    <p className="text-sm truncate text-muted-foreground">
+                      {isDeactivated ? 'This account has been deactivated' : (conversation.last_message || 'No messages yet')}
+                    </p>
                   </div>
-                )}
-              </Link>
-            ))}
+
+                  {/* Unread indicator */}
+                  {!isDeactivated && conversation.unread_count > 0 && (
+                    <div className="bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {conversation.unread_count > 9 ? '9+' : conversation.unread_count}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">

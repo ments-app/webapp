@@ -203,8 +203,8 @@ function SkillsInput({ skills, setSkills }: { skills: string[]; setSkills: React
                   type="button"
                   onClick={() => setActiveCategory(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeCategory === cat
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
-                      : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
+                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
                     }`}
                 >
                   {cat}
@@ -595,7 +595,7 @@ export default function EditProfileForm() {
     try {
       const res = await fetch('/api/verify/send', { method: 'POST' });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to send code');
+      if (!res.ok) throw new Error(json.error || 'Verification code couldn\u2019t be sent');
       setVerifyStep('input');
       setResendCooldown(60);
       const interval = setInterval(() => {
@@ -605,7 +605,7 @@ export default function EditProfileForm() {
         });
       }, 1000);
     } catch (e) {
-      setVerifyError(e instanceof Error ? e.message : 'Failed to send');
+      setVerifyError(e instanceof Error ? e.message : 'Couldn\u2019t send code. Try again?');
       setVerifyStep('idle');
     }
   };
@@ -683,7 +683,7 @@ export default function EditProfileForm() {
         setInitial(latest as ProfileShape);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to save');
+      setError(e instanceof Error ? e.message : 'Your profile changes couldn\u2019t be saved');
     } finally {
       setSaving(false);
     }
@@ -763,7 +763,7 @@ export default function EditProfileForm() {
                       value={verifyCode}
                       onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       className="w-32 px-3 py-2 text-center text-lg tracking-widest border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="000000"
+                      placeholder="Enter 6-digit code"
                     />
                     <Button
                       onClick={handleConfirmVerification}
@@ -851,7 +851,7 @@ export default function EditProfileForm() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-              placeholder="Ashish kushwaha"
+              placeholder="Your full name"
             />
           </div>
 
@@ -868,7 +868,7 @@ export default function EditProfileForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-8 pr-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                placeholder="ashishweapons"
+                placeholder="your-username"
               />
             </div>
           </div>
@@ -884,7 +884,7 @@ export default function EditProfileForm() {
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
               className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-              placeholder="frontend"
+              placeholder="e.g. Full-stack developer"
             />
           </div>
 
@@ -902,7 +902,7 @@ export default function EditProfileForm() {
               onChange={(e) => setBio(e.target.value)}
               rows={4}
               className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none transition-colors"
-              placeholder="Tell something about you"
+              placeholder="Write a brief intro about yourself…"
             />
           </div>
 

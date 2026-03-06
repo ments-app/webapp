@@ -36,7 +36,7 @@ export function DeactivateAccountDialog({ isOpen, onClose }: DeactivateAccountDi
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to deactivate account');
+                throw new Error(data.error || 'Your account couldn\u2019t be deactivated right now');
             }
 
             setIsDone(true);
@@ -47,7 +47,7 @@ export function DeactivateAccountDialog({ isOpen, onClose }: DeactivateAccountDi
                 window.location.replace('/');
             }, 2000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+            setError(err instanceof Error ? err.message : 'Something unexpected happened. Please try again.');
             setIsProcessing(false);
         }
     };

@@ -212,7 +212,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
         <div className="flex items-center justify-center h-48">
           <div className="text-center">
             <div className="text-red-500 mb-2 text-2xl">⚠️</div>
-            <span className="text-red-600 dark:text-red-400 text-sm font-medium">Failed to load video</span>
+            <span className="text-red-600 dark:text-red-400 text-sm font-medium">This video couldn&apos;t be played</span>
           </div>
         </div>
       </div>
@@ -502,7 +502,7 @@ const MediaGallery = memo(({ items, onOpen }: {
                       height: `${Math.round(containerHeight)}px`
                     }}
                   >
-                    <span className="text-muted-foreground text-sm">Failed to load</span>
+                    <span className="text-muted-foreground text-sm">Couldn&apos;t load image</span>
                   </div>
                 )
               ) : (
@@ -608,7 +608,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
         <button
           className="absolute top-4 right-4 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center"
           onClick={onClose}
-          aria-label="Close"
+          aria-label="Close image viewer"
           data-no-nav="true"
         >
           ✕
@@ -618,7 +618,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200"
               onClick={onPrev}
-              aria-label="Previous"
+              aria-label="Previous image"
               data-no-nav="true"
             >
               <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">‹</span>
@@ -626,7 +626,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200"
               onClick={onNext}
-              aria-label="Next"
+              aria-label="Next image"
               data-no-nav="true"
             >
               <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">›</span>

@@ -13,7 +13,7 @@ export function useChatCategories(userId: string) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat-categories?userId=${userId}`);
+      const response = await fetch(`/api/chat-categories`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -77,7 +77,7 @@ export function useChatCategories(userId: string) {
       }
 
       // Update local state
-      setCategories(prev => prev.map(cat => 
+      setCategories(prev => prev.map(cat =>
         cat.id === id ? { ...cat, ...updates } : cat
       ));
 
@@ -153,7 +153,7 @@ export function useChatCategories(userId: string) {
       // Find the assignment record first
       const response = await fetch(`/api/conversation-categories?conversationId=${conversationId}`);
       const assignments = await response.json();
-      
+
       const assignment = assignments.find((a: {
         id: string;
         category_id: string;

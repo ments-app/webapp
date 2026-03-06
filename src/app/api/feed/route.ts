@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       .from('posts')
       .select(`
         *,
-        author:author_id(id, username, avatar_url, full_name, is_verified),
+        author:author_id(id, username, avatar_url, full_name, is_verified, account_status),
         environment:environment_id(id, name, description, picture),
         media:post_media(*),
         poll:post_polls(*, options:post_poll_options(*))
@@ -79,11 +79,18 @@ export async function GET(request: Request) {
       });
     }
 
+    // Filter out posts from deactivated/deleted/suspended users
+    const activePosts = fullPosts.filter((p: Record<string, unknown>) => {
+      const author = p.author as Record<string, unknown> | null;
+      return !author || !author.account_status || author.account_status === 'active';
+    });
+
     // Get like and reply counts using SQL COUNT (head: true = no row data transferred)
     // This is vastly more efficient than fetching all rows and counting client-side
+    const activePostIds = activePosts.map((p: Record<string, unknown>) => p.id as string);
     const [likesCountResults, repliesCountResults] = await Promise.all([
       Promise.all(
-        postIds.map(async (id) => {
+        activePostIds.map(async (id) => {
           const { count } = await supabase
             .from('post_likes')
             .select('*', { count: 'exact', head: true })
@@ -92,7 +99,7 @@ export async function GET(request: Request) {
         })
       ),
       Promise.all(
-        postIds.map(async (id) => {
+        activePostIds.map(async (id) => {
           const { count } = await supabase
             .from('posts')
             .select('*', { count: 'exact', head: true })
@@ -111,7 +118,7 @@ export async function GET(request: Request) {
 
     // Build post map for ordering
     const postMap = new Map(
-      fullPosts.map((p: Record<string, unknown>) => [
+      activePosts.map((p: Record<string, unknown>) => [
         p.id as string,
         normalizePostPoll({
           ...p,
@@ -122,7 +129,7 @@ export async function GET(request: Request) {
     );
 
     // Order posts by feed ranking
-    const orderedPosts = postIds
+    const orderedPosts = activePostIds
       .map((id) => postMap.get(id))
       .filter(Boolean);
 
@@ -140,7 +147,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Error in feed API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -173,7 +180,7 @@ async function serveChronological(
     .from('posts')
     .select(`
       *,
-      author:author_id(id, username, avatar_url, full_name, is_verified),
+      author:author_id(id, username, avatar_url, full_name, is_verified, account_status),
       environment:environment_id(id, name, description, picture),
       media:post_media(*),
       poll:post_polls(*, options:post_poll_options(*))
@@ -229,7 +236,13 @@ async function serveChronological(
   const repliesMap = new Map<string, number>();
   repliesCountResults.forEach(({ id, count }: { id: string; count: number }) => repliesMap.set(id, count));
 
-  const postsWithCounts = chronoPosts.map((p: Record<string, unknown>) => normalizePostPoll({
+  // Filter out posts from deactivated/deleted/suspended users
+  const activeChronoPosts = chronoPosts.filter((p: Record<string, unknown>) => {
+    const author = p.author as Record<string, unknown> | null;
+    return !author || !author.account_status || author.account_status === 'active';
+  });
+
+  const postsWithCounts = activeChronoPosts.map((p: Record<string, unknown>) => normalizePostPoll({
     ...p,
     likes: likesMap.get(p.id as string) || 0,
     replies: repliesMap.get(p.id as string) || 0,

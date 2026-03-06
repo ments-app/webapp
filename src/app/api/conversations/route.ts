@@ -53,15 +53,15 @@ export async function GET(req: NextRequest) {
     // Fetch user details in a separate query
     const { data: usersData, error: usersError } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, is_verified')
+      .select('id, username, full_name, avatar_url, is_verified, account_status')
       .in('id', Array.from(userIds));
 
     if (usersError) throw usersError;
 
     // Create a map for quick user lookup
     const userMap = new Map<string, Record<string, unknown>>();
-    usersData?.forEach((user: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => {
-      userMap.set(user.id, user);
+    usersData?.forEach((user: Record<string, unknown>) => {
+      userMap.set(user.id as string, user);
     });
 
     // Batch fetch unread counts for all conversations
@@ -96,6 +96,7 @@ export async function GET(req: NextRequest) {
         other_full_name: otherUser.full_name || '',
         other_avatar_url: otherUser.avatar_url || null,
         other_is_verified: otherUser.is_verified || false,
+        other_account_status: otherUser.account_status || 'active',
         last_message: conv.last_message,
         updated_at: conv.updated_at,
         unread_count: unreadByConv.get(conv.id) || 0,

@@ -104,11 +104,11 @@ export default function CreateExperiencePage() {
       });
       if (!res.ok) throw new Error('Failed to add position');
 
-      showToast('success', 'Position added');
+      showToast('success', 'Position added ✓');
       // Small delay so toast is visible
       setTimeout(() => router.push(`/profile/${encodeURIComponent(username)}/experiences/edit`), 400);
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Failed to save');
+      showToast('error', e instanceof Error ? e.message : 'Position couldn\u2019t be saved');
     } finally {
       setSubmitting(false);
     }
@@ -257,7 +257,7 @@ export default function CreateExperiencePage() {
                 <Check className="h-4 w-4" /> Save
               </button>
             </div>
-          
+
             {/* Toast */}
             {toast && (
               <div className={`fixed right-4 bottom-4 z-50 px-4 py-3 rounded-lg border shadow-lg ${toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400/50 text-black' : 'bg-red-600/90 border-red-400/50 text-white'}`}>
