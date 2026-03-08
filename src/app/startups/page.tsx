@@ -158,15 +158,7 @@ function StartupsPageContent() {
     }
   }, [user?.id, upvotedIds]);
 
-  if (!user) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-muted-foreground">Please sign in to view startups.</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Middleware redirects unauthenticated users to login
 
   const showPodium = sortMode === 'hot' && startups.length >= 3;
   const top3 = showPodium ? startups.slice(0, 3) : [];

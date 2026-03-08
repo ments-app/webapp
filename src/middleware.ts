@@ -99,13 +99,25 @@ export async function middleware(req: NextRequest) {
       console.error('Middleware auth error:', error.message);
     }
 
+    // ── Protected Page Guard ──────────────────────────────
+    // Redirect unauthenticated users away from pages that require login
+    const PROTECTED_PREFIXES = ['/messages', '/settings', '/create', '/profile/edit', '/startups', '/search', '/hub', '/posts'];
+    const pathname = req.nextUrl.pathname;
+    const isProtectedPage = PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
+
+    if (isProtectedPage && !session?.user) {
+      const loginUrl = req.nextUrl.clone();
+      loginUrl.pathname = '/';
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
     if (session?.user) {
       supabaseResponse.headers.set('x-user-id', session.user.id);
 
       // ── Account Status Guard ──────────────────────────────
       // For page navigations (not API/static/auth/reactivate),
       // verify the user's account is active.
-      const pathname = req.nextUrl.pathname;
       const isGuardedPage = !pathname.startsWith('/api/') &&
         !pathname.startsWith('/_next/') &&
         !pathname.startsWith('/auth/') &&

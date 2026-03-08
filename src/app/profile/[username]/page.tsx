@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { UserActivityFeed } from '@/components/posts/UserActivityFeed';
 import { toProxyUrl } from '@/utils/imageUtils';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 type PositionRow = {
   id: string;
@@ -97,6 +98,7 @@ export default function PublicProfilePage() {
 
   const { user: viewer, isLoading: authLoading } = useAuth();
   const viewerId = viewer?.id ?? null;
+  const loginPrompt = useLoginPrompt();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [data, setData] = useState<ProfileData>(null);
@@ -421,6 +423,15 @@ export default function PublicProfilePage() {
                       </Button>
                       <Button onClick={handleMessage} size="sm" disabled={messagePending} variant="outline" className="rounded-full">
                         {messagePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                      </Button>
+                    </>
+                  ) : !viewerId && data?.user?.id ? (
+                    <>
+                      <Button onClick={() => loginPrompt.open('Sign in to follow', 'Sign in to follow this user and see their posts in your feed.')} size="sm" className="rounded-full">
+                        Follow
+                      </Button>
+                      <Button onClick={() => loginPrompt.open('Sign in to message', 'Sign in to send a message to this user.')} size="sm" variant="outline" className="rounded-full">
+                        <MessageCircle className="h-3.5 w-3.5" />
                       </Button>
                     </>
                   ) : null}
@@ -954,6 +965,7 @@ export default function PublicProfilePage() {
 
         </div>
       </div>
+      <LoginPromptModal {...loginPrompt.modalProps} />
     </DashboardLayout>
   );
 }

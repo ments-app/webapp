@@ -373,9 +373,8 @@ export default function EventDetailsPage() {
                     ) : (
                       <button
                         onClick={handleJoin}
-                        disabled={joining || checkingJoin || !user}
+                        disabled={joining || checkingJoin}
                         className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 transition active:scale-95 border bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white border-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={!user ? 'Sign in to register' : undefined}
                       >
                         {checkingJoin ? (
                           <Loader2 className="h-4 w-4 animate-spin" />

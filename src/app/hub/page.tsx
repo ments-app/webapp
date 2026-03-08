@@ -186,6 +186,7 @@ const domainLabels: Record<string, string> = {
 };
 
 const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionItem; user: { id: string } | null; onJoinSuccess?: () => void }) => {
+
   const ended = isEnded(c);
   const deadlineLabel = c.deadline ? (ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')) : 'Open';
 
@@ -315,7 +316,7 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
           </span>
           <button
             onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
+            disabled={joined || joining || checkingJoin || ended}
             className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${joined
               ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
               : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
@@ -333,11 +334,13 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
           </button>
         </div>
       </div>
+
     </Link>
   );
 };
 
 const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: string } | null }) => {
+
   const ended = isEnded(c);
 
   const [joined, setJoined] = useState(false);
@@ -445,7 +448,7 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
         <div className="flex sm:flex-col gap-2 justify-center sm:justify-center">
           <button
             onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
+            disabled={joined || joining || checkingJoin || ended}
             className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${joined
               ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
               : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
@@ -463,6 +466,7 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
           </button>
         </div>
       </div>
+
     </Link>
   );
 };
@@ -474,6 +478,7 @@ const EVENT_CATEGORY_LABELS: Record<string, string> = {
 };
 
 const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
+
   const ended = isEnded(event);
   const categoryLabel = EVENT_CATEGORY_LABELS[event.category ?? 'event'] ?? 'Event';
 
@@ -574,7 +579,7 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
           </span>
           <button
             onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
+            disabled={joined || joining || checkingJoin || ended}
             className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${joined
               ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
               : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
@@ -603,6 +608,7 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
           )}
         </div>
       </div>
+
     </Link>
   );
 };
@@ -798,6 +804,7 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
 
 function HubPageContent() {
   const { user } = useAuth();
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as TabKey) || 'events';

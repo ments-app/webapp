@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Image as ImageIcon, X, BarChart2, VideoIcon, Plus, Trash2, ChevronDown, Globe } from 'lucide-react';
@@ -12,6 +12,7 @@ import { MentionDropdown } from './MentionDropdown';
 import { notifyMentionedUsers } from '@/utils/mentions';
 import { extractCleanUsername } from '@/utils/username';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 // Zoomable image used in fullscreen preview
 function ZoomableImage({ src, alt, onSwipe }: { src: string; alt?: string; onSwipe?: (dir: 'left' | 'right') => void }) {
@@ -199,9 +200,20 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
+  const loginPrompt = useLoginPrompt();
   const { userData } = useUserData();
   const MAX_CONTENT = 500;
+  const CHAR_WARN_THRESHOLD = 400; // show counter after this many chars
   const [postType, setPostType] = useState<'text' | 'media' | 'poll'>(initialPostType ?? 'text');
+
+  // Auto-resize textarea to fit content
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const minH = window.innerWidth < 640 ? 80 : 100;
+    el.style.height = `${Math.max(minH, el.scrollHeight)}px`;
+  }, []);
   const [envQuery, setEnvQuery] = useState('');
   const [envLoading, setEnvLoading] = useState(true);
   const [isEnvDropdownOpen, setIsEnvDropdownOpen] = useState(false);
@@ -232,6 +244,9 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       return () => mq.removeEventListener?.('change', update);
     }
   }, []);
+
+  // Auto-resize textarea on mount and content changes
+  useEffect(() => { autoResize(); }, [content, autoResize]);
 
   // Attempt to enter fullscreen when opening preview (desktop-like behavior)
   useEffect(() => {
@@ -549,6 +564,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
     const newContent = e.target.value.slice(0, MAX_CONTENT);
     const cursorPosition = e.target.selectionStart;
     setContent(newContent);
+    autoResize();
 
     // Check for @ symbol before cursor
     const textBeforeCursor = newContent.substring(0, cursorPosition);
@@ -665,7 +681,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
     }
 
     if (!user) {
-      setError('You must be logged in to create a post');
+      loginPrompt.open('Sign in to post', 'You need to sign in to create a post.');
       return;
     }
 
@@ -761,7 +777,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         author: {
           id: user.id,
           username: userData?.username || user.user_metadata?.username || user.email?.split('@')[0] || 'you',
-          avatar_url: userData?.avatar_url || user.user_metadata?.avatar_url,
+          avatar_url: userData?.avatar_url,
           full_name: userData?.full_name || user.user_metadata?.full_name,
           is_verified: userData?.is_verified || false,
         },
@@ -820,11 +836,12 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   const isPostDisabled = (!content.trim() && selectedImages.length === 0 && postType !== 'poll') || isSubmitting || !environmentId || (postType === 'poll' && (!pollData.question.trim() || pollData.options.filter(opt => opt.trim()).length < 2));
 
   return (
+    <>
     <form onSubmit={handleSubmit}>
       {/* Author row: avatar + name + environment dropdown */}
       <div className="flex items-start gap-3 mb-4">
         <UserAvatar
-          src={userData?.avatar_url || user?.user_metadata?.avatar_url}
+          src={userData?.avatar_url}
           alt={userData?.full_name || user?.user_metadata?.full_name || 'User'}
           fallbackText={userData?.full_name || user?.user_metadata?.full_name || user?.email || 'U'}
           size={44}
@@ -889,22 +906,20 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               </div>
             )}
           </div>
-          {error && (
-            <p className="mt-1 text-xs text-destructive">{error}</p>
-          )}
         </div>
       </div>
 
-      {/* Content textarea — borderless */}
+      {/* Content textarea — borderless, auto-resizes */}
       <div className="relative mb-4">
         <textarea
           ref={textareaRef}
           value={content}
           onChange={handleContentChange}
           placeholder="What's on your mind?"
-          className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-card-foreground placeholder:text-muted-foreground min-h-[100px] sm:min-h-[140px] p-0 resize-none"
+          className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-card-foreground placeholder:text-muted-foreground min-h-[80px] sm:min-h-[100px] p-0 resize-none overflow-hidden"
           spellCheck="false"
           autoComplete="off"
+          rows={1}
         />
         <MentionDropdown
           searchTerm={mentionSearch}
@@ -917,7 +932,23 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       {/* Media section */}
       {(postType === 'media' || imagePreviews.length > 0) && (
         <div>
-          <h3 className="text-sm font-semibold text-foreground mb-2">Media</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-foreground">Media</h3>
+            <button
+              type="button"
+              onClick={() => {
+                setPostType('text');
+                setSelectedImages([]);
+                setImagePreviews([]);
+                setCompressedResults([]);
+              }}
+              className="p-1 rounded-full hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Remove media"
+              title="Remove media"
+            >
+              <X size={16} />
+            </button>
+          </div>
           <input
             type="file"
             ref={fileInputRef}
@@ -1100,7 +1131,21 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       {/* Poll section */}
       {postType === 'poll' && (
         <div>
-          <h3 className="text-sm font-semibold text-foreground mb-2">Poll Setup</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-foreground">Poll Setup</h3>
+            <button
+              type="button"
+              onClick={() => {
+                setPostType('text');
+                setPollData({ question: '', options: ['', ''], poll_type: 'single_choice' });
+              }}
+              className="p-1 rounded-full hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Remove poll"
+              title="Remove poll"
+            >
+              <X size={16} />
+            </button>
+          </div>
           <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
             {/* Poll Type Toggle */}
             <div>
@@ -1196,46 +1241,72 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
       )}
 
       {/* Add to your post toolbar */}
-      <div className="flex items-center justify-between border border-border rounded-xl px-4 py-2.5 mb-4 shadow-sm bg-muted/30">
+      <div className="flex items-center justify-between border border-border rounded-xl px-3 sm:px-4 py-2 mb-4 bg-muted/30">
         <span className="text-sm font-medium text-muted-foreground hidden sm:inline-block">Add to your post</span>
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-0.5 sm:gap-1.5 w-full sm:w-auto justify-around sm:justify-end">
           <button
             type="button"
-            onClick={() => setPostType('media')}
-            className={`p-2 rounded-full transition-colors ${postType === 'media' ? 'bg-emerald-500/15 text-emerald-500' : 'hover:bg-accent/60 text-emerald-500'}`}
+            onClick={() => setPostType(postType === 'media' ? 'text' : 'media')}
+            title="Photo"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${postType === 'media' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'hover:bg-accent/60 text-emerald-600 dark:text-emerald-400'}`}
           >
-            <ImageIcon size={20} />
+            <ImageIcon size={18} />
+            <span className="hidden sm:inline text-xs">Photo</span>
           </button>
           <button
             type="button"
             onClick={() => { setPostType('media'); fileInputRef.current?.click(); }}
-            className="p-2 rounded-full hover:bg-accent/60 text-blue-500 transition-colors"
+            title="Video"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-accent/60 text-blue-600 dark:text-blue-400 transition-colors"
           >
-            <VideoIcon size={20} />
+            <VideoIcon size={18} />
+            <span className="hidden sm:inline text-xs">Video</span>
           </button>
           <button
             type="button"
-            onClick={() => setPostType('poll')}
-            className={`p-2 rounded-full transition-colors ${postType === 'poll' ? 'bg-amber-500/15 text-amber-500' : 'hover:bg-accent/60 text-amber-500'}`}
+            onClick={() => setPostType(postType === 'poll' ? 'text' : 'poll')}
+            title="Poll"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${postType === 'poll' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'hover:bg-accent/60 text-amber-600 dark:text-amber-400'}`}
           >
-            <BarChart2 size={20} />
+            <BarChart2 size={18} />
+            <span className="hidden sm:inline text-xs">Poll</span>
           </button>
         </div>
       </div>
 
-      {/* Footer — character count + post button */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{content.length}/{MAX_CONTENT}</span>
+      {/* Footer — character count + error + post button */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {/* Smart character count — fades in near limit */}
+          {content.length > CHAR_WARN_THRESHOLD && (
+            <span className={`text-xs font-medium tabular-nums shrink-0 transition-colors ${
+              content.length >= MAX_CONTENT ? 'text-destructive' :
+              content.length >= MAX_CONTENT - 30 ? 'text-amber-500' :
+              'text-muted-foreground'
+            }`}>
+              {MAX_CONTENT - content.length}
+            </span>
+          )}
+          {/* Error inline near Post button */}
+          {error && (
+            <p className="text-xs text-destructive truncate">{error}</p>
+          )}
+        </div>
         <button
           type="submit"
           disabled={isPostDisabled}
-          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${isPostDisabled ? 'bg-muted text-muted-foreground cursor-not-allowed'
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${isPostDisabled ? 'bg-muted text-muted-foreground cursor-not-allowed'
             : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95'
             }`}
         >
+          {isSubmitting && (
+            <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          )}
           {isSubmitting ? 'Publishing...' : 'Post'}
         </button>
       </div>
     </form>
+    <LoginPromptModal {...loginPrompt.modalProps} />
+    </>
   );
 }

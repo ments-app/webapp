@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { MentionText } from './MentionText';
 import { EditPostModal } from './EditPostModal';
 import { Trash2, Edit } from 'lucide-react';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 type PostCardProps = {
   post: Post;
@@ -646,6 +647,7 @@ Lightbox.displayName = 'Lightbox';
 export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPollVote, onProfileClick }: PostCardProps) => {
   const router = useRouter();
   const { user } = useAuth();
+  const loginPrompt = useLoginPrompt();
 
   // Consolidated state management for better performance
   const [uiState, setUiState] = useState({
@@ -799,8 +801,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     // Ref guard fires synchronously — catches rapid clicks before setState can update
     if (isVotingRef.current) return;
     if (!user?.id) {
-      // Surface a clear message instead of silently ignoring the click
-      alert('Sign in to vote on polls.');
+      loginPrompt.open('Sign in to vote', 'You need to sign in to vote on polls.');
       return;
     }
     if (pollState.isVoting) return;
@@ -1452,6 +1453,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           </div>
         </div>
       )}
+      <LoginPromptModal {...loginPrompt.modalProps} />
     </article>
   );
 });

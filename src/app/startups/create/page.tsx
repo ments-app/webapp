@@ -17,15 +17,7 @@ export default function CreateStartupPage() {
     );
   }
 
-  if (!user) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-muted-foreground">Please sign in to create a startup profile.</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Middleware redirects unauthenticated users to login
 
   return (
     <DashboardLayout>

@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/utils/supabase";
 import { compressMediaBatch } from "@/utils/mediaCompressor";
 import { toProxyUrl } from '@/utils/imageUtils';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 // Define a new type that extends Post with nested replies
 type PostWithReplies = Omit<Post, 'replies'> & {
@@ -129,6 +130,7 @@ export default function PostPage() {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { user } = useAuth();
+  const loginPrompt = useLoginPrompt();
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
@@ -165,7 +167,7 @@ export default function PostPage() {
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
-      setError("You must be logged in to reply.");
+      loginPrompt.open('Sign in to reply', 'You need to sign in to reply to this post.');
       return;
     }
     if (!replyContent.trim()) return;
@@ -331,6 +333,20 @@ export default function PostPage() {
 
         {/* Fixed bottom reply composer (mobile-first) */}
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          {!user ? (
+            <div className="mx-auto max-w-2xl px-4 py-3">
+              <button
+                type="button"
+                onClick={() => loginPrompt.open('Sign in to reply', 'You need to sign in to reply to this post.')}
+                className="w-full flex items-center gap-3 rounded-full bg-card/90 border border-border px-4 py-2.5 shadow-lg hover:bg-accent/60 transition-colors cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-muted-foreground"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                </div>
+                <span className="text-sm text-muted-foreground">Sign in to reply...</span>
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmitReply} className="mx-auto max-w-2xl px-4 py-3">
             {/* pill */}
             <div className="flex items-center gap-3 rounded-full bg-card/90 border border-border px-3 py-2 shadow-lg">
@@ -402,11 +418,13 @@ export default function PostPage() {
               <div className="mt-2 text-xs text-red-500">{error}</div>
             )}
           </form>
+          )}
           {/* Hidden file inputs */}
           <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onSelectFiles(e.target.files)} />
           <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden" onChange={(e) => onSelectFiles(e.target.files)} />
         </div>
       </div>
+      <LoginPromptModal {...loginPrompt.modalProps} />
 
       {/* Floating Add button removed to avoid duplicate; use inline plus in composer */}
 

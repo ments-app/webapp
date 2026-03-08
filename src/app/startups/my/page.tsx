@@ -47,15 +47,7 @@ export default function MyStartupPage() {
     );
   }
 
-  if (!user) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-muted-foreground">Please sign in to manage your startup.</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Middleware redirects unauthenticated users to login
 
   if (!startup) {
     return (

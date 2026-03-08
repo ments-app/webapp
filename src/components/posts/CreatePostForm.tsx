@@ -11,7 +11,7 @@ import { MentionDropdown } from './MentionDropdown';
 import { notifyMentionedUsers } from '@/utils/mentions';
 import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
-import { toProxyUrl } from '@/utils/imageUtils';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 type CreatePostFormProps = {
   environmentId: string;
@@ -20,6 +20,7 @@ type CreatePostFormProps = {
 
 export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormProps) {
   const { user } = useAuth();
+  const loginPrompt = useLoginPrompt();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +219,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
 
     if (!content.trim() && selectedImages.length === 0) return;
     if (!user) {
-      setError('You must be logged in to create a post');
+      loginPrompt.open('Sign in to post', 'You need to sign in to create a post.');
       return;
     }
 
@@ -300,6 +301,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
   };
 
   return (
+    <>
     <div className="backdrop-blur-xl bg-card border border-border rounded-xl p-4 shadow-sm mb-6">
       <form onSubmit={handleSubmit}>
         {/* Post Type Selection */}
@@ -342,21 +344,9 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
 
         <div className="flex gap-3">
           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-            {user?.user_metadata?.avatar_url ? (
-              <Image
-                src={toProxyUrl(user.user_metadata.avatar_url, { width: 40, quality: 82 })}
-                alt={user.user_metadata.full_name || 'User avatar'}
-                width={40}
-                height={40}
-                className="w-full h-full object-cover"
-                sizes="40px"
-                loading="lazy"
-              />
-            ) : (
-              <div className="text-lg font-semibold text-muted-foreground">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
+            <div className="text-lg font-semibold text-muted-foreground">
+              {user?.user_metadata?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
           </div>
 
           <div className="flex-1">
@@ -543,5 +533,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
         </div>
       </form>
     </div>
+    <LoginPromptModal {...loginPrompt.modalProps} />
+    </>
   );
 }
