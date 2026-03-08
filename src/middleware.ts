@@ -90,10 +90,11 @@ export async function middleware(req: NextRequest) {
   );
 
   try {
-    // Use getSession() instead of getUser() to avoid a network call to
-    // Supabase Auth on every request. getSession() validates the JWT locally,
-    // which is dramatically faster — critical at scale (10K+ users).
+    // Use getSession() for middleware — it validates the JWT locally without a network
+    // call, which is critical since middleware runs on EVERY request. Sensitive operations
+    // in API routes still use getUser() for full server-side verification.
     const { data: { session }, error } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
 
     if (error && !error.message?.includes('Auth session missing')) {
       console.error('Middleware auth error:', error.message);
@@ -105,15 +106,15 @@ export async function middleware(req: NextRequest) {
     const pathname = req.nextUrl.pathname;
     const isProtectedPage = PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
 
-    if (isProtectedPage && !session?.user) {
+    if (isProtectedPage && !user) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = '/';
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    if (session?.user) {
-      supabaseResponse.headers.set('x-user-id', session.user.id);
+    if (user) {
+      supabaseResponse.headers.set('x-user-id', user.id);
 
       // ── Account Status Guard ──────────────────────────────
       // For page navigations (not API/static/auth/reactivate),
@@ -130,7 +131,7 @@ export async function middleware(req: NextRequest) {
           const { data: profile } = await supabase
             .from('users')
             .select('account_status')
-            .eq('id', session.user.id)
+            .eq('id', user.id)
             .single();
 
           if (profile && profile.account_status === 'deactivated') {

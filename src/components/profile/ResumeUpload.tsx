@@ -81,6 +81,9 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
   };
 
   const getAuthToken = async (): Promise<string> => {
+    // Verify user first, then get session for token
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Not authenticated');
     return session.access_token;

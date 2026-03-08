@@ -34,27 +34,40 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async (event: any, session: any) => {
             if (!mounted) return;
-            
+
             console.log('Auth state changed:', event);
             setSession(session);
-            setUser(session?.user ?? null);
+
+            if (session) {
+              // Verify user by contacting Supabase Auth server
+              const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+              if (mounted) setUser(verifiedUser ?? null);
+            } else {
+              setUser(null);
+            }
             setIsLoading(false);
           }
         );
 
         // If we already have a session from the server, skip client refetch
         if (!initialSession) {
-          const { data: { session }, error } = await supabase.auth.getSession();
-          
+          const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
+
           if (error) {
-            console.error('Error getting session:', error);
+            console.error('Error getting user:', error);
             setIsLoading(false);
             return () => subscription.unsubscribe();
           }
 
           if (mounted) {
-            setSession(session);
-            setUser(session?.user ?? null);
+            setUser(verifiedUser ?? null);
+            // Get session for token/session object if user exists
+            if (verifiedUser) {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (mounted) setSession(session);
+            } else {
+              setSession(null);
+            }
             setIsLoading(false);
           }
         } else {

@@ -1,6 +1,6 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
-import { fetchStartupById, updateStartup } from '@/api/startups';
+import { fetchStartupById } from '@/api/startups';
 import { cacheClearByPrefix } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
@@ -46,10 +46,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const admin = await createAuthClient();
-
     // Enforce ownership — only the startup owner may update it
-    const { data: startup } = await admin
+    const { data: startup } = await authClient
       .from('startup_profiles')
       .select('owner_id')
       .eq('id', id)
@@ -63,7 +61,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const body = await request.json();
-    const { data, error } = await updateStartup(id, body);
+
+    // Update directly with the auth client so RLS sees the authenticated user
+    const { data, error } = await authClient
+      .from('startup_profiles')
+      .update({ ...body, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

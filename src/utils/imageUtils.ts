@@ -24,6 +24,12 @@ export function toProxyUrl(
     return rawUrl;
   }
 
+  // Supabase Storage public URLs — serve directly without proxy
+  // Matches both https://<project>.supabase.co/storage/... and custom domains like api.ments.app/storage/...
+  if (rawUrl.includes('/storage/v1/object/public/')) {
+    return rawUrl;
+  }
+
   // External CDN URLs that don't need proxying — return directly
   try {
     const url = new URL(rawUrl);

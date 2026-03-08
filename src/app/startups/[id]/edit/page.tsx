@@ -12,8 +12,7 @@ import { Step5Edge } from '@/components/startups/Step5Edge';
 import { Step6Financials } from '@/components/startups/Step6Financials';
 import { Step7Media } from '@/components/startups/Step7Media';
 import {
-  fetchStartupById, updateStartup, upsertFundingRounds,
-  uploadPitchDeck, uploadStartupImage, StartupProfile,
+  fetchStartupById, StartupProfile,
 } from '@/api/startups';
 import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -110,9 +109,59 @@ export default function EditStartupPage() {
     setProfileData(prev => ({ ...prev, [field]: value }));
   };
 
+  const compressImage = (file: File, maxWidth: number, maxHeight: number): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas not supported'));
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error('Compression failed'));
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }));
+          },
+          'image/webp',
+          0.82
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const uploadFile = async (file: File, type: 'logo' | 'banner' | 'pitch-deck'): Promise<{ url: string; error?: string }> => {
+    try {
+      let fileToUpload = file;
+      if (type === 'logo') {
+        fileToUpload = await compressImage(file, 512, 512);
+      } else if (type === 'banner') {
+        fileToUpload = await compressImage(file, 1280, 720);
+      }
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+      formData.append('type', type);
+      const res = await fetch('/api/startups/upload', { method: 'POST', body: formData });
+      const result = await res.json();
+      if (!res.ok) return { url: '', error: result.error || `Failed to upload ${type}` };
+      return { url: result.url };
+    } catch {
+      return { url: '', error: `Failed to upload ${type}` };
+    }
+  };
+
   const handlePitchDeckUpload = async (file: File) => {
     setIsUploadingDeck(true);
-    const { url, error } = await uploadPitchDeck(file);
+    const { url, error } = await uploadFile(file, 'pitch-deck');
     setIsUploadingDeck(false);
     if (error) setError(error);
     else setProfileData(prev => ({ ...prev, pitch_deck_url: url }));
@@ -120,7 +169,7 @@ export default function EditStartupPage() {
 
   const handleLogoUpload = async (file: File) => {
     setIsUploadingLogo(true);
-    const { url, error } = await uploadStartupImage(file, 'logo');
+    const { url, error } = await uploadFile(file, 'logo');
     setIsUploadingLogo(false);
     if (error) setError(error);
     else setProfileData(prev => ({ ...prev, logo_url: url }));
@@ -128,7 +177,7 @@ export default function EditStartupPage() {
 
   const handleBannerUpload = async (file: File) => {
     setIsUploadingBanner(true);
-    const { url, error } = await uploadStartupImage(file, 'banner');
+    const { url, error } = await uploadFile(file, 'banner');
     setIsUploadingBanner(false);
     if (error) setError(error);
     else setProfileData(prev => ({ ...prev, banner_url: url }));
@@ -140,42 +189,47 @@ export default function EditStartupPage() {
     setSuccess(false);
 
     try {
-      const { error: updateError } = await updateStartup(id, {
-        brand_name: profileData.brand_name,
-        registered_name: profileData.registered_name || null,
-        legal_status: profileData.legal_status as StartupProfile['legal_status'],
-        cin: profileData.cin || null,
-        stage: profileData.stage as StartupProfile['stage'],
-        description: profileData.description || null,
-        keywords: profileData.keywords,
-        website: profileData.website || null,
-        founded_date: profileData.founded_date || null,
-        address_line1: profileData.address_line1 || null,
-        address_line2: profileData.address_line2 || null,
-        state: profileData.state || null,
-        startup_email: profileData.startup_email,
-        startup_phone: profileData.startup_phone,
-        pitch_deck_url: profileData.pitch_deck_url || null,
-        is_actively_raising: profileData.is_actively_raising,
-        business_model: profileData.business_model || null,
-        city: profileData.city || null,
-        country: profileData.country || null,
-        categories: profileData.categories,
-        team_size: profileData.team_size || null,
-        key_strengths: profileData.key_strengths || null,
-        target_audience: profileData.target_audience || null,
-        revenue_amount: profileData.revenue_amount || null,
-        revenue_currency: profileData.revenue_currency || null,
-        revenue_growth: profileData.revenue_growth || null,
-        traction_metrics: profileData.traction_metrics || null,
-        total_raised: profileData.total_raised || null,
-        investor_count: profileData.investor_count ? parseInt(profileData.investor_count) : null,
-        elevator_pitch: profileData.elevator_pitch || null,
-        logo_url: profileData.logo_url || null,
-        banner_url: profileData.banner_url || null,
+      // Update startup via API route (uses server auth client, respects RLS)
+      const updateRes = await fetch(`/api/startups/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_name: profileData.brand_name,
+          registered_name: profileData.registered_name || null,
+          legal_status: profileData.legal_status,
+          cin: profileData.cin || null,
+          stage: profileData.stage,
+          description: profileData.description || null,
+          keywords: profileData.keywords,
+          website: profileData.website || null,
+          founded_date: profileData.founded_date || null,
+          address_line1: profileData.address_line1 || null,
+          address_line2: profileData.address_line2 || null,
+          state: profileData.state || null,
+          startup_email: profileData.startup_email,
+          startup_phone: profileData.startup_phone,
+          pitch_deck_url: profileData.pitch_deck_url || null,
+          is_actively_raising: profileData.is_actively_raising,
+          business_model: profileData.business_model || null,
+          city: profileData.city || null,
+          country: profileData.country || null,
+          categories: profileData.categories,
+          team_size: profileData.team_size || null,
+          key_strengths: profileData.key_strengths || null,
+          target_audience: profileData.target_audience || null,
+          revenue_amount: profileData.revenue_amount || null,
+          revenue_currency: profileData.revenue_currency || null,
+          revenue_growth: profileData.revenue_growth || null,
+          traction_metrics: profileData.traction_metrics || null,
+          total_raised: profileData.total_raised || null,
+          investor_count: profileData.investor_count ? parseInt(profileData.investor_count) : null,
+          elevator_pitch: profileData.elevator_pitch || null,
+          logo_url: profileData.logo_url || null,
+          banner_url: profileData.banner_url || null,
+        }),
       });
-
-      if (updateError) throw new Error(updateError.message);
+      const updateResult = await updateRes.json();
+      if (!updateRes.ok) throw new Error(updateResult.error || 'Failed to update startup');
 
       await Promise.all([
         fetch(`/api/startups/${id}/founders`, {
@@ -199,7 +253,16 @@ export default function EditStartupPage() {
             throw new Error(d.error || 'Failed to save founders');
           }
         }),
-        upsertFundingRounds(id, fundingRounds.filter(r => r.round_type || r.amount || r.investor)),
+        fetch(`/api/startups/${id}/funding`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rounds: fundingRounds.filter(r => r.round_type || r.amount || r.investor) }),
+        }).then(async r => {
+          if (!r.ok) {
+            const d = await r.json();
+            throw new Error(d.error || 'Failed to save funding rounds');
+          }
+        }),
       ]);
 
       setSuccess(true);

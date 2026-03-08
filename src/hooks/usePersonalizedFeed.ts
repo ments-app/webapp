@@ -68,17 +68,27 @@ export function usePersonalizedFeed() {
 
       if (!mountedRef.current) return;
 
-      setState((prev) => ({
-        ...prev,
-        posts: isLoadMore ? [...prev.posts, ...newPosts] : newPosts,
-        isLoading: false,
-        isLoadingMore: false,
-        hasMore: data.has_more ?? false,
-        source: data.source || '',
-        experimentId: data.experiment_id || null,
-        variant: data.variant || null,
-        error: null,
-      }));
+      setState((prev) => {
+        const merged = isLoadMore ? [...prev.posts, ...newPosts] : newPosts;
+        // Deduplicate by post id to prevent React key warnings
+        const seen = new Set<string>();
+        const uniquePosts = merged.filter((p) => {
+          if (seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        });
+        return {
+          ...prev,
+          posts: uniquePosts,
+          isLoading: false,
+          isLoadingMore: false,
+          hasMore: data.has_more ?? false,
+          source: data.source || '',
+          experimentId: data.experiment_id || null,
+          variant: data.variant || null,
+          error: null,
+        };
+      });
 
       cursorRef.current = data.cursor || null;
       if (data.offset !== undefined) {

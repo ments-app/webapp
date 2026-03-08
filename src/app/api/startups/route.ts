@@ -1,6 +1,6 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
-import { fetchStartups, createStartup } from '@/api/startups';
+import { fetchStartups } from '@/api/startups';
 import { cacheGet, cacheSet, cacheClearByPrefix } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
@@ -55,10 +55,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { data, error } = await createStartup({
-      ...body,
-      owner_id: user.id,
-    });
+
+    // Insert directly with the auth client so RLS sees the authenticated user
+    const { data, error } = await authClient
+      .from('startup_profiles')
+      .insert([{ ...body, owner_id: user.id }])
+      .select()
+      .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

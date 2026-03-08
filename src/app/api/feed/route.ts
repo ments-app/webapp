@@ -197,6 +197,8 @@ async function serveChronological(
     .order('created_at', { ascending: false })
     .range(offset, offset + FEED_PAGE_SIZE - 1);
 
+  console.log(`[Feed] Chronological query: offset=${offset}, returned=${chronoPosts?.length ?? 0}, error=${chronoError?.message ?? 'none'}, excluded=${excludePostIds.length}`);
+
   if (chronoError || !chronoPosts) {
     console.error('Chronological query failed:', chronoError);
     return NextResponse.json({
