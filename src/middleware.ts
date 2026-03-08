@@ -63,7 +63,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Track cookies that Supabase SSR sets (token refresh etc.)
+  // so we can always rebuild supabaseResponse without losing them.
+  let pendingCookies: Array<{ name: string; value: string; options?: Record<string, unknown> }> = [];
+
   let supabaseResponse = NextResponse.next({ request: req });
+
+  const rebuildResponse = () => {
+    supabaseResponse = NextResponse.next({ request: req });
+    for (const { name, value, options } of pendingCookies) {
+      supabaseResponse.cookies.set(name, value, options);
+    }
+  };
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,13 +88,11 @@ export async function middleware(req: NextRequest) {
           return req.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          pendingCookies = cookiesToSet;
           cookiesToSet.forEach(({ name, value }) =>
             req.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({ request: req });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+          rebuildResponse();
         },
       },
     }
@@ -114,19 +123,18 @@ export async function middleware(req: NextRequest) {
     }
 
     if (user) {
-      supabaseResponse.headers.set('x-user-id', user.id);
+      // Set x-user-id as a REQUEST header so API routes can read it
+      // via request.headers.get('x-user-id') — avoids auth.getUser() network call
+      req.headers.set('x-user-id', user.id);
+      rebuildResponse();
 
       // ── Account Status Guard ──────────────────────────────
-      // For page navigations (not API/static/auth/reactivate),
-      // verify the user's account is active.
-      const isGuardedPage = !pathname.startsWith('/api/') &&
-        !pathname.startsWith('/_next/') &&
-        !pathname.startsWith('/auth/') &&
-        pathname !== '/reactivate' &&
-        pathname !== '/sw.js' &&
-        pathname !== '/manifest.json';
+      // Only check account status on key entry-point pages (not every navigation)
+      // to avoid a DB round-trip on every single request.
+      const STATUS_CHECK_PATHS = ['/hub', '/messages', '/settings', '/startups', '/search'];
+      const needsStatusCheck = STATUS_CHECK_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
 
-      if (isGuardedPage) {
+      if (needsStatusCheck) {
         try {
           const { data: profile } = await supabase
             .from('users')
@@ -135,7 +143,6 @@ export async function middleware(req: NextRequest) {
             .single();
 
           if (profile && profile.account_status === 'deactivated') {
-            // Redirect to reactivation page — don't sign out
             const redirectUrl = req.nextUrl.clone();
             redirectUrl.pathname = '/reactivate';
             redirectUrl.search = '';
@@ -143,7 +150,6 @@ export async function middleware(req: NextRequest) {
           }
 
           if (profile && (profile.account_status === 'deleted' || profile.account_status === 'suspended')) {
-            // Sign out and let the page load normally (no redirect loop)
             await supabase.auth.signOut();
           }
         } catch {

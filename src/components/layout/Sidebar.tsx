@@ -6,9 +6,9 @@ import { User, Settings, LogOut, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUserProfile';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { supabase } from '@/utils/supabase';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -45,52 +45,11 @@ const MessageIcon: React.FC<{ className?: string }> = ({ className }) => (
 export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadMessages?: number }) {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
-  const [profileHref, setProfileHref] = useState<string>('/profile');
+  const { avatar_url, full_name, username, profileHref } = useCurrentUserProfile();
+  const userProfile = { avatar_url, full_name, username };
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState<{avatar_url?: string | null, full_name?: string, username?: string} | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!user) {
-        if (!cancelled) {
-          setProfileHref('/profile');
-          setUserProfile(null);
-        }
-        return;
-      }
-      try {
-        let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
-        const { data } = await supabase
-          .from('users')
-          .select('username, avatar_url, full_name')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!username) {
-          username = data?.username?.toLowerCase();
-        }
-
-        if (!cancelled) {
-          setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
-          setUserProfile({
-            avatar_url: data?.avatar_url,
-            full_name: data?.full_name || user.user_metadata?.full_name,
-            username: data?.username || username
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setProfileHref('/profile');
-          setUserProfile(null);
-        }
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [user]);
 
   const mainNavItems = [
     {
@@ -295,33 +254,8 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
 
 export function MobileSidebar() {
   const pathname = usePathname();
-  const [profileHref, setProfileHref] = useState<string>('/profile');
   const { user } = useAuth();
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!user) {
-        if (!cancelled) setProfileHref('/profile');
-        return;
-      }
-      try {
-        let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
-        if (!username) {
-          const { data } = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', user.id)
-            .maybeSingle();
-          username = data?.username?.toLowerCase();
-        }
-        if (!cancelled) setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
-      } catch {
-        if (!cancelled) setProfileHref('/profile');
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [user]);
+  const { profileHref } = useCurrentUserProfile();
 
   const mobileNavItems = [
     {

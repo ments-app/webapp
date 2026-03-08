@@ -12,41 +12,37 @@ export async function extractFeatures(
   userId: string,
   userProfile: UserInterestProfile | null
 ): Promise<PostFeatureVector[]> {
-  // Batch fetch post features
+  // Batch fetch post features, embeddings, and interaction graph in parallel
+  // These tables may not exist yet — queries fail gracefully
   const postIds = candidates.map((c) => c.id);
-  const { data: postFeatures } = await supabase
-    .from('post_features')
-    .select('*')
-    .in('post_id', postIds);
+  const authorIds = [...new Set(candidates.map((c) => c.author_id))];
+
+  const [postFeaturesRes, embeddingsRes, interactionsRes] = await Promise.allSettled([
+    supabase.from('post_features').select('*').in('post_id', postIds),
+    supabase.from('content_embeddings').select('post_id, topics, keywords').in('post_id', postIds),
+    supabase.from('user_interaction_graph').select('target_user_id, affinity_score').eq('user_id', userId).in('target_user_id', authorIds),
+  ]);
 
   const featuresMap = new Map<string, Record<string, unknown>>();
-  (postFeatures || []).forEach((pf: Record<string, unknown>) => {
-    featuresMap.set(pf.post_id as string, pf);
-  });
-
-  // Batch fetch content embeddings for topic matching
-  const { data: embeddings } = await supabase
-    .from('content_embeddings')
-    .select('post_id, topics, keywords')
-    .in('post_id', postIds);
+  if (postFeaturesRes.status === 'fulfilled' && postFeaturesRes.value.data) {
+    postFeaturesRes.value.data.forEach((pf: Record<string, unknown>) => {
+      featuresMap.set(pf.post_id as string, pf);
+    });
+  }
 
   const embeddingsMap = new Map<string, { topics: string[]; keywords: string[] }>();
-  (embeddings || []).forEach((e: { post_id: string; topics: string[]; keywords: string[] }) => {
-    embeddingsMap.set(e.post_id, { topics: e.topics, keywords: e.keywords });
-  });
-
-  // Get user's interaction graph
-  const authorIds = [...new Set(candidates.map((c) => c.author_id))];
-  const { data: interactions } = await supabase
-    .from('user_interaction_graph')
-    .select('target_user_id, affinity_score')
-    .eq('user_id', userId)
-    .in('target_user_id', authorIds);
+  if (embeddingsRes.status === 'fulfilled' && embeddingsRes.value.data) {
+    embeddingsRes.value.data.forEach((e: { post_id: string; topics: string[]; keywords: string[] }) => {
+      embeddingsMap.set(e.post_id, { topics: e.topics, keywords: e.keywords });
+    });
+  }
 
   const affinityMap = new Map<string, number>();
-  (interactions || []).forEach((i: { target_user_id: string; affinity_score: number }) => {
-    affinityMap.set(i.target_user_id, i.affinity_score);
-  });
+  if (interactionsRes.status === 'fulfilled' && interactionsRes.value.data) {
+    interactionsRes.value.data.forEach((i: { target_user_id: string; affinity_score: number }) => {
+      affinityMap.set(i.target_user_id, i.affinity_score);
+    });
+  }
 
   // Normalize values
   const maxLikes = Math.max(1, ...candidates.map((c) => c.likes_count));

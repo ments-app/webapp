@@ -3,78 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { useAuth } from '@/context/AuthContext';
 import { Rocket } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/utils/supabase';
 import { UserAvatar } from '@/components/ui/UserAvatar';
-
-type UserMetadata = {
-  avatar_url?: string;
-  picture?: string;
-  full_name?: string;
-  username?: string;
-};
+import { useCurrentUserProfile } from '@/hooks/useCurrentUserProfile';
 
 export function MobileNavBar() {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-  const [profileHref, setProfileHref] = useState<string>('/profile');
-  const [profileName, setProfileName] = useState<string>('');
-
-  // Resolve and fetch profile the same way as profile/[username]/page.tsx
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!user) {
-        setProfileAvatar(null);
-        setProfileHref('/profile');
-        return;
-      }
-      try {
-        // 1) Resolve username from metadata, otherwise from public.users
-        let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
-        if (!username) {
-          const { data } = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', user.id)
-            .maybeSingle();
-          username = data?.username?.toLowerCase();
-        }
-        // set profile href regardless of avatar availability
-        setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
-        if (!username) {
-          const meta = user.user_metadata as UserMetadata;
-          setProfileAvatar(meta?.avatar_url || meta?.picture || null);
-          setProfileName(meta?.full_name || user.email || 'U');
-          return;
-        }
-        // 2) Fetch profile JSON with viewerId
-        const qs = new URLSearchParams();
-        if (user.id) qs.set('viewerId', user.id);
-        const res = await fetch(`/api/users/${encodeURIComponent(username)}/profile?${qs.toString()}`);
-        if (!res.ok) throw new Error('Failed to load profile');
-        const json = await res.json();
-        const fetched = (json?.data?.user?.avatar_url as string | null) ?? null;
-        const fetchedName = (json?.data?.user?.full_name as string | null) ?? '';
-        if (!cancelled) {
-          setProfileAvatar(fetched);
-          setProfileName(fetchedName || user.user_metadata?.full_name || user.email || 'U');
-        }
-      } catch {
-        // fallback to auth metadata avatar if fetch fails
-        if (!cancelled) {
-          const meta = user?.user_metadata as UserMetadata | undefined;
-          setProfileAvatar(meta?.avatar_url || meta?.picture || null);
-          setProfileName(meta?.full_name || user?.email || 'U');
-        }
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [user]);
+  const { avatar_url: profileAvatar, full_name: profileName, profileHref } = useCurrentUserProfile();
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 md:hidden z-50">
@@ -133,7 +68,7 @@ export function MobileNavBar() {
           <UserAvatar
             src={profileAvatar}
             alt="Profile"
-            fallbackText={profileName || user?.user_metadata?.full_name || user?.email || 'U'}
+            fallbackText={profileName || 'U'}
             size={24}
             className={`ring-2 ${pathname.startsWith('/profile') ? 'ring-primary' : 'ring-transparent'}`}
           />

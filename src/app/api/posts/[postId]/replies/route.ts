@@ -15,7 +15,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ postId:
       `)
       .eq('parent_post_id', postId)
       .eq('author.account_status', 'active')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

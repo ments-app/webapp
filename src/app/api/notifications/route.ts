@@ -4,20 +4,20 @@ import { createAuthClient } from '@/utils/supabase-server';
 // GET /api/notifications?userId=...&page=...&limit=...&unreadOnly=...&type=...
 export async function GET(request: NextRequest) {
   try {
-    // Verify session — user may only read their own notifications
-    const authClient = await createAuthClient();
-    const { data: { user } } = await authClient.auth.getUser();
-    if (!user) {
+    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
+    const headerUserId = request.headers.get('x-user-id');
+    if (!headerUserId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    // Accept userId param for compatibility but always enforce it equals the session user
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== user.id) {
+    if (requestedUserId && requestedUserId !== headerUserId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const userId = user.id;
+    const userId = headerUserId;
+
+    const authClient = await createAuthClient();
 
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
@@ -213,20 +213,18 @@ export async function PATCH(request: NextRequest) {
 // HEAD — unread count (used for badge in the nav)
 export async function HEAD(request: NextRequest) {
   try {
-    const authClient = await createAuthClient();
-    const { data: { user } } = await authClient.auth.getUser();
-    if (!user) {
+    const headerUserId = request.headers.get('x-user-id');
+    if (!headerUserId) {
       return new NextResponse(null, { status: 401 });
     }
 
-    // Accept userId param for compatibility but always enforce it equals session user
     const { searchParams } = new URL(request.url);
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== user.id) {
+    if (requestedUserId && requestedUserId !== headerUserId) {
       return new NextResponse(null, { status: 403 });
     }
 
-    const supabase = authClient;
+    const supabase = await createAuthClient();
 
     const [legacyCount, inappCount] = await Promise.all([
       (async () => {
@@ -234,7 +232,7 @@ export async function HEAD(request: NextRequest) {
           const r = await supabase
             .from('notifications')
             .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
+            .eq('user_id', headerUserId)
             .eq('read', false);
           return r.count || 0;
         } catch { return 0; }
@@ -244,7 +242,7 @@ export async function HEAD(request: NextRequest) {
           const r = await supabase
             .from('inapp_notification')
             .select('id', { count: 'exact', head: true })
-            .eq('recipient_id', user.id)
+            .eq('recipient_id', headerUserId)
             .eq('is_read', false);
           return r.count || 0;
         } catch { return 0; }

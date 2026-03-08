@@ -69,21 +69,20 @@ export async function PATCH(req: NextRequest) {
 // GET /api/messages/read - Get unread count for user
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createAuthClient();
-
-    // Verify session — derive user_id from session
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
+    const headerUserId = req.headers.get('x-user-id');
+    if (!headerUserId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    // Accept userId param for compatibility but enforce it matches session
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== user.id) {
+    if (requestedUserId && requestedUserId !== headerUserId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const user_id = user.id;
+    const user_id = headerUserId;
+
+    const supabase = await createAuthClient();
     const conversation_id = searchParams.get('conversationId');
 
     if (conversation_id) {

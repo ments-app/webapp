@@ -5,13 +5,15 @@ import type { AssignCategoryRequest } from '@/types/messaging';
 // GET /api/conversation-categories?conversationId=...
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const supabase = await createAuthClient();
 
-  // Verify user from session
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
+  // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
+  const userId = req.headers.get('x-user-id');
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const supabase = await createAuthClient();
+  const user = { id: userId };
 
   const conversationId = searchParams.get('conversationId');
 
@@ -61,12 +63,12 @@ export async function POST(req: NextRequest) {
     const body: AssignCategoryRequest = await req.json();
     const { conversation_id, category_id } = body;
 
-    // Get user from headers (set by middleware)
-    const user_id = req.headers.get('x-user-id');
-
-    if (!user_id) {
+    // Writes always verify session server-side
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const user_id = user.id;
 
     if (!conversation_id || !category_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -162,10 +164,10 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createAuthClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const user_id = req.headers.get('x-user-id');
-    if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { error } = await supabase
       .from('conversation_categories')

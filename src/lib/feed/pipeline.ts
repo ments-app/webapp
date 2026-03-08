@@ -134,21 +134,64 @@ async function runFullPipeline(
     return [];
   }
 
-  // Stage 2: Get user interest profile
-  const userProfile = await getUserInterestProfile(supabase, userId);
+  // Stage 2: Get user interest profile (non-blocking — null is fine)
+  let userProfile: Awaited<ReturnType<typeof getUserInterestProfile>> = null;
+  try {
+    userProfile = await getUserInterestProfile(supabase, userId);
+  } catch (err) {
+    console.warn('[Feed] Interest profile failed (non-critical):', err);
+  }
 
-  // Stage 3: Feature extraction
-  const features = await extractFeatures(supabase, candidates, userId, userProfile);
+  // Stage 3: Feature extraction (resilient — works without ML tables)
+  let features: Awaited<ReturnType<typeof extractFeatures>>;
+  try {
+    features = await extractFeatures(supabase, candidates, userId, userProfile);
+  } catch (err) {
+    console.warn('[Feed] Feature extraction failed, using basic features:', err);
+    // Build basic features from candidate data alone
+    features = candidates.map((c) => {
+      const ageHours = (Date.now() - new Date(c.created_at).getTime()) / (1000 * 60 * 60);
+      const maxLikes = Math.max(1, ...candidates.map(x => x.likes_count));
+      const maxReplies = Math.max(1, ...candidates.map(x => x.replies_count));
+      return {
+        post_id: c.id,
+        author_id: c.author_id,
+        engagement_score: 0,
+        virality_velocity: 0,
+        likes_normalized: c.likes_count / maxLikes,
+        replies_normalized: c.replies_count / maxReplies,
+        is_following: c.is_following,
+        is_fof: c.is_fof,
+        interaction_affinity: 0,
+        creator_affinity: 0,
+        topic_overlap_score: 0,
+        content_type_preference: 0.5,
+        keyword_match: 0,
+        freshness: Math.exp(-ageHours / 24),
+        age_hours: ageHours,
+        is_verified: c.author_is_verified,
+        follower_count_normalized: 0,
+        has_media: c.has_media,
+        has_poll: c.has_poll,
+        content_quality: 0.5,
+      };
+    });
+  }
 
   // Stage 4: Tier 1 - Deterministic scoring
   const weightOverrides = experiment?.config;
   const tier1Scored = scorePostsDeterministic(features, weightOverrides);
 
-  // Stage 5: Tier 2 - Groq LLM re-ranking (top 50)
-  const postSummaries = new Map(
-    candidates.map((c) => [c.id, c.content || ''])
-  );
-  const tier2Scored = await groqRerank(tier1Scored, userProfile, postSummaries);
+  // Stage 5: Tier 2 - Groq LLM re-ranking (top 50, non-blocking)
+  let tier2Scored = tier1Scored;
+  try {
+    const postSummaries = new Map(
+      candidates.map((c) => [c.id, c.content || ''])
+    );
+    tier2Scored = await groqRerank(tier1Scored, userProfile, postSummaries);
+  } catch (err) {
+    console.warn('[Feed] Groq re-ranking failed (non-critical):', err);
+  }
 
   // Stage 6: Diversity rules
   const finalScored = applyDiversityRules(tier2Scored, experiment?.config);

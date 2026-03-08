@@ -64,43 +64,33 @@ async function fallbackCandidateQuery(
   userId: string,
   limit: number
 ): Promise<RawCandidate[]> {
-  // Get who the user follows
-  const { data: follows } = await supabase
-    .from('user_follows')
-    .select('followee_id')
-    .eq('follower_id', userId);
-
-  const followingIds = (follows || []).map((f: { followee_id: string }) => f.followee_id);
-
-  // Get recently seen post IDs (only last 6 hours — avoids permanently empty pool)
+  // Fetch follows, seen posts, and candidate posts in parallel
   const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-  const { data: seen } = await supabase
-    .from('feed_seen_posts')
-    .select('post_id')
-    .eq('user_id', userId)
-    .gte('seen_at', sixHoursAgo);
 
-  const seenIds = new Set((seen || []).map((s: { post_id: string }) => s.post_id));
+  const [followsRes, seenRes, postsRes] = await Promise.all([
+    supabase.from('user_follows').select('followee_id').eq('follower_id', userId),
+    supabase.from('feed_seen_posts').select('post_id').eq('user_id', userId).gte('seen_at', sixHoursAgo),
+    supabase
+      .from('posts')
+      .select(`
+        id, author_id, environment_id, content, post_type, created_at,
+        author:author_id!inner(id, username, full_name, avatar_url, is_verified, account_status)
+      `)
+      .eq('deleted', false)
+      .is('parent_post_id', null)
+      .neq('author_id', userId)
+      .eq('author.account_status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(limit * 2),
+  ]);
 
-  // Get recent posts — no time cutoff so we always return results
-  const { data: posts, error: postsError } = await supabase
-    .from('posts')
-    .select(`
-      id, author_id, environment_id, content, post_type, created_at,
-      author:author_id!inner(id, username, full_name, avatar_url, is_verified, account_status)
-    `)
-    .eq('deleted', false)
-    .is('parent_post_id', null)
-    .neq('author_id', userId)
-    .eq('author.account_status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(limit * 2);
+  const followingIds = (followsRes.data || []).map((f: { followee_id: string }) => f.followee_id);
+  const seenIds = new Set((seenRes.data || []).map((s: { post_id: string }) => s.post_id));
+  const posts = postsRes.data;
 
-  if (postsError) {
-    console.warn('[Feed] Fallback posts query failed:', postsError.message);
+  if (postsRes.error) {
+    console.warn('[Feed] Fallback posts query failed:', postsRes.error.message);
   }
-
-  console.log(`[Feed] Fallback: query returned ${posts?.length ?? 0} posts, ${seenIds.size} recently seen, ${followingIds.length} following`);
 
   if (!posts) return [];
 

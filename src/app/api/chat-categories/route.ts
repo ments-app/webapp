@@ -7,16 +7,15 @@ import type {
 } from '@/types/messaging';
 
 // GET /api/chat-categories - Get categories with unread counts
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await createAuthClient();
-
-    // Verify user from session — don't trust client-sent userId
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
+    const userId = req.headers.get('x-user-id');
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const userId = user.id;
+
+    const supabase = await createAuthClient();
 
     // Get categories
     const { data: categories, error } = await supabase
@@ -89,10 +88,12 @@ export async function POST(req: NextRequest) {
     const body: CreateCategoryRequest = await req.json();
     const { name, color } = body;
 
-    const user_id = req.headers.get('x-user-id');
-    if (!user_id) {
+    // Writes always verify session server-side
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const user_id = user.id;
 
     if (!name) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 });
@@ -142,10 +143,11 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const supabase = await createAuthClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const user_id = user.id;
     const body = await req.json();
     const { id, name, color } = body;
-    const user_id = req.headers.get('x-user-id');
-    if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { data, error } = await supabase
       .from('chat_categories')
@@ -166,10 +168,11 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createAuthClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const user_id = user.id;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const user_id = req.headers.get('x-user-id');
-    if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { error } = await supabase
       .from('chat_categories')

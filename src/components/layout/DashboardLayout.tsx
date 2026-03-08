@@ -26,7 +26,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
   const { user } = useAuth();
   const shouldShowSidebar = typeof showSidebar === 'boolean' ? showSidebar : !(pathname?.startsWith('/post'));
 
-  // Unread counts for header badges
+  // Lightweight unread counts for header badges — 2 min interval (not 30s)
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
@@ -52,7 +52,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
 
   useEffect(() => {
     fetchUnreadCounts();
-    const interval = setInterval(fetchUnreadCounts, 30_000);
+    const interval = setInterval(fetchUnreadCounts, 120_000); // 2 min instead of 30s
     return () => clearInterval(interval);
   }, [fetchUnreadCounts]);
 

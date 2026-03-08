@@ -524,7 +524,7 @@ export default function CompetitionDetailsPage() {
                 </button>
               </div>
               <p className="px-5 text-sm text-muted-foreground mb-3">
-                Select one of your projects to submit, or join without one.
+                Select one of your projects to submit.
               </p>
 
               {/* Project list */}
@@ -574,12 +574,6 @@ export default function CompetitionDetailsPage() {
                     Create a New Project
                   </a>
                 )}
-                <button
-                  onClick={() => handleConfirmJoin()}
-                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white px-4 py-2.5 text-sm font-semibold transition"
-                >
-                  Join without a Project
-                </button>
                 <button
                   onClick={() => setShowProjectPicker(false)}
                   className="rounded-xl border border-border/60 px-4 py-2.5 text-sm font-medium hover:bg-accent/40 transition"

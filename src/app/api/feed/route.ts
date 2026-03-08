@@ -8,12 +8,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createAuthClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Use x-user-id header for fast auth check, createAuthClient for RLS queries
+    const userId = request.headers.get('x-user-id');
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createAuthClient();
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor') || undefined;
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     // If offset > 0 with no cursor, we're continuing chronological pagination
     // (ranked posts have been exhausted, now serving chronological)
     if (offset > 0 && !cursor) {
-      return await serveChronological(supabase, user.id, offset);
+      return await serveChronological(supabase, userId, offset);
     }
 
     // Try personalized feed pipeline
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
     let pipelineDebug: string | undefined;
     try {
-      const feedResponse = await generatePersonalizedFeed(supabase, user.id, cursor);
+      const feedResponse = await generatePersonalizedFeed(supabase, userId, cursor);
       postIds = feedResponse.posts.map((p) => p.post_id);
       feedSource = feedResponse.source;
       hasMore = feedResponse.has_more;
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
     // Fallback: chronological feed if pipeline returns no posts
     if (postIds.length === 0) {
-      return await serveChronological(supabase, user.id, offset);
+      return await serveChronological(supabase, userId, offset);
     }
 
     // Hydrate ranked posts with full data
@@ -85,36 +85,29 @@ export async function GET(request: Request) {
       return !author || !author.account_status || author.account_status === 'active';
     });
 
-    // Get like and reply counts using SQL COUNT (head: true = no row data transferred)
-    // This is vastly more efficient than fetching all rows and counting client-side
+    // Get like and reply counts in batch (2 queries total instead of N+1)
     const activePostIds = activePosts.map((p: Record<string, unknown>) => p.id as string);
-    const [likesCountResults, repliesCountResults] = await Promise.all([
-      Promise.all(
-        activePostIds.map(async (id) => {
-          const { count } = await supabase
-            .from('post_likes')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', id);
-          return { id, count: count || 0 };
-        })
-      ),
-      Promise.all(
-        activePostIds.map(async (id) => {
-          const { count } = await supabase
-            .from('posts')
-            .select('*', { count: 'exact', head: true })
-            .eq('parent_post_id', id)
-            .eq('deleted', false);
-          return { id, count: count || 0 };
-        })
-      ),
+    const [likesRows, repliesRows] = await Promise.all([
+      supabase
+        .from('post_likes')
+        .select('post_id')
+        .in('post_id', activePostIds),
+      supabase
+        .from('posts')
+        .select('parent_post_id')
+        .in('parent_post_id', activePostIds)
+        .eq('deleted', false),
     ]);
 
     const likesMap = new Map<string, number>();
-    likesCountResults.forEach(({ id, count }) => likesMap.set(id, count));
+    (likesRows.data || []).forEach((r: { post_id: string }) => {
+      likesMap.set(r.post_id, (likesMap.get(r.post_id) || 0) + 1);
+    });
 
     const repliesMap = new Map<string, number>();
-    repliesCountResults.forEach(({ id, count }) => repliesMap.set(id, count));
+    (repliesRows.data || []).forEach((r: { parent_post_id: string }) => {
+      repliesMap.set(r.parent_post_id, (repliesMap.get(r.parent_post_id) || 0) + 1);
+    });
 
     // Build post map for ordering
     const postMap = new Map(
@@ -209,34 +202,28 @@ async function serveChronological(
     });
   }
 
-  // Get like and reply counts using SQL COUNT (head: true = no row data)
+  // Get like and reply counts in batch (2 queries instead of N+1)
   const chronoIds = chronoPosts.map((p: { id: string }) => p.id);
-  const [likesCountResults, repliesCountResults] = await Promise.all([
-    Promise.all(
-      chronoIds.map(async (id: string) => {
-        const { count } = await supabase
-          .from('post_likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('post_id', id);
-        return { id, count: count || 0 };
-      })
-    ),
-    Promise.all(
-      chronoIds.map(async (id: string) => {
-        const { count } = await supabase
-          .from('posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('parent_post_id', id)
-          .eq('deleted', false);
-        return { id, count: count || 0 };
-      })
-    ),
+  const [likesRows, repliesRows] = await Promise.all([
+    supabase
+      .from('post_likes')
+      .select('post_id')
+      .in('post_id', chronoIds),
+    supabase
+      .from('posts')
+      .select('parent_post_id')
+      .in('parent_post_id', chronoIds)
+      .eq('deleted', false),
   ]);
 
   const likesMap = new Map<string, number>();
-  likesCountResults.forEach(({ id, count }: { id: string; count: number }) => likesMap.set(id, count));
+  (likesRows.data || []).forEach((r: { post_id: string }) => {
+    likesMap.set(r.post_id, (likesMap.get(r.post_id) || 0) + 1);
+  });
   const repliesMap = new Map<string, number>();
-  repliesCountResults.forEach(({ id, count }: { id: string; count: number }) => repliesMap.set(id, count));
+  (repliesRows.data || []).forEach((r: { parent_post_id: string }) => {
+    repliesMap.set(r.parent_post_id, (repliesMap.get(r.parent_post_id) || 0) + 1);
+  });
 
   // Filter out posts from deactivated/deleted/suspended users
   const activeChronoPosts = chronoPosts.filter((p: Record<string, unknown>) => {
