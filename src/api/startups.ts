@@ -50,6 +50,8 @@ export type StartupProfile = {
   incubators?: StartupIncubator[];
   awards?: StartupAward[];
   is_bookmarked?: boolean;
+  is_upvoted?: boolean;
+  upvote_count?: number;
   view_count?: number;
 };
 
@@ -182,25 +184,22 @@ export async function fetchStartupById(id: string, userId?: string): Promise<Sta
 
     const startup = data as StartupProfile;
 
-    // Check if bookmarked by current user
-    if (userId) {
-      const { data: bookmark } = await supabase
-        .from('startup_bookmarks')
-        .select('id')
-        .eq('startup_id', id)
-        .eq('user_id', userId)
-        .maybeSingle();
+    // Fetch bookmark status, upvote status, upvote count, and view count in parallel
+    const [bookmarkRes, upvoteRes, upvoteCountRes, viewCountRes] = await Promise.all([
+      userId
+        ? supabase.from('startup_bookmarks').select('id').eq('startup_id', id).eq('user_id', userId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      userId
+        ? supabase.from('startup_upvotes').select('id').eq('startup_id', id).eq('user_id', userId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase.from('startup_upvotes').select('*', { count: 'exact', head: true }).eq('startup_id', id),
+      supabase.from('startup_profile_views').select('*', { count: 'exact', head: true }).eq('startup_id', id),
+    ]);
 
-      startup.is_bookmarked = !!bookmark;
-    }
-
-    // Get view count
-    const { count } = await supabase
-      .from('startup_profile_views')
-      .select('*', { count: 'exact', head: true })
-      .eq('startup_id', id);
-
-    startup.view_count = count || 0;
+    startup.is_bookmarked = !!bookmarkRes.data;
+    startup.is_upvoted = !!upvoteRes.data;
+    startup.upvote_count = upvoteCountRes.count || 0;
+    startup.view_count = viewCountRes.count || 0;
 
     return { data: startup, error: null };
   } catch (err) {
@@ -397,7 +396,25 @@ export async function upsertAwards(
   return { error };
 }
 
-// --- Bookmarks ---
+// --- Upvotes (public votes) ---
+
+export async function upvoteStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from('startup_upvotes')
+    .insert([{ user_id: userId, startup_id: startupId }]);
+  return { error };
+}
+
+export async function removeUpvoteStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from('startup_upvotes')
+    .delete()
+    .eq('user_id', userId)
+    .eq('startup_id', startupId);
+  return { error };
+}
+
+// --- Bookmarks (private saves) ---
 
 export async function bookmarkStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
   const { error } = await supabase

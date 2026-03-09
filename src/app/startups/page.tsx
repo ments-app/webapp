@@ -7,7 +7,7 @@ import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Rocket, Plus, ChevronUp, Bookmark, MapPin, Zap, Loader2, X } from 'lucide-react';
+import { Rocket, Plus, ChevronUp, Bookmark, BookmarkCheck, MapPin, Zap, Loader2, X } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -81,7 +81,9 @@ function StartupsPageContent() {
   const [startups, setStartups] = useState<StartupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
+  const [bookmarkingIds, setBookmarkingIds] = useState<Set<string>>(new Set());
   const [filterStage, setFilterStage] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<'hot' | 'new'>('hot');
   const [showBookmarks, setShowBookmarks] = useState(false);
@@ -102,23 +104,31 @@ function StartupsPageContent() {
       const ids = list.map(s => s.id);
       const userId = user?.id;
 
-      const [allVotesRes, userVotesRes] = await Promise.all([
+      // Fetch upvotes (public votes) and bookmarks (private saves) separately
+      const [allUpvotesRes, userUpvotesRes, userBookmarksRes] = await Promise.all([
         ids.length > 0
-          ? supabase.from('startup_bookmarks').select('startup_id').in('startup_id', ids)
+          ? supabase.from('startup_upvotes').select('startup_id').in('startup_id', ids)
+          : Promise.resolve({ data: [] as { startup_id: string }[] }),
+        userId
+          ? supabase.from('startup_upvotes').select('startup_id').eq('user_id', userId)
           : Promise.resolve({ data: [] as { startup_id: string }[] }),
         userId
           ? supabase.from('startup_bookmarks').select('startup_id').eq('user_id', userId)
           : Promise.resolve({ data: [] as { startup_id: string }[] }),
       ]);
 
+      // Count upvotes per startup
       const counts: Record<string, number> = {};
-      for (const row of (allVotesRes.data ?? [])) {
+      for (const row of (allUpvotesRes.data ?? [])) {
         const sid = row.startup_id;
         if (sid) counts[sid] = (counts[sid] ?? 0) + 1;
       }
 
       const upvoted = new Set<string>(
-        (userVotesRes.data ?? []).map((r: { startup_id: string }) => r.startup_id).filter(Boolean)
+        (userUpvotesRes.data ?? []).map((r: { startup_id: string }) => r.startup_id).filter(Boolean)
+      );
+      const bookmarked = new Set<string>(
+        (userBookmarksRes.data ?? []).map((r: { startup_id: string }) => r.startup_id).filter(Boolean)
       );
 
       const merged = list.map(s => ({ ...s, _votes: counts[s.id] ?? 0 }));
@@ -126,6 +136,7 @@ function StartupsPageContent() {
 
       setStartups(merged);
       setUpvotedIds(upvoted);
+      setBookmarkedIds(bookmarked);
     } catch (e) {
       console.error('[Startups] load error:', e);
     } finally {
@@ -135,6 +146,7 @@ function StartupsPageContent() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Toggle upvote (public vote)
   const toggleVote = useCallback(async (startupId: string) => {
     if (!user?.id) return;
     const wasUpvoted = upvotedIds.has(startupId);
@@ -145,9 +157,9 @@ function StartupsPageContent() {
 
     try {
       if (wasUpvoted) {
-        await supabase.from('startup_bookmarks').delete().eq('user_id', user.id).eq('startup_id', startupId);
+        await supabase.from('startup_upvotes').delete().eq('user_id', user.id).eq('startup_id', startupId);
       } else {
-        await supabase.from('startup_bookmarks').insert({ user_id: user.id, startup_id: startupId });
+        await supabase.from('startup_upvotes').insert({ user_id: user.id, startup_id: startupId });
       }
     } catch {
       // Revert optimistic update on error
@@ -157,6 +169,27 @@ function StartupsPageContent() {
       setVotingIds(prev => { const n = new Set(prev); n.delete(startupId); return n; });
     }
   }, [user?.id, upvotedIds]);
+
+  // Toggle bookmark (private save)
+  const toggleBookmark = useCallback(async (startupId: string) => {
+    if (!user?.id) return;
+    const wasBookmarked = bookmarkedIds.has(startupId);
+
+    setBookmarkedIds(prev => { const n = new Set(prev); if (wasBookmarked) { n.delete(startupId); } else { n.add(startupId); } return n; });
+    setBookmarkingIds(prev => new Set(prev).add(startupId));
+
+    try {
+      if (wasBookmarked) {
+        await supabase.from('startup_bookmarks').delete().eq('user_id', user.id).eq('startup_id', startupId);
+      } else {
+        await supabase.from('startup_bookmarks').insert({ user_id: user.id, startup_id: startupId });
+      }
+    } catch {
+      setBookmarkedIds(prev => { const n = new Set(prev); if (wasBookmarked) { n.add(startupId); } else { n.delete(startupId); } return n; });
+    } finally {
+      setBookmarkingIds(prev => { const n = new Set(prev); n.delete(startupId); return n; });
+    }
+  }, [user?.id, bookmarkedIds]);
 
   // Middleware redirects unauthenticated users to login
 
@@ -216,7 +249,7 @@ function StartupsPageContent() {
           <>
             {/* Podium */}
             {showPodium && (
-              <Podium top3={top3} upvotedIds={upvotedIds} votingIds={votingIds} onVote={toggleVote} />
+              <Podium top3={top3} upvotedIds={upvotedIds} bookmarkedIds={bookmarkedIds} votingIds={votingIds} bookmarkingIds={bookmarkingIds} onVote={toggleVote} onBookmark={toggleBookmark} />
             )}
 
             {/* Rankings header */}
@@ -238,8 +271,11 @@ function StartupsPageContent() {
                   startup={s}
                   rank={showPodium ? i + 4 : i + 1}
                   upvoted={upvotedIds.has(s.id)}
+                  bookmarked={bookmarkedIds.has(s.id)}
                   loading={votingIds.has(s.id)}
+                  bookmarking={bookmarkingIds.has(s.id)}
                   onVote={toggleVote}
+                  onBookmark={toggleBookmark}
                 />
               ))}
             </div>
@@ -325,11 +361,14 @@ function StageChip({ label, active, onClick }: { label: string; active: boolean;
 
 // ── Podium ────────────────────────────────────────────────────────────────────
 
-function Podium({ top3, upvotedIds, votingIds, onVote }: {
+function Podium({ top3, upvotedIds, bookmarkedIds, votingIds, bookmarkingIds, onVote, onBookmark }: {
   top3: StartupItem[];
   upvotedIds: Set<string>;
+  bookmarkedIds: Set<string>;
   votingIds: Set<string>;
+  bookmarkingIds: Set<string>;
   onVote: (id: string) => void;
+  onBookmark: (id: string) => void;
 }) {
   return (
     <div className="mb-1">
@@ -348,8 +387,11 @@ function Podium({ top3, upvotedIds, votingIds, onVote }: {
             startup={s}
             rank={i + 1}
             upvoted={upvotedIds.has(s.id)}
+            bookmarked={bookmarkedIds.has(s.id)}
             loading={votingIds.has(s.id)}
+            bookmarking={bookmarkingIds.has(s.id)}
             onVote={onVote}
+            onBookmark={onBookmark}
           />
         ))}
       </div>
@@ -358,12 +400,15 @@ function Podium({ top3, upvotedIds, votingIds, onVote }: {
   );
 }
 
-function PodiumCard({ startup, rank, upvoted, loading, onVote }: {
+function PodiumCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, onVote, onBookmark }: {
   startup: StartupItem;
   rank: number;
   upvoted: boolean;
+  bookmarked: boolean;
   loading: boolean;
+  bookmarking: boolean;
   onVote: (id: string) => void;
+  onBookmark: (id: string) => void;
 }) {
   const hex = stageHex(startup.stage);
   const bannerSrc = resolveImageUrl(startup.banner_url);
@@ -397,6 +442,19 @@ function PodiumCard({ startup, rank, upvoted, loading, onVote }: {
             <span className="text-[10px]">{medal}</span>
             <span className="text-[10px] font-extrabold" style={{ color: medalColor }}>#{rank}</span>
           </div>
+          {/* Bookmark button */}
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onBookmark(startup.id); }}
+            className="absolute top-2 right-2 h-6 w-6 rounded-md bg-black/50 flex items-center justify-center transition-colors hover:bg-black/70"
+          >
+            {bookmarking ? (
+              <Loader2 className="h-3 w-3 text-white animate-spin" />
+            ) : bookmarked ? (
+              <BookmarkCheck className="h-3 w-3 text-amber-400" />
+            ) : (
+              <Bookmark className="h-3 w-3 text-white/70" />
+            )}
+          </button>
           {/* Name */}
           <p className="absolute bottom-2 left-2.5 right-2.5 text-[13px] font-bold text-white leading-tight truncate drop-shadow">
             {startup.brand_name}
@@ -454,12 +512,15 @@ function PodiumCard({ startup, rank, upvoted, loading, onVote }: {
 
 // ── Ranked Card ───────────────────────────────────────────────────────────────
 
-function RankedCard({ startup, rank, upvoted, loading, onVote }: {
+function RankedCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, onVote, onBookmark }: {
   startup: StartupItem;
   rank: number;
   upvoted: boolean;
+  bookmarked: boolean;
   loading: boolean;
+  bookmarking: boolean;
   onVote: (id: string) => void;
+  onBookmark: (id: string) => void;
 }) {
   const hex = stageHex(startup.stage);
   const logoSrc = resolveImageUrl(startup.logo_url);
@@ -512,33 +573,53 @@ function RankedCard({ startup, rank, upvoted, loading, onVote }: {
           )}
         </div>
 
-        {/* Upvote pill */}
-        <button
-          onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
-          className={`shrink-0 py-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all ${
-            upvoted
-              ? 'bg-emerald-500/10 border-emerald-500/45'
-              : 'bg-muted/40 border-border hover:border-muted-foreground/30'
-          }`}
-          style={{ width: 44 }}
-        >
-          {loading ? (
-            <Loader2
-              className="h-3.5 w-3.5 animate-spin"
-              style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
-            />
-          ) : (
-            <>
-              <ChevronUp className="h-4 w-4" style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }} />
-              <span
-                className="text-[11px] font-bold leading-none"
+        {/* Actions: Bookmark + Upvote */}
+        <div className="shrink-0 flex flex-col items-center gap-1.5">
+          {/* Upvote pill */}
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
+            className={`py-2 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all ${
+              upvoted
+                ? 'bg-emerald-500/10 border-emerald-500/45'
+                : 'bg-muted/40 border-border hover:border-muted-foreground/30'
+            }`}
+            style={{ width: 44 }}
+          >
+            {loading ? (
+              <Loader2
+                className="h-3.5 w-3.5 animate-spin"
                 style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
-              >
-                {startup._votes}
-              </span>
-            </>
-          )}
-        </button>
+              />
+            ) : (
+              <>
+                <ChevronUp className="h-4 w-4" style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }} />
+                <span
+                  className="text-[11px] font-bold leading-none"
+                  style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
+                >
+                  {startup._votes}
+                </span>
+              </>
+            )}
+          </button>
+          {/* Bookmark button */}
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onBookmark(startup.id); }}
+            className={`h-7 w-7 rounded-lg flex items-center justify-center border transition-all ${
+              bookmarked
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-500'
+                : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {bookmarking ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : bookmarked ? (
+              <BookmarkCheck className="h-3.5 w-3.5" />
+            ) : (
+              <Bookmark className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
       </div>
     </Link>
   );
@@ -642,11 +723,11 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
 
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-3 border-b border-border shrink-0">
-          <Bookmark className="h-4 w-4 text-emerald-400" />
-          <span className="text-base font-bold text-foreground">Upvoted Startups</span>
+          <Bookmark className="h-4 w-4 text-amber-400" />
+          <span className="text-base font-bold text-foreground">Saved Startups</span>
           {!loading && (
-            <div className="ml-auto px-2.5 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
-              <span className="text-xs font-semibold text-emerald-400">{bookmarked.length}</span>
+            <div className="ml-auto px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
+              <span className="text-xs font-semibold text-amber-400">{bookmarked.length}</span>
             </div>
           )}
         </div>
@@ -655,13 +736,13 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <div className="h-6 w-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : bookmarked.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3">
               <Bookmark className="h-11 w-11 text-muted-foreground/40" />
-              <p className="text-base text-foreground">No upvoted startups yet</p>
-              <p className="text-sm text-muted-foreground">Upvote startups you find interesting</p>
+              <p className="text-base text-foreground">No saved startups yet</p>
+              <p className="text-sm text-muted-foreground">Bookmark startups to save them here</p>
             </div>
           ) : (
             <div className="p-4 space-y-2 pb-10">
