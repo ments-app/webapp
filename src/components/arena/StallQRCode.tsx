@@ -13,9 +13,8 @@ type StallQRCodeProps = {
 export function StallQRCode({ eventId, stallId, stallName }: StallQRCodeProps) {
   const [showModal, setShowModal] = useState(false);
 
-  const investUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/invest/${eventId}/${stallId}`
-    : `/invest/${eventId}/${stallId}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  const investUrl = `${baseUrl}/invest/${eventId}/${stallId}`;
 
   const handleDownload = () => {
     const svg = document.getElementById('stall-qr-svg');

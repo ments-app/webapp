@@ -7,6 +7,7 @@ import {
   IndianRupee, Loader2, Wallet, Store, TrendingUp, CheckCircle, ExternalLink, ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { LoginPromptModal } from '@/components/auth/LoginPromptModal';
 
 type StallInfo = {
   id: string;
@@ -33,6 +34,7 @@ export default function InvestViaQRPage() {
   const eventId = params?.eventId as string;
   const stallId = params?.stallId as string;
 
+  const [showLogin, setShowLogin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stall, setStall] = useState<StallInfo | null>(null);
   const [event, setEvent] = useState<EventInfo | null>(null);
@@ -284,13 +286,20 @@ export default function InvestViaQRPage() {
               Log in to your Ments account to receive virtual funds and invest in this stall.
             </p>
             <Button
-              onClick={() => router.push(`/auth/login?redirect=${encodeURIComponent(`/invest/${eventId}/${stallId}`)}`)}
+              onClick={() => setShowLogin(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               Sign In
             </Button>
           </div>
         )}
+
+        <LoginPromptModal
+          open={showLogin}
+          onClose={() => setShowLogin(false)}
+          title="Sign in to Invest"
+          description="Sign in with Google to receive virtual funds and invest in this stall."
+        />
 
         {/* Not investment round */}
         {user && !isInvestmentRound && (
