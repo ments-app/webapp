@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { StallQRCode } from '@/components/arena/StallQRCode';
 
 type UserStartup = {
   id: string;
@@ -132,6 +133,7 @@ export default function EventDetailsPage() {
 
   // Arena state
   const [isStallOwner, setIsStallOwner] = useState(false);
+  const [myStallId, setMyStallId] = useState<string | null>(null);
   const [isAudience, setIsAudience] = useState(false);
   const [virtualBalance, setVirtualBalance] = useState(0);
   const [stalls, setStalls] = useState<Stall[]>([]);
@@ -247,12 +249,23 @@ export default function EventDetailsPage() {
     if (!event?.arena_enabled || !id || !user) return;
     (async () => {
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(id)}/audience`);
-        const json = await res.json();
+        const [audienceRes, stallRes] = await Promise.all([
+          fetch(`/api/events/${encodeURIComponent(id)}/audience`),
+          supabase
+            .from('event_stalls')
+            .select('id')
+            .eq('event_id', id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+        ]);
+        const json = await audienceRes.json();
         setIsStallOwner(json.isStallOwner ?? false);
         if (json.audience) {
           setIsAudience(true);
           setVirtualBalance(json.audience.virtual_balance ?? 0);
+        }
+        if (stallRes.data) {
+          setMyStallId(stallRes.data.id);
         }
       } catch { }
     })();
@@ -327,6 +340,7 @@ export default function EventDetailsPage() {
       const json = await res.json();
       if (res.ok && json.success) {
         setIsStallOwner(true);
+        setMyStallId(json.stall?.id ?? null);
         setStalls(prev => [...prev, json.stall]);
         setStallForm({ stall_name: '', tagline: '', description: '', startup_id: '', category: '' });
       } else {
@@ -789,13 +803,19 @@ export default function EventDetailsPage() {
                 )}
 
                 {event.arena_round === 'registration' && isStallOwner && (
-                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-emerald-500" />
                       <p className="font-semibold text-emerald-700 dark:text-emerald-300">
                         Your stall is registered! Wait for Round 2 (Investment) to begin.
                       </p>
                     </div>
+                    {myStallId && (
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground mb-2">Your QR code is ready. Audience can scan it to invest once Round 2 starts.</p>
+                        <StallQRCode eventId={event.id} stallId={myStallId} stallName={stalls.find(s => s.id === myStallId)?.stall_name || 'My Stall'} />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -820,10 +840,13 @@ export default function EventDetailsPage() {
                 )}
 
                 {event.arena_round === 'investment' && isStallOwner && (
-                  <div className="rounded-2xl border border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 p-5">
+                  <div className="rounded-2xl border border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 p-5 space-y-3">
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      <strong>Investment round is live!</strong> Pitch to the audience at your stall to attract more investors. Watch the leaderboard below!
+                      <strong>Investment round is live!</strong> Show your QR code to the audience so they can scan and invest in your stall!
                     </p>
+                    {myStallId && (
+                      <StallQRCode eventId={event.id} stallId={myStallId} stallName={stalls.find(s => s.id === myStallId)?.stall_name || 'My Stall'} />
+                    )}
                   </div>
                 )}
 

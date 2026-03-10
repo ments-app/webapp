@@ -60,3 +60,12 @@
 - Notifications fetched via POST `/api/notifications` (not GET) — allows sending user context in body rather than query params
 - Real-time notification context via `context/NotificationsContext`
 - Push notifications sent server-side on mention/reply events
+
+## Investment Arena: QR Code Investment Flow
+
+- QR codes generated client-side using `qrcode.react` (SVG) — no server-side generation needed
+- Each QR encodes a public URL `/invest/[eventId]/[stallId]` that acts as a standalone invest page
+- Decision: standalone page rather than deep-link into event page — simpler for audience scanning at physical events, works without prior app context
+- QR download exports as PNG (512x512) for printing/display at physical stalls
+- Virtual currency is event-scoped (not global wallet) — prevents cross-event balance leakage
+- The invest page handles the full flow: auth check, audience registration, and investment — so a single scan is all that's needed
