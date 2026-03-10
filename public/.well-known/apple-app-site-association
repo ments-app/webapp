@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.in.finsy.ments",
+        "paths": ["/invest/*"]
+      }
+    ]
+  }
+}
