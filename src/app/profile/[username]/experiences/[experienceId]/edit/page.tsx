@@ -6,12 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Check } from 'lucide-react';
 import CompanyAutocomplete from '@/components/profile/CompanyAutocomplete';
+import { MonthYearSelect } from '@/components/profile/MonthYearSelect';
 
 type PositionRow = {
   id: string;
   experience_id: string;
   position: string;
   start_date: string | null;
+  // null = currently working; '' = not set; 'YYYY-MM-DD' = specific date
   end_date: string | null;
   description: string | null;
 };
@@ -26,7 +28,6 @@ export default function EditOneExperiencePage() {
   const params = useParams() as { username?: string; experienceId?: string };
   const username = (params?.username || '').toString();
   const experienceId = (params?.experienceId || '').toString();
-  // router not needed here
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,8 @@ export default function EditOneExperiencePage() {
     try {
       setLoading(true);
       setError(null);
-      const expPromise = fetch(`/api/users/${encodeURIComponent(username)}/work-experience?id=${encodeURIComponent(experienceId)}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load experiences')));
+      const expPromise = fetch(`/api/users/${encodeURIComponent(username)}/work-experience?id=${encodeURIComponent(experienceId)}`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load experiences')));
       const posPromise = fetch(`/api/users/${encodeURIComponent(username)}/positions?experienceId=${encodeURIComponent(experienceId)}`)
         .then(r => r.ok ? r.json() : Promise.resolve({ data: [] }))
         .catch(() => ({ data: [] }));
@@ -66,10 +68,6 @@ export default function EditOneExperiencePage() {
       if ((!allPos || allPos.length === 0) && Array.isArray(exp.positions)) {
         allPos = exp.positions as PositionRow[];
       }
-      if (process.env.NODE_ENV !== 'production') {
-        // simple debug log to help diagnose empty positions
-        console.log('[EditExperience] positions fetched:', (posRes?.data || []).length, 'fallback used:', (!posRes?.data || posRes.data.length === 0) && Array.isArray(exp.positions));
-      }
       setPositions(allPos);
       const orig: Record<string, PositionRow> = {};
       for (const p of allPos) orig[p.id] = { ...p };
@@ -81,9 +79,17 @@ export default function EditOneExperiencePage() {
     }
   }, [username, experienceId]);
 
-  useEffect(() => { if (username && experienceId) void load(); }, [load, username, experienceId]);
+  useEffect(() => {
+    if (username && experienceId) void load();
+  }, [load, username, experienceId]);
 
-  const dirtyCompany = useMemo(() => companyName.trim() !== origCompanyName || (domain || '').trim() !== (origDomain || ''), [companyName, domain, origCompanyName, origDomain]);
+  const dirtyCompany = useMemo(() =>
+    companyName.trim() !== origCompanyName || (domain || '').trim() !== (origDomain || ''),
+    [companyName, domain, origCompanyName, origDomain]
+  );
+
+  const updatePos = (id: string, patch: Partial<PositionRow>) =>
+    setPositions(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x));
 
   const saveAll = async () => {
     if (savingAll) return;
@@ -92,15 +98,15 @@ export default function EditOneExperiencePage() {
       const tasks: Promise<void>[] = [];
 
       if (dirtyCompany) {
-        tasks.push(fetch(`/api/users/${encodeURIComponent(username)}/work-experience`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: experienceId, company_name: companyName.trim(), domain: (domain || '').trim() || null })
-        }).then(r => { if (!r.ok) throw new Error('Failed to update company'); }));
+        tasks.push(
+          fetch(`/api/users/${encodeURIComponent(username)}/work-experience`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: experienceId, company_name: companyName.trim(), domain: (domain || '').trim() || null }),
+          }).then(r => { if (!r.ok) throw new Error('Failed to update company'); })
+        );
       }
 
-      // positions patches (only changed fields)
-      // normalize helper so '' and undefined are treated as null for comparisons
       const norm = (v: string | null | undefined) => {
         const s = (v ?? '').toString().trim();
         return s.length ? s : null;
@@ -115,20 +121,18 @@ export default function EditOneExperiencePage() {
         if (norm(p.start_date) !== norm(base.start_date)) { patch.startDate = norm(p.start_date); changed = true; }
         if (norm(p.end_date) !== norm(base.end_date)) { patch.endDate = norm(p.end_date); changed = true; }
         if (changed) {
-          tasks.push(fetch(`/api/users/${encodeURIComponent(username)}/positions`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(patch)
-          }).then(r => { if (!r.ok) throw new Error('Failed to update a position'); }));
+          tasks.push(
+            fetch(`/api/users/${encodeURIComponent(username)}/positions`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(patch),
+            }).then(r => { if (!r.ok) throw new Error('Failed to update a position'); })
+          );
         }
       }
 
-      if (tasks.length === 0) {
-        showToast('success', 'Nothing to save');
-        return;
-      }
+      if (tasks.length === 0) { showToast('success', 'Nothing to save'); return; }
       await Promise.all(tasks);
-      // reset originals
       setOrigCompanyName(companyName.trim());
       setOrigDomain((domain || '').trim());
       const nextOrig: Record<string, PositionRow> = {};
@@ -149,23 +153,26 @@ export default function EditOneExperiencePage() {
           <div className="bg-card/60 border border-border rounded-2xl shadow-sm p-6 sm:p-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <Link href={`/profile/${encodeURIComponent(username)}/experiences/edit`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+                <Link
+                  href={`/profile/${encodeURIComponent(username)}/experiences/edit`}
+                  className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                >
                   <ArrowLeft className="h-5 w-5 mr-1" /> Back
                 </Link>
                 <h1 className="text-2xl font-semibold">Edit Experience</h1>
               </div>
             </div>
 
-            {loading && (
-              <div className="text-sm text-muted-foreground">Loading…</div>
-            )}
+            {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
             {error && <div className="text-sm text-red-400">{error}</div>}
 
             {!loading && !error && (
               <>
+                {/* Company */}
                 <div className="space-y-3 mb-8">
+                  <div className="text-emerald-400 font-semibold">Company</div>
                   <div>
-                    <label className="block text-sm text-muted-foreground mb-1">Company Name</label>
+                    <label className="block text-sm text-muted-foreground mb-1.5">Company name</label>
                     <CompanyAutocomplete
                       value={companyName}
                       domain={domain}
@@ -177,92 +184,93 @@ export default function EditOneExperiencePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-muted-foreground mb-1">Domain</label>
+                    <label className="block text-sm text-muted-foreground mb-1.5">Website</label>
                     <div className="flex items-center gap-2">
                       {domain && (
                         <img
                           src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
                           alt=""
-                          className="h-5 w-5 rounded"
+                          className="h-5 w-5 rounded flex-shrink-0"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       )}
                       <input
                         value={domain}
                         onChange={(e) => setDomain(e.target.value)}
-                        className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
+                        className="w-full rounded-lg bg-black/30 border border-border text-foreground px-3 py-2 outline-none text-sm"
                         placeholder="example.com"
                       />
                     </div>
                   </div>
-                  <div className="h-2" />
                 </div>
 
+                {/* Positions */}
                 <div>
-                  <h2 className="text-lg font-semibold mb-3">Positions</h2>
+                  <h2 className="text-lg font-semibold mb-4">Positions</h2>
                   {positions.length === 0 && (
-                    <div className="text-xs text-muted-foreground mb-2">No positions found or failed to load positions.</div>
+                    <div className="text-sm text-muted-foreground">No positions found.</div>
                   )}
-                  <ul className="space-y-6">
-                    {positions.map((p) => (
-                      <li key={p.id} className="p-1">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="md:col-span-2 text-emerald-400 font-semibold">Position Details</div>
+                  <ul className="space-y-8">
+                    {positions.map((p) => {
+                      const isCurrent = p.end_date === null;
+                      return (
+                        <li key={p.id} className="rounded-xl border border-border/50 p-4 space-y-4">
+                          <div className="text-emerald-400 font-medium text-sm">Position</div>
+
                           <div>
-                            <label className="block text-xs text-muted-foreground mb-1">Position</label>
+                            <label className="block text-sm text-muted-foreground mb-1.5">Job title</label>
                             <input
                               value={p.position}
-                              onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, position: e.target.value } : x))}
-                              className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
+                              onChange={(e) => updatePos(p.id, { position: e.target.value })}
+                              className="w-full rounded-lg bg-black/30 border border-border text-foreground text-sm px-3 py-2 outline-none"
+                              placeholder="e.g. Software Engineer"
                             />
                           </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs text-muted-foreground mb-1">Start Date</label>
-                              <input
-                                type="date"
-                                value={p.start_date || ''}
-                                onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, start_date: e.target.value } : x))}
-                                className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-muted-foreground mb-1">End Date</label>
-                              <input
-                                type="date"
-                                value={p.end_date || ''}
-                                onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, end_date: e.target.value } : x))}
-                                className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none disabled:opacity-50"
-                                disabled={!p.end_date}
-                              />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="inline-flex items-center gap-2 text-sm">
+
+                          <div className="space-y-3">
+                            <MonthYearSelect
+                              label="Start date"
+                              value={p.start_date || ''}
+                              onChange={(v) => updatePos(p.id, { start_date: v || null })}
+                            />
+
+                            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                               <input
                                 type="checkbox"
-                                checked={!p.end_date}
-                                onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, end_date: e.target.checked ? null : (x.end_date || '') } : x))}
+                                className="h-4 w-4 accent-emerald-500"
+                                checked={isCurrent}
+                                onChange={(e) => {
+                                  // null = currently working, '' = not set (show end date picker)
+                                  updatePos(p.id, { end_date: e.target.checked ? null : '' });
+                                }}
                               />
                               I currently work here
                             </label>
+
+                            {!isCurrent && (
+                              <MonthYearSelect
+                                label="End date"
+                                value={p.end_date || ''}
+                                onChange={(v) => updatePos(p.id, { end_date: v || '' })}
+                              />
+                            )}
                           </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-xs text-muted-foreground mb-1">Description</label>
+
+                          <div>
+                            <label className="block text-sm text-muted-foreground mb-1.5">
+                              Description <span className="text-muted-foreground/50">(optional)</span>
+                            </label>
                             <textarea
                               rows={4}
                               value={p.description || ''}
-                              onChange={(e) => setPositions(prev => prev.map(x => x.id === p.id ? { ...x, description: e.target.value } : x))}
-                              className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
+                              onChange={(e) => updatePos(p.id, { description: e.target.value })}
+                              className="w-full rounded-lg bg-black/30 border border-border text-foreground text-sm px-3 py-2 outline-none"
+                              placeholder="What did you work on?"
                             />
                           </div>
-                          <div className="md:col-span-2" />
-                        </div>
-                      </li>
-                    ))}
-                    {positions.length === 0 && (
-                      <li className="text-sm text-muted-foreground">No positions found.</li>
-                    )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </>
@@ -272,14 +280,24 @@ export default function EditOneExperiencePage() {
               <button
                 onClick={saveAll}
                 disabled={savingAll}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${savingAll ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white'}`}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                  savingAll
+                    ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white'
+                }`}
               >
                 <Check className="h-4 w-4" /> Save Changes
               </button>
             </div>
 
             {toast && (
-              <div className={`fixed right-4 bottom-4 z-50 px-4 py-3 rounded-lg border shadow-lg ${toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400/50 text-black' : 'bg-red-600/90 border-red-400/50 text-white'}`}>
+              <div
+                className={`fixed right-4 bottom-4 z-50 px-4 py-3 rounded-lg border shadow-lg ${
+                  toast.type === 'success'
+                    ? 'bg-emerald-600/90 border-emerald-400/50 text-black'
+                    : 'bg-red-600/90 border-red-400/50 text-white'
+                }`}
+              >
                 {toast.message}
               </div>
             )}

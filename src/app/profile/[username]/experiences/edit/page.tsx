@@ -160,74 +160,81 @@ export default function EditExperiencesPage() {
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   className="rounded-2xl border border-border/80 bg-card/70 p-5 sm:p-6 shadow-sm hover:shadow-md hover:ring-1 hover:ring-emerald-400/20 relative cursor-grab active:cursor-grabbing"
                 >
-                  {/* Company Header */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-lg font-semibold flex items-center gap-2">
-                        <span>{exp.company_name}</span>
-                      </div>
-                      {exp.domain && (
-                        <a
-                          href={/^https?:\/\//i.test(exp.domain || '') ? (exp.domain as string) : `https://${exp.domain}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-400 text-sm hover:underline"
-                        >
-                          {exp.domain}
-                        </a>
+                  <div className="flex items-start gap-3">
+                    {/* Inline icon — no negative offset */}
+                    <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 flex items-center justify-center">
+                      {exp.domain ? (
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${exp.domain}&sz=32`}
+                          alt=""
+                          className="h-5 w-5 rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <Building2 className="h-5 w-5 text-emerald-400" />
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/50 border border-border text-sm text-muted-foreground select-none">
-                        <GripVertical className="h-4 w-4" />
-                        Drag to reorder
-                      </div>
-                      <Link
-                        href={`/profile/${encodeURIComponent(username)}/experiences/${encodeURIComponent(exp.id)}/edit`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-sm"
-                        title="Edit this experience"
-                      >
-                        <Pencil className="h-4 w-4" /> Edit
-                      </Link>
-                      <button
-                        type="button"
-                        className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground disabled:opacity-40"
-                        title="Delete experience"
-                        onClick={() => deleteExperience(exp.id)}
-                        disabled={deletingId === exp.id}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* Positions */}
-                  <div className="mt-3">
-                    <div className="text-sm text-muted-foreground mb-1">Positions</div>
-                    <ul className="space-y-2">
-                      {(exp.positions || []).map((p) => (
-                        <li key={p.id} className="flex items-start gap-2">
-                          <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                          <div className="text-sm">
-                            <div className="font-medium">{p.position}</div>
-                            {p.description && (
-                              <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                {p.description}
-                              </div>
-                            )}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <div className="text-lg font-semibold truncate">{exp.company_name}</div>
+                          {exp.domain && (
+                            <a
+                              href={/^https?:\/\//i.test(exp.domain) ? exp.domain : `https://${exp.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-400 text-sm hover:underline"
+                            >
+                              {exp.domain}
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/50 border border-border text-xs text-muted-foreground select-none">
+                            <GripVertical className="h-3.5 w-3.5" />
+                            Drag to reorder
                           </div>
-                        </li>
-                      ))}
-                      {(!exp.positions || exp.positions.length === 0) && (
-                        <li className="text-sm text-muted-foreground">No positions added</li>
-                      )}
-                    </ul>
-                  </div>
+                          <Link
+                            href={`/profile/${encodeURIComponent(username)}/experiences/${encodeURIComponent(exp.id)}/edit`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-sm"
+                          >
+                            <Pencil className="h-4 w-4" /> Edit
+                          </Link>
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground disabled:opacity-40"
+                            onClick={() => deleteExperience(exp.id)}
+                            disabled={deletingId === exp.id}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
 
-                  {/* Icon on left for visual consistency */}
-                  <div className="absolute -left-3 top-6 hidden sm:block">
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 flex items-center justify-center">
-                      <Building2 className="h-5 w-5 text-emerald-400" />
+                      {/* Positions */}
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Positions</div>
+                        <ul className="space-y-1.5">
+                          {(exp.positions || []).map((p) => (
+                            <li key={p.id} className="flex items-start gap-2">
+                              <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                              <div className="text-sm min-w-0">
+                                <div className="font-medium">{p.position}</div>
+                                {p.description && (
+                                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                    {p.description}
+                                  </div>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                          {(!exp.positions || exp.positions.length === 0) && (
+                            <li className="text-sm text-muted-foreground">No positions added</li>
+                          )}
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </Reorder.Item>

@@ -143,55 +143,57 @@ export default function EditEducationListPage() {
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   className="rounded-2xl border border-border/80 bg-card/70 p-5 sm:p-6 shadow-sm hover:shadow-md hover:ring-1 hover:ring-emerald-400/20 relative cursor-grab active:cursor-grabbing"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
+                    {/* Inline icon */}
+                    <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 flex items-center justify-center">
                       {ed.institution_domain ? (
                         <img
-                          src={`https://www.google.com/s2/favicons?domain=${ed.institution_domain}&sz=64`}
+                          src={`https://www.google.com/s2/favicons?domain=${ed.institution_domain}&sz=32`}
                           alt=""
-                          className="h-6 w-6 rounded"
+                          className="h-5 w-5 rounded"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
-                      ) : null}
-                      <div>
-                        <div className="text-lg font-semibold">{ed.institution_name}</div>
-                        {(ed.degree || ed.field_of_study) && (
-                          <div className="text-sm text-muted-foreground">
-                            {[ed.degree, ed.field_of_study].filter(Boolean).join(' - ')}
-                          </div>
-                        )}
-                        {(ed.start_date || ed.end_date) && (
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {formatDate(ed.start_date) || '?'} — {ed.end_date ? formatDate(ed.end_date) : 'Present'}
-                          </div>
-                        )}
-                      </div>
+                      ) : (
+                        <GraduationCap className="h-5 w-5 text-emerald-400" />
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/50 border border-border text-sm text-muted-foreground select-none">
-                        <GripVertical className="h-4 w-4" />
-                        Drag
-                      </div>
-                      <Link
-                        href={`/profile/${encodeURIComponent(username)}/education/${encodeURIComponent(ed.id)}/edit`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-sm"
-                      >
-                        <Pencil className="h-4 w-4" /> Edit
-                      </Link>
-                      <button
-                        type="button"
-                        className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground disabled:opacity-40"
-                        onClick={() => deleteEducation(ed.id)}
-                        disabled={deletingId === ed.id}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
 
-                  <div className="absolute -left-3 top-6 hidden sm:block">
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 flex items-center justify-center">
-                      <GraduationCap className="h-5 w-5 text-emerald-400" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-lg font-semibold truncate">{ed.institution_name}</div>
+                          {(ed.degree || ed.field_of_study) && (
+                            <div className="text-sm text-muted-foreground">
+                              {[ed.degree, ed.field_of_study].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
+                          {(ed.start_date || ed.end_date) && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {formatDate(ed.start_date) || '?'} — {ed.end_date ? formatDate(ed.end_date) : 'Present'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/50 border border-border text-xs text-muted-foreground select-none">
+                            <GripVertical className="h-3.5 w-3.5" />
+                            Drag
+                          </div>
+                          <Link
+                            href={`/profile/${encodeURIComponent(username)}/education/${encodeURIComponent(ed.id)}/edit`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-sm"
+                          >
+                            <Pencil className="h-4 w-4" /> Edit
+                          </Link>
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground disabled:opacity-40"
+                            onClick={() => deleteEducation(ed.id)}
+                            disabled={deletingId === ed.id}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </Reorder.Item>

@@ -57,7 +57,6 @@ export async function GET(
       .from('users')
       .select('id')
       .eq('username', username)
-      .eq('account_status', 'active')
       .maybeSingle();
 
     if (userError) {
@@ -184,7 +183,9 @@ export async function PATCH(
       .eq('work_experiences.user_id', userRow.id)
       .maybeSingle();
     if (posErr) return NextResponse.json({ error: 'Failed to read position' }, { status: 500 });
-    const ownerId = (posRow as { work_experiences?: { user_id: string }[] } | null)?.work_experiences?.[0]?.user_id || null;
+    // work_experiences is a single object for many-to-one join (not an array)
+    const we = (posRow as { work_experiences?: { user_id: string } | { user_id: string }[] } | null)?.work_experiences;
+    const ownerId = Array.isArray(we) ? (we[0]?.user_id ?? null) : (we?.user_id ?? null);
     if (!posRow || ownerId !== userRow.id) return NextResponse.json({ error: 'Position not found' }, { status: 404 });
 
     const patch: Partial<{ position: string; description: string | null; start_date: string | null; end_date: string | null }> = {};

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import UniversityAutocomplete from '@/components/profile/UniversityAutocomplete';
+import { MonthYearSelect } from '@/components/profile/MonthYearSelect';
 
 export default function CreateEducationPage() {
   const params = useParams() as { username?: string };
@@ -21,6 +22,7 @@ export default function CreateEducationPage() {
   const [isCurrent, setIsCurrent] = useState(false);
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -36,10 +38,13 @@ export default function CreateEducationPage() {
     return e;
   }, [institutionName, startDate, endDate, isCurrent]);
 
+  const fe = (key: string) => submitted ? errors[key] : undefined;
   const canSubmit = useMemo(() => Object.keys(errors).length === 0 && !submitting, [errors, submitting]);
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    setSubmitted(true);
+    if (Object.keys(errors).length > 0) return;
+    if (submitting) return;
     try {
       setSubmitting(true);
       const payload = {
@@ -95,7 +100,7 @@ export default function CreateEducationPage() {
                 placeholder="Institution Name"
                 className="mb-1"
               />
-              {errors.institutionName && <p className="text-xs text-red-400 mb-2">{errors.institutionName}</p>}
+              {fe('institutionName') && <p className="text-xs text-red-400 mb-2">{fe('institutionName')}</p>}
               <div className="flex items-center gap-2 mt-2">
                 {institutionDomain && (
                   <img
@@ -119,17 +124,17 @@ export default function CreateEducationPage() {
 
             {/* Degree & Field */}
             <div>
-              <div className="text-emerald-400 font-semibold mb-2">Degree Details</div>
+              <div className="text-emerald-400 font-semibold mb-2">Degree / Grade</div>
               <input
                 type="text"
-                placeholder="Degree (e.g. Bachelor of Science)"
+                placeholder="e.g. 10th Standard, 12th / HSC, B.Tech, MBA…"
                 className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
                 value={degree}
                 onChange={(e) => setDegree(e.target.value)}
               />
               <input
                 type="text"
-                placeholder="Field of Study (e.g. Computer Science)"
+                placeholder="Stream / Field of Study (e.g. Science, Commerce, Computer Science)"
                 className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
                 value={fieldOfStudy}
                 onChange={(e) => setFieldOfStudy(e.target.value)}
@@ -146,26 +151,30 @@ export default function CreateEducationPage() {
             {/* Period */}
             <div className="mt-6">
               <div className="text-emerald-400 font-semibold mb-2">Period</div>
-              <div className="grid grid-cols-1 gap-3">
-                <input
-                  type="date"
-                  className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.startDate ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'}`}
+              <div className="space-y-3">
+                <MonthYearSelect
+                  label="Start date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(v) => setStartDate(v || '')}
+                  error={fe('startDate')}
                 />
-                {errors.startDate && <p className="text-xs text-red-400 -mt-1">{errors.startDate}</p>}
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={isCurrent} onChange={(e) => { setIsCurrent(e.target.checked); if (e.target.checked) setEndDate(''); }} />
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-emerald-500"
+                    checked={isCurrent}
+                    onChange={(e) => { setIsCurrent(e.target.checked); if (e.target.checked) setEndDate(''); }}
+                  />
                   Currently studying here
                 </label>
-                <input
-                  type="date"
-                  className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.endDate ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'} disabled:opacity-50`}
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  disabled={isCurrent}
-                />
-                {errors.endDate && <p className="text-xs text-red-400 -mt-1">{errors.endDate}</p>}
+                {!isCurrent && (
+                  <MonthYearSelect
+                    label="End date"
+                    value={endDate}
+                    onChange={(v) => setEndDate(v || '')}
+                    error={fe('endDate')}
+                  />
+                )}
               </div>
             </div>
 

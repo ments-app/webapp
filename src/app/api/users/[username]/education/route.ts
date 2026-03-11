@@ -33,7 +33,6 @@ export async function GET(
       .from('users')
       .select('id')
       .eq('username', username)
-      .eq('account_status', 'active')
       .maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 

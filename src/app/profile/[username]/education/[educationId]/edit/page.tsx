@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Check } from 'lucide-react';
 import UniversityAutocomplete from '@/components/profile/UniversityAutocomplete';
+import { MonthYearSelect } from '@/components/profile/MonthYearSelect';
 
 type EducationRow = {
   id: string;
@@ -184,21 +185,21 @@ export default function EditOneEducationPage() {
 
                 <div className="space-y-3 mb-6">
                   <div>
-                    <label className="block text-sm text-muted-foreground mb-1">Degree</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Degree / Grade</label>
                     <input
                       value={degree}
                       onChange={(e) => setDegree(e.target.value)}
                       className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
-                      placeholder="Bachelor of Science"
+                      placeholder="e.g. 10th Standard, 12th / HSC, B.Tech, MBA…"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-muted-foreground mb-1">Field of Study</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Stream / Field of Study</label>
                     <input
                       value={fieldOfStudy}
                       onChange={(e) => setFieldOfStudy(e.target.value)}
                       className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
-                      placeholder="Computer Science"
+                      placeholder="e.g. Science, Commerce, Computer Science"
                     />
                   </div>
                   <div>
@@ -214,35 +215,27 @@ export default function EditOneEducationPage() {
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Start Date</label>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-1">End Date</label>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none disabled:opacity-50"
-                        disabled={isCurrent}
-                      />
-                    </div>
-                  </div>
-                  <label className="inline-flex items-center gap-2 text-sm">
+                  <MonthYearSelect
+                    label="Start date"
+                    value={startDate}
+                    onChange={(v) => setStartDate(v || '')}
+                  />
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                     <input
                       type="checkbox"
+                      className="h-4 w-4 accent-emerald-500"
                       checked={isCurrent}
                       onChange={(e) => { setIsCurrent(e.target.checked); if (e.target.checked) setEndDate(''); }}
                     />
                     Currently studying here
                   </label>
+                  {!isCurrent && (
+                    <MonthYearSelect
+                      label="End date"
+                      value={endDate}
+                      onChange={(v) => setEndDate(v || '')}
+                    />
+                  )}
                 </div>
               </>
             )}

@@ -203,7 +203,7 @@ export async function GET(
         try {
           const r = await supabase
             .from('projects')
-            .select('id, title, tagline, cover_url, logo_url, url, created_at')
+            .select('id, title, tagline, cover_url, logo_url, created_at')
             .eq('owner_id', user.id)
             .order('created_at', { ascending: false })
             .limit(6);
@@ -263,7 +263,7 @@ export async function GET(
     const followers = followersResult as number;
     const following = followingResult as number;
     const experiences = experiencesResult;
-    type ProjectBrief = { id: string; title: string | null; tagline: string | null; cover_url: string | null; logo_url: string | null; url: string | null; created_at: string | null };
+    type ProjectBrief = { id: string; title: string | null; tagline: string | null; cover_url: string | null; logo_url: string | null; created_at: string | null };
     const projectsList = projectsResult as ProjectBrief[];
     const projectsCount = projectsList.length;
     const portfoliosCount = portfoliosResult as number;

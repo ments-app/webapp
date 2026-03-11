@@ -53,7 +53,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
   const [tagline, setTagline] = useState("");
   const [category, setCategory] = useState("");
   const [visibility, setVisibility] = useState<Project["visibility"]>("public");
-  const [projectUrl, setProjectUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
 
   // Related resources
@@ -84,11 +83,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         if (!project) return false;
         const sameTitle = (title || '') === (project.title || '');
         const sameTagline = (tagline || '') === (project.tagline || '');
-        const sameUrl = (projectUrl || '') === (project.url || '');
         const sameCategory = (category || '') === (project.category || '');
         const sameVisibility = visibility === project.visibility;
         const sameCover = (coverUrl || null) === (project.cover_url || null);
-        return !(sameTitle && sameTagline && sameUrl && sameCategory && sameVisibility && sameCover);
+        return !(sameTitle && sameTagline && sameCategory && sameVisibility && sameCover);
       })();
       if (isUploading || hasChanges) {
         e.preventDefault();
@@ -97,7 +95,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [isUploading, project, title, tagline, projectUrl, category, visibility, coverUrl]);
+  }, [isUploading, project, title, tagline, category, visibility, coverUrl]);
 
   // In-app navigation guard: intercept anchor clicks and back/forward
   useEffect(() => {
@@ -105,11 +103,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       if (!project) return isUploading;
       const sameTitle = (title || '') === (project.title || '');
       const sameTagline = (tagline || '') === (project.tagline || '');
-      const sameUrl = (projectUrl || '') === (project.url || '');
       const sameCategory = (category || '') === (project.category || '');
       const sameVisibility = visibility === project.visibility;
       const sameCover = (coverUrl || null) === (project.cover_url || null);
-      const hasChanges = !(sameTitle && sameTagline && sameUrl && sameCategory && sameVisibility && sameCover);
+      const hasChanges = !(sameTitle && sameTagline && sameCategory && sameVisibility && sameCover);
       return isUploading || hasChanges;
     };
 
@@ -150,7 +147,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       document.removeEventListener('click', clickHandler, true);
       window.removeEventListener('popstate', popHandler);
     };
-  }, [project, title, tagline, projectUrl, category, visibility, coverUrl, isUploading, router]);
+  }, [project, title, tagline, category, visibility, coverUrl, isUploading, router]);
 
   // Removed scroll button updater and lightbox handlers for a simpler UI
 
@@ -229,7 +226,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         setProject(p);
         setTitle(p?.title || "");
         setTagline(p?.tagline ?? "");
-        setProjectUrl(p?.url ?? "");
         setCategory(p?.category ?? "");
         setVisibility(p?.visibility || "public");
         setCoverUrl(p?.cover_url ?? null);
@@ -255,12 +251,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
     const orig = project;
     const sameTitle = (title || "") === (orig.title || "");
     const sameTagline = (tagline || "") === (orig.tagline || "");
-    const sameUrl = (projectUrl || "") === (orig.url || "");
     const sameCategory = (category || "") === (orig.category || "");
     const sameVisibility = visibility === orig.visibility;
     const sameCover = (coverUrl || null) === (orig.cover_url || null);
-    return !(sameTitle && sameTagline && sameUrl && sameCategory && sameVisibility && sameCover);
-  }, [project, title, tagline, projectUrl, category, visibility, coverUrl]);
+    return !(sameTitle && sameTagline && sameCategory && sameVisibility && sameCover);
+  }, [project, title, tagline, category, visibility, coverUrl]);
   const isTitleValid = useMemo(() => (title || "").trim().length > 0, [title]);
 
   // Removed auto-save helper; updates occur on explicit Save only.
@@ -272,7 +267,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       ...project,
       title,
       tagline: tagline || null,
-      url: projectUrl || null,
       category: (category && category.trim()) ? category : project.category,
       visibility,
       cover_url: coverUrl || null,
@@ -283,7 +277,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       const patch: Partial<Project> = {
         title,
         tagline,
-        url: projectUrl || null,
         visibility,
         cover_url: coverUrl || null,
       };
@@ -519,16 +512,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
               />
             </div>
             <div>
-              <label className="block text-sm text-muted-foreground mb-1">Project URL (Proof Link)</label>
-              <input
-                value={projectUrl}
-                onChange={(e) => setProjectUrl(e.target.value)}
-                className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
-                placeholder="https://your-project.com"
-                type="url"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">Link to the live project, demo, or proof of work</p>
-              {/* Additional links */}
+              <label className="block text-sm text-muted-foreground mb-1">Links</label>
+              <p className="mb-2 text-xs text-muted-foreground">Add links to your live project, demo, repo, or any proof of work.</p>
+              {/* Links */}
               {links.length > 0 && (
                 <ul className="mt-2 space-y-1.5">
                   {links.map((l) => (
