@@ -17,19 +17,19 @@ type EditPostModalProps = {
   onPostUpdated?: () => void;
 };
 
-export function EditPostModal({ 
-  isOpen, 
-  onClose, 
-  postId, 
-  initialContent, 
+export function EditPostModal({
+  isOpen,
+  onClose,
+  postId,
+  initialContent,
   userId,
-  onPostUpdated 
+  onPostUpdated
 }: EditPostModalProps) {
   const [content, setContent] = useState(initialContent);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   // Mention state
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
@@ -55,25 +55,25 @@ export function EditPostModal({
     // Check for @ symbol before cursor
     const textBeforeCursor = newContent.substring(0, cursorPosition);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      
+
       // Show dropdown if valid mention context
       const charBeforeAt = lastAtIndex > 0 ? newContent[lastAtIndex - 1] : ' ';
       const isValidMentionStart = charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0;
-      
+
       if (isValidMentionStart && !textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
         setMentionSearch(textAfterAt);
         setMentionStartIndex(lastAtIndex);
         setShowMentionDropdown(true);
-        
+
         // Calculate dropdown position
         if (textareaRef.current) {
           const textarea = textareaRef.current;
           const rect = textarea.getBoundingClientRect();
-          
-          setMentionPosition({ 
+
+          setMentionPosition({
             top: rect.bottom + 5,
             left: rect.left
           });
@@ -100,16 +100,16 @@ export function EditPostModal({
 
     // Extract clean username using utility function
     const username = extractCleanUsername(user);
-    
+
     const beforeMention = content.substring(0, mentionStartIndex);
     const afterMention = content.substring(mentionStartIndex + mentionSearch.length + 1);
     const newContent = `${beforeMention}@${username} ${afterMention}`;
-    
+
     setContent(newContent);
     setMentionedUsers(prev => new Map(prev).set(username, user.id)); // Store username -> userId for notifications
     setShowMentionDropdown(false);
     setMentionSearch('');
-    
+
     // Focus back on textarea
     if (textareaRef.current) {
       textareaRef.current.focus();
@@ -120,34 +120,34 @@ export function EditPostModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!content.trim()) {
       setError('Post content cannot be empty');
       return;
     }
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Keep content as-is with simple @username format
       const processedContent = content;
-      
+
       const { error } = await updatePost(postId, userId, processedContent);
-      
+
       if (error) {
         throw new Error(error.message);
       }
-      
+
       // Send notifications to newly mentioned users
       if (mentionedUsers.size > 0) {
         await notifyMentionedUsers(postId, userId, Array.from(mentionedUsers.values()));
       }
-      
+
       if (onPostUpdated) onPostUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update post');
+      setError(err instanceof Error ? err.message : 'Your changes couldn\u2019t be saved. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -158,16 +158,16 @@ export function EditPostModal({
       <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-lg">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-medium">Edit Post</h2>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 rounded-full" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-4">
           <div className="relative">
             <textarea
@@ -187,11 +187,11 @@ export function EditPostModal({
               isVisible={showMentionDropdown}
             />
           </div>
-          
+
           {error && (
             <p className="text-sm text-destructive mt-2">{error}</p>
           )}
-          
+
           <div className="flex justify-end gap-2 mt-4">
             <Button
               type="button"

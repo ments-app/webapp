@@ -2,6 +2,7 @@
 "use client";
 
 import { ReactNode, useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
@@ -9,9 +10,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { MobileNavBar } from './MobileNavBar';
-import DashboardSidebarWidgets from './DashboardSidebarWidgets';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, Bell, Settings } from 'lucide-react';
+
+// Lazy-load sidebar widgets — only rendered on xl+ screens on home page
+const DashboardSidebarWidgets = dynamic(() => import('./DashboardSidebarWidgets'), {
+  ssr: false,
+  loading: () => null,
+});
 import { useAuth } from '@/context/AuthContext';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -26,24 +33,26 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
   const { user } = useAuth();
   const shouldShowSidebar = typeof showSidebar === 'boolean' ? showSidebar : !(pathname?.startsWith('/post'));
 
-  // Unread counts for header badges
+  // Lightweight unread counts for header badges — 2 min interval (not 30s)
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const fetchUnreadCounts = useCallback(async () => {
     if (!user?.id) return;
     try {
+      // Use HEAD for notifications — returns count in header, no body parsing needed.
+      // Much lighter than fetching full notification objects.
       const [msgRes, notifRes] = await Promise.allSettled([
         fetch(`/api/messages/read?userId=${user.id}`),
-        fetch(`/api/notifications?userId=${user.id}&unreadOnly=true&limit=1`),
+        fetch(`/api/notifications?userId=${user.id}`, { method: 'HEAD' }),
       ]);
       if (msgRes.status === 'fulfilled' && msgRes.value.ok) {
         const json = await msgRes.value.json();
         setUnreadMessages(json.total_unread_count ?? 0);
       }
       if (notifRes.status === 'fulfilled' && notifRes.value.ok) {
-        const json = await notifRes.value.json();
-        setUnreadNotifications(json.pagination?.total ?? 0);
+        const count = parseInt(notifRes.value.headers.get('X-Unread-Count') || '0', 10);
+        setUnreadNotifications(count);
       }
     } catch {
       // non-critical
@@ -52,7 +61,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
 
   useEffect(() => {
     fetchUnreadCounts();
-    const interval = setInterval(fetchUnreadCounts, 30_000);
+    const interval = setInterval(fetchUnreadCounts, 300_000); // 5 min
     return () => clearInterval(interval);
   }, [fetchUnreadCounts]);
 
@@ -96,20 +105,26 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
           {/* Right side actions */}
           <div className="flex items-center gap-2">
             {/* 1. Notifications */}
-            <Link href="/notifications" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
-              <Image src="/icons/notification.svg" alt="Notifications" width={20} height={20} className="h-5 w-5" />
+            <Link href="/notifications" className="relative inline-flex items-center justify-center h-11 w-11 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
+              <Bell className="h-5 w-5" />
               {unreadNotifications > 0 && (
                 <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
               )}
             </Link>
 
-            {/* 2. Messages (mobile) / Settings (desktop) */}
-            <Link href="/messages" className="md:hidden relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
-              <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className="h-5 w-5" />
-              {unreadMessages > 0 && (
-                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
-              )}
-            </Link>
+            {/* 2. Messages (non-profile pages on mobile) / Settings (profile page on mobile) / Settings (desktop) */}
+            {pathname?.startsWith('/profile') ? (
+              <Link href="/settings" className="md:hidden relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
+                <Settings className="h-5 w-5" />
+              </Link>
+            ) : (
+              <Link href="/messages" className="md:hidden relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
+                <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className="h-5 w-5" />
+                {unreadMessages > 0 && (
+                  <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
+                )}
+              </Link>
+            )}
             <Link href="/settings" className="hidden md:inline-flex relative items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Settings className="h-5 w-5" />
             </Link>
@@ -136,7 +151,9 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
         {/* Main Post Section */}
         <main className="flex-1 min-w-0 overflow-visible py-4 px-3 sm:py-6 sm:px-4 md:px-6 min-h-[500px]">
           <div className={fullWidth ? 'w-full' : 'max-w-5xl mx-auto'}>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
 

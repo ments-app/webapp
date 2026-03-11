@@ -83,6 +83,8 @@ type JobItem = {
   deadline?: string | null;
   is_active: boolean;
   created_at: string;
+  visibility?: string | null;
+  facilitator_id?: string | null;
 };
 
 type GigItem = {
@@ -95,6 +97,8 @@ type GigItem = {
   deadline?: string | null;
   is_active: boolean;
   created_at: string;
+  visibility?: string | null;
+  facilitator_id?: string | null;
 };
 
 type ResourceItem = {
@@ -181,12 +185,12 @@ const domainLabels: Record<string, string> = {
   marketing: 'Marketing', other: 'Other',
 };
 
-const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionItem; user: { id: string } | null; onJoinSuccess?: () => void }) => {
+const FeaturedCompetitionCard = ({ c, user }: { c: CompetitionItem; user: { id: string } | null }) => {
+
   const ended = isEnded(c);
   const deadlineLabel = c.deadline ? (ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')) : 'Open';
 
   const [joined, setJoined] = useState(false);
-  const [joining, setJoining] = useState(false);
   const [checkingJoin, setCheckingJoin] = useState(true);
   const [participantCount, setParticipantCount] = useState<number | null>(c.participant_count ?? null);
 
@@ -217,35 +221,6 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
     })();
     return () => { cancelled = true; };
   }, [c.id, user]);
-
-  const handleJoin = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user || ended) return;
-
-    // External competitions: redirect to external URL
-    if (c.is_external && c.external_url) {
-      window.open(c.external_url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    setJoining(true);
-    try {
-      const res = await fetch(`/api/competitions/${encodeURIComponent(c.id)}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setJoined(true);
-        onJoinSuccess?.();
-      } else if (json.alreadyJoined) {
-        setJoined(true);
-      }
-    } catch { }
-    setJoining(false);
-  };
 
   return (
     <Link href={`/hub/${encodeURIComponent(c.id)}`} className="block rounded-2xl overflow-hidden bg-card/70 border border-border/60 shadow-sm hover:shadow-md transition-shadow">
@@ -309,35 +284,36 @@ const FeaturedCompetitionCard = ({ c, user, onJoinSuccess }: { c: CompetitionIte
           <span className="flex-1 md:flex-none md:min-w-[140px] inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
             View Details
           </span>
-          <button
-            onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
+          <span
             className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${joined
               ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
-              : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+              : ended
+                ? 'bg-muted text-muted-foreground border border-border/60'
+                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500'
               }`}
           >
             {checkingJoin ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : joined ? (
               <><CheckCircle className="h-4 w-4" /> Joined</>
-            ) : joining ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Joining...</>
+            ) : ended ? (
+              <>Ended</>
             ) : (
               <>Join <ArrowRight className="h-4 w-4" /></>
             )}
-          </button>
+          </span>
         </div>
       </div>
+
     </Link>
   );
 };
 
 const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: string } | null }) => {
+
   const ended = isEnded(c);
 
   const [joined, setJoined] = useState(false);
-  const [joining, setJoining] = useState(false);
   const [checkingJoin, setCheckingJoin] = useState(true);
 
   useEffect(() => {
@@ -357,33 +333,6 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
     })();
     return () => { cancelled = true; };
   }, [c.id, user]);
-
-  const handleJoin = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user || ended) return;
-
-    if (c.is_external && c.external_url) {
-      window.open(c.external_url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    setJoining(true);
-    try {
-      const res = await fetch(`/api/competitions/${encodeURIComponent(c.id)}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setJoined(true);
-      } else if (json.alreadyJoined) {
-        setJoined(true);
-      }
-    } catch { }
-    setJoining(false);
-  };
 
   return (
     <Link href={`/hub/${encodeURIComponent(c.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 hover:bg-card/80 transition">
@@ -439,26 +388,27 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
           )}
         </div>
         <div className="flex sm:flex-col gap-2 justify-center sm:justify-center">
-          <button
-            onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${joined
+          <span
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold transition w-full sm:w-auto ${joined
               ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
-              : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+              : ended
+                ? 'bg-muted text-muted-foreground border border-border/60'
+                : 'bg-emerald-600 dark:bg-emerald-500/90 text-white'
               }`}
           >
             {checkingJoin ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : joined ? (
               <><CheckCircle className="h-4 w-4" /> Joined</>
-            ) : joining ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : ended ? (
+              <>Ended</>
             ) : (
               <>Join <ArrowRight className="h-4 w-4" /></>
             )}
-          </button>
+          </span>
         </div>
       </div>
+
     </Link>
   );
 };
@@ -470,6 +420,7 @@ const EVENT_CATEGORY_LABELS: Record<string, string> = {
 };
 
 const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
+
   const ended = isEnded(event);
   const categoryLabel = EVENT_CATEGORY_LABELS[event.category ?? 'event'] ?? 'Event';
 
@@ -570,7 +521,7 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
           </span>
           <button
             onClick={handleJoin}
-            disabled={joined || joining || checkingJoin || !user || ended}
+            disabled={joined || joining || checkingJoin || ended}
             className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold active:scale-95 transition w-full sm:w-auto ${joined
               ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
               : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
@@ -599,6 +550,7 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
           )}
         </div>
       </div>
+
     </Link>
   );
 };
@@ -625,6 +577,9 @@ const JobRowCard = ({ job }: { job: JobItem }) => {
               <span className="text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Closed</span>
             ) : (
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Open</span>
+            )}
+            {job.visibility && job.visibility !== 'public' && (
+              <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-400/10 border border-purple-500/30 dark:border-purple-400/30 px-2.5 py-0.5 rounded-full shrink-0">Exclusive</span>
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">{job.company}</p>
@@ -663,6 +618,9 @@ const GigRowCard = ({ gig }: { gig: GigItem }) => {
               <span className="text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Closed</span>
             ) : (
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Open</span>
+            )}
+            {gig.visibility && gig.visibility !== 'public' && (
+              <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-400/10 border border-purple-500/30 dark:border-purple-400/30 px-2.5 py-0.5 rounded-full shrink-0">Exclusive</span>
             )}
           </div>
           {gig.description && (
@@ -788,6 +746,7 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
 
 function HubPageContent() {
   const { user } = useAuth();
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as TabKey) || 'events';

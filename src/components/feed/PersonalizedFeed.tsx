@@ -123,7 +123,7 @@ export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {})
       <div className="max-w-3xl mx-auto">
         <div className="post-card border-destructive/20 bg-destructive/5">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
+            <h3 className="text-lg font-semibold text-destructive mb-2">Couldn&apos;t load your feed</h3>
             <p className="text-destructive/80 mb-4">{error}</p>
             <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
@@ -145,8 +145,8 @@ export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {})
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/20 flex items-center justify-center">
               <span className="text-2xl">&#128173;</span>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">No posts yet</h3>
-            <p className="text-muted-foreground">Be the first to share something amazing!</p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Your feed is quiet</h3>
+            <p className="text-muted-foreground">Follow people or join communities to see posts here.</p>
           </div>
         </div>
       </div>

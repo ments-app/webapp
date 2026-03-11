@@ -28,13 +28,14 @@ export function UserActivityFeed({ userId, type }: Props) {
       .from('posts')
       .select(`
         *,
-        author:author_id(id, username, avatar_url, full_name, is_verified),
+        author:author_id!inner(id, username, avatar_url, full_name, is_verified, account_status),
         environment:environment_id(id, name, description, picture),
         media:post_media(*),
         poll:post_polls(*, options:post_poll_options(*))
       `, { count: 'exact' })
       .eq('deleted', false)
       .eq('author_id', userId)
+      .eq('author.account_status', 'active')
       .order('created_at', { ascending: false })
       .range(start, start + limit - 1);
 
@@ -102,7 +103,7 @@ export function UserActivityFeed({ userId, type }: Props) {
         setOffset((data?.length || 0));
       } catch (e) {
         if (cancelled) return;
-        const msg = e instanceof Error ? e.message : 'Failed to load data';
+        const msg = e instanceof Error ? e.message : 'Couldn\u2019t load activity right now';
         setError(msg);
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -184,7 +185,7 @@ export function UserActivityFeed({ userId, type }: Props) {
       <div className="max-w-2xl mx-auto">
         <div className="post-card border-destructive/20 bg-destructive/5">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
+            <h3 className="text-lg font-semibold text-destructive mb-2">Couldn&apos;t load activity</h3>
             <p className="text-destructive/80 mb-4">{error}</p>
             <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupProfileView } from '@/components/startups/StartupProfileView';
-import { fetchStartupById, bookmarkStartup, unbookmarkStartup, recordView, StartupProfile } from '@/api/startups';
+import { fetchStartupById, bookmarkStartup, unbookmarkStartup, upvoteStartup, removeUpvoteStartup, recordView, StartupProfile } from '@/api/startups';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -49,6 +49,17 @@ export default function StartupDetailPage() {
     setStartup(prev => prev ? { ...prev, is_bookmarked: false } : prev);
   };
 
+  const handleUpvote = async () => {
+    if (!user || !startup) return;
+    if (startup.is_upvoted) {
+      setStartup(prev => prev ? { ...prev, is_upvoted: false, upvote_count: Math.max(0, (prev.upvote_count || 0) - 1) } : prev);
+      await removeUpvoteStartup(user.id, startup.id);
+    } else {
+      setStartup(prev => prev ? { ...prev, is_upvoted: true, upvote_count: (prev.upvote_count || 0) + 1 } : prev);
+      await upvoteStartup(user.id, startup.id);
+    }
+  };
+
   const isOwner = user?.id === startup?.owner_id;
   const isCofounder = !isOwner && (startup?.founders || []).some(
     f => f.user_id === user?.id && f.status === 'accepted'
@@ -76,6 +87,7 @@ export default function StartupDetailPage() {
             isCofounder={isCofounder}
             onBookmark={handleBookmark}
             onUnbookmark={handleUnbookmark}
+            onUpvote={handleUpvote}
           />
         ) : (
           <div className="flex flex-col items-center justify-center py-20">

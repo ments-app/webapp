@@ -258,6 +258,34 @@ paths:
     post:
       summary: Join an event
 
+  # ─── INVESTMENT ARENA ────────────────────────────────────────────
+
+  /api/events/[id]/stalls:
+    get:
+      summary: List all stalls for an arena event (enriched with linked startup data)
+    post:
+      summary: Register a stall (Round 1, requires arena_round=registration)
+      body: { stall_name, tagline?, description?, startup_id?, category? }
+
+  /api/events/[id]/audience:
+    get:
+      summary: Get current user's audience status, balance, and stall ownership
+    post:
+      summary: Register as audience investor (Round 2, requires arena_round=investment)
+
+  /api/events/[id]/invest:
+    post:
+      summary: Invest virtual funds in a stall (deducts from audience balance)
+      body: { stall_id, amount }
+
+  /api/events/[id]/leaderboard:
+    get:
+      summary: Live leaderboard — stalls ranked by total funding received
+
+  # ─── INVEST VIA QR (Public Page) ─────────────────────────────────
+  # /invest/[eventId]/[stallId] — Client-side page opened by QR scan
+  # Allows audience to invest in a specific stall directly
+
   # ─── COMPETITIONS ──────────────────────────────────────────────────
 
   /api/competitions:

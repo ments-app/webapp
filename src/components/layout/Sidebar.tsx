@@ -6,9 +6,9 @@ import { User, Settings, LogOut, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUserProfile';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { supabase } from '@/utils/supabase';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -32,65 +32,24 @@ const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 const MessageIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadMessages?: number }) {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
-  const [profileHref, setProfileHref] = useState<string>('/profile');
+  const { avatar_url, full_name, username, profileHref } = useCurrentUserProfile();
+  const userProfile = { avatar_url, full_name, username };
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState<{avatar_url?: string | null, full_name?: string, username?: string} | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!user) {
-        if (!cancelled) {
-          setProfileHref('/profile');
-          setUserProfile(null);
-        }
-        return;
-      }
-      try {
-        let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
-        const { data } = await supabase
-          .from('users')
-          .select('username, avatar_url, full_name')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!username) {
-          username = data?.username?.toLowerCase();
-        }
-
-        if (!cancelled) {
-          setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
-          setUserProfile({
-            avatar_url: data?.avatar_url,
-            full_name: data?.full_name || user.user_metadata?.full_name,
-            username: data?.username || username
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setProfileHref('/profile');
-          setUserProfile(null);
-        }
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [user]);
 
   const mainNavItems = [
     {
@@ -136,17 +95,15 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
     return (
       <Link
         href={href}
-        className={`group flex items-center gap-4 rounded-xl px-4 py-3.5 text-base transition-all duration-200 ${
-          isActive
+        className={`group flex items-center gap-4 rounded-xl px-4 py-3.5 text-base transition-all duration-200 ${isActive
             ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md font-semibold'
             : 'text-muted-foreground font-medium hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
-        }`}
+          }`}
       >
-        <div className={`${
-          isActive
+        <div className={`${isActive
             ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
             : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
-        }`}>
+          }`}>
           <Icon className="h-[22px] w-[22px]" />
         </div>
         <span className="flex-1">{label}</span>
@@ -295,33 +252,8 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
 
 export function MobileSidebar() {
   const pathname = usePathname();
-  const [profileHref, setProfileHref] = useState<string>('/profile');
-  const { user } = useAuth();
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!user) {
-        if (!cancelled) setProfileHref('/profile');
-        return;
-      }
-      try {
-        let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
-        if (!username) {
-          const { data } = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', user.id)
-            .maybeSingle();
-          username = data?.username?.toLowerCase();
-        }
-        if (!cancelled) setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
-      } catch {
-        if (!cancelled) setProfileHref('/profile');
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [user]);
+  useAuth();
+  const { profileHref } = useCurrentUserProfile();
 
   const mobileNavItems = [
     {
@@ -359,17 +291,15 @@ export function MobileSidebar() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
-              isActive
+            className={`flex flex-col items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${isActive
                 ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg'
                 : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
-            }`}
+              }`}
           >
-            <div className={`${
-              isActive
+            <div className={`${isActive
                 ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
                 : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
-            }`}>
+              }`}>
               <item.icon className="h-4 w-4" />
             </div>
             <span className="text-xs">{item.label}</span>

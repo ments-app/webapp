@@ -10,6 +10,7 @@ interface Conversation {
   other_full_name: string;
   other_avatar_url?: string;
   other_is_verified?: boolean;
+  other_account_status?: string;
   last_message?: string;
   updated_at: string;
   unread_count: number;
@@ -55,8 +56,8 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     try {
       const [convRes, catRes, convCatRes] = await Promise.allSettled([
         fetch(`/api/conversations?userId=${user.id}`),
-        fetch(`/api/chat-categories?userId=${user.id}`),
-        fetch(`/api/conversation-categories?userId=${user.id}`),
+        fetch(`/api/chat-categories`),
+        fetch(`/api/conversation-categories`),
       ]);
 
       if (convRes.status === 'fulfilled' && convRes.value.ok) {

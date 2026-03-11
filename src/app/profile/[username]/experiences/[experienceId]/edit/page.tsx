@@ -68,7 +68,7 @@ export default function EditOneExperiencePage() {
       }
       if (process.env.NODE_ENV !== 'production') {
         // simple debug log to help diagnose empty positions
-        console.log('[EditExperience] positions fetched:', (posRes?.data || []).length, 'fallback used:', (!posRes?.data || posRes.data.length===0) && Array.isArray(exp.positions));
+        console.log('[EditExperience] positions fetched:', (posRes?.data || []).length, 'fallback used:', (!posRes?.data || posRes.data.length === 0) && Array.isArray(exp.positions));
       }
       setPositions(allPos);
       const orig: Record<string, PositionRow> = {};
@@ -134,9 +134,9 @@ export default function EditOneExperiencePage() {
       const nextOrig: Record<string, PositionRow> = {};
       for (const p of positions) nextOrig[p.id] = { ...p };
       setOrigPositions(nextOrig);
-      showToast('success', 'Changes saved');
+      showToast('success', 'Changes saved ✓');
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Failed to save changes');
+      showToast('error', e instanceof Error ? e.message : 'Your changes couldn\u2019t be saved');
     } finally {
       setSavingAll(false);
     }

@@ -121,9 +121,9 @@ export default function EditOneEducationPage() {
         end_date: isCurrent ? null : (endDate || null),
         description: description.trim() || null,
       });
-      showToast('success', 'Changes saved');
+      showToast('success', 'Changes saved ✓');
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Failed to save');
+      showToast('error', e instanceof Error ? e.message : 'Your changes couldn\u2019t be saved');
     } finally {
       setSaving(false);
     }

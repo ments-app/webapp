@@ -12,6 +12,8 @@ import Image from 'next/image';
 import { MentionText } from './MentionText';
 import { EditPostModal } from './EditPostModal';
 import { Trash2, Edit } from 'lucide-react';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
+import { toast } from 'sonner';
 
 type PostCardProps = {
   post: Post;
@@ -60,17 +62,6 @@ const formatTimeAgoShort = (date: Date): string => {
   const minutes = differenceInMinutes(now, date);
   if (minutes > 0) return `${minutes}m`;
   return 'now';
-};
-
-// Memoized Google avatar check with proper dependencies
-const isGoogleAvatar = (url?: string | null): boolean => {
-  if (!url) return false;
-  try {
-    const u = new URL(url);
-    return u.hostname === 'lh3.googleusercontent.com';
-  } catch {
-    return false;
-  }
 };
 
 // Enhanced Video Thumbnail component with lazy loading optimization
@@ -223,7 +214,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
         <div className="flex items-center justify-center h-48">
           <div className="text-center">
             <div className="text-red-500 mb-2 text-2xl">⚠️</div>
-            <span className="text-red-600 dark:text-red-400 text-sm font-medium">Failed to load video</span>
+            <span className="text-red-600 dark:text-red-400 text-sm font-medium">This video couldn&apos;t be played</span>
           </div>
         </div>
       </div>
@@ -513,7 +504,7 @@ const MediaGallery = memo(({ items, onOpen }: {
                       height: `${Math.round(containerHeight)}px`
                     }}
                   >
-                    <span className="text-muted-foreground text-sm">Failed to load</span>
+                    <span className="text-muted-foreground text-sm">Couldn&apos;t load image</span>
                   </div>
                 )
               ) : (
@@ -619,7 +610,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
         <button
           className="absolute top-4 right-4 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center"
           onClick={onClose}
-          aria-label="Close"
+          aria-label="Close image viewer"
           data-no-nav="true"
         >
           ✕
@@ -629,7 +620,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200"
               onClick={onPrev}
-              aria-label="Previous"
+              aria-label="Previous image"
               data-no-nav="true"
             >
               <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">‹</span>
@@ -637,7 +628,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all duration-200"
               onClick={onNext}
-              aria-label="Next"
+              aria-label="Next image"
               data-no-nav="true"
             >
               <span className="text-2xl font-bold leading-none flex items-center justify-center w-full h-full">›</span>
@@ -657,6 +648,7 @@ Lightbox.displayName = 'Lightbox';
 export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPollVote, onProfileClick }: PostCardProps) => {
   const router = useRouter();
   const { user } = useAuth();
+  const loginPrompt = useLoginPrompt();
 
   // Consolidated state management for better performance
   const [uiState, setUiState] = useState({
@@ -738,6 +730,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       }
     } catch (error) {
       console.error('Error liking/unliking post:', error);
+      toast.error('Action failed. Please try again.');
     } finally {
       setUiState(prev => ({ ...prev, isLiking: false }));
     }
@@ -810,8 +803,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     // Ref guard fires synchronously — catches rapid clicks before setState can update
     if (isVotingRef.current) return;
     if (!user?.id) {
-      // Surface a clear message instead of silently ignoring the click
-      alert('Sign in to vote on polls.');
+      loginPrompt.open('Sign in to vote', 'You need to sign in to vote on polls.');
       return;
     }
     if (pollState.isVoting) return;
@@ -912,7 +904,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       isVotingRef.current = false;
       setPollState(prev => ({ ...prev, isVoting: false, votingOptionId: null }));
     }
-  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options, post.poll?.poll_type]);
+  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options, post.poll?.poll_type, loginPrompt]);
 
   // Lightbox handlers - consolidated state updates
   const openLightbox = useCallback((index: number) => {
@@ -1007,12 +999,15 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     try {
       const { error } = await deletePost(post.id, user.id);
       if (!error) {
+        toast.success('Post deleted');
         window.location.reload();
       } else {
         console.error('Error deleting post:', error);
+        toast.error('Failed to delete post');
       }
     } catch (error) {
       console.error('Error deleting post:', error);
+      toast.error('Failed to delete post');
     } finally {
       setUiState(prev => ({ ...prev, isDeleting: false, showDeleteConfirm: false }));
     }
@@ -1026,7 +1021,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         {/* Profile Picture */}
         <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
           <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
-            {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !uiState.imageError ? (
+            {post.author?.avatar_url && !uiState.imageError ? (
               <div className="relative w-full h-full">
                 <Image
                   src={toProxyUrl(post.author.avatar_url, { width: 56, quality: 82 })}
@@ -1463,6 +1458,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           </div>
         </div>
       )}
+      <LoginPromptModal {...loginPrompt.modalProps} />
     </article>
   );
 });

@@ -63,7 +63,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Track cookies that Supabase SSR sets (token refresh etc.)
+  // so we can always rebuild supabaseResponse without losing them.
+  let pendingCookies: Array<{ name: string; value: string; options?: Record<string, unknown> }> = [];
+
   let supabaseResponse = NextResponse.next({ request: req });
+
+  const rebuildResponse = () => {
+    supabaseResponse = NextResponse.next({ request: req });
+    for (const { name, value, options } of pendingCookies) {
+      supabaseResponse.cookies.set(name, value, options);
+    }
+  };
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,30 +88,74 @@ export async function middleware(req: NextRequest) {
           return req.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          pendingCookies = cookiesToSet;
           cookiesToSet.forEach(({ name, value }) =>
             req.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({ request: req });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+          rebuildResponse();
         },
       },
     }
   );
 
   try {
-    // Use getSession() instead of getUser() to avoid a network call to
-    // Supabase Auth on every request. getSession() validates the JWT locally,
-    // which is dramatically faster — critical at scale (10K+ users).
+    // Use getSession() for middleware — it validates the JWT locally without a network
+    // call, which is critical since middleware runs on EVERY request. Sensitive operations
+    // in API routes still use getUser() for full server-side verification.
     const { data: { session }, error } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
 
     if (error && !error.message?.includes('Auth session missing')) {
       console.error('Middleware auth error:', error.message);
     }
 
-    if (session?.user) {
-      supabaseResponse.headers.set('x-user-id', session.user.id);
+    // ── Protected Page Guard ──────────────────────────────
+    // Redirect unauthenticated users away from pages that require login
+    const PROTECTED_PREFIXES = ['/messages', '/settings', '/create', '/profile/edit', '/startups', '/search', '/hub', '/posts', '/onboarding'];
+    const pathname = req.nextUrl.pathname;
+    const isProtectedPage = PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
+
+    if (isProtectedPage && !user) {
+      const loginUrl = req.nextUrl.clone();
+      loginUrl.pathname = '/';
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (user) {
+      // Set x-user-id as a REQUEST header so API routes can read it
+      // via request.headers.get('x-user-id') — avoids auth.getUser() network call
+      req.headers.set('x-user-id', user.id);
+      rebuildResponse();
+
+      // ── Account Status Guard ──────────────────────────────
+      // Only check account status on key entry-point pages (not every navigation)
+      // to avoid a DB round-trip on every single request.
+      const STATUS_CHECK_PATHS = ['/hub', '/messages', '/settings', '/startups', '/search'];
+      const needsStatusCheck = STATUS_CHECK_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+      if (needsStatusCheck) {
+        try {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('account_status')
+            .eq('id', user.id)
+            .single();
+
+          if (profile && profile.account_status === 'deactivated') {
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = '/reactivate';
+            redirectUrl.search = '';
+            return NextResponse.redirect(redirectUrl);
+          }
+
+          if (profile && (profile.account_status === 'deleted' || profile.account_status === 'suspended')) {
+            await supabase.auth.signOut();
+          }
+        } catch {
+          // If the query fails, allow the request through
+        }
+      }
     }
   } catch (error) {
     console.error('Middleware error:', error);

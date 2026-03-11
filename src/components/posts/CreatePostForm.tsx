@@ -11,7 +11,8 @@ import { MentionDropdown } from './MentionDropdown';
 import { notifyMentionedUsers } from '@/utils/mentions';
 import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
-import { toProxyUrl } from '@/utils/imageUtils';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
+import { toast } from 'sonner';
 
 type CreatePostFormProps = {
   environmentId: string;
@@ -20,6 +21,7 @@ type CreatePostFormProps = {
 
 export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormProps) {
   const { user } = useAuth();
+  const loginPrompt = useLoginPrompt();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
   const [pollData, setPollData] = useState<{ question: string; options: string[] }>({ question: '', options: ['', ''] });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   // Mention state
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
@@ -47,29 +49,29 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
     setIsProcessing(true);
     setCompressionProgress({ isCompressing: true, currentFile: '', progress: 0 });
     console.log('[CreatePostForm] Processing media files...');
-    
+
     try {
       // Process files one by one to show progress
       const fileArray = Array.from(files);
       const results: CompressedResult[] = [];
-      
+
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
         const isVideo = file.type.startsWith('video/');
-        
-        setCompressionProgress({ 
-          isCompressing: true, 
-          currentFile: file.name, 
-          progress: Math.round((i / fileArray.length) * 100) 
+
+        setCompressionProgress({
+          isCompressing: true,
+          currentFile: file.name,
+          progress: Math.round((i / fileArray.length) * 100)
         });
-        
+
         console.log(`[CreatePostForm] Processing ${isVideo ? 'video' : 'image'}: ${file.name}`);
-        
+
         // Import and compress individual file
         const { compressMediaFile } = await import('@/utils/mediaCompressor');
         const result = await compressMediaFile(file);
         results.push(result);
-        
+
         // Log compression result immediately
         if (result.wasCompressed) {
           console.log(`[CreatePostForm] ✅ ${file.name} compressed successfully`);
@@ -77,17 +79,17 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
           console.log(`[CreatePostForm] ⚠️ ${file.name} not compressed (${result.reason})`);
         }
       }
-      
+
       // Extract compressed files and preview URLs
       const compressedFiles = results.map(r => r.file);
       const previews = results.map(r => r.previewUrl);
-      
+
       setSelectedImages(prev => [...prev, ...compressedFiles]);
       setImagePreviews(prev => [...prev, ...previews]);
       setCompressedResults(prev => [...prev, ...results]);
-      
+
       console.log(`[CreatePostForm] ✅ Completed processing ${results.length} files`);
-      
+
     } catch (error) {
       console.error('[CreatePostForm] Error processing files:', error);
     } finally {
@@ -117,17 +119,17 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
 
   const removePollOption = (index: number) => {
     if (pollData.options.length > 2) {
-      setPollData(prev => ({ 
-        ...prev, 
-        options: prev.options.filter((_, i) => i !== index) 
+      setPollData(prev => ({
+        ...prev,
+        options: prev.options.filter((_, i) => i !== index)
       }));
     }
   };
 
   const updatePollOption = (index: number, value: string) => {
-    setPollData(prev => ({ 
-      ...prev, 
-      options: prev.options.map((option, i) => i === index ? value : option) 
+    setPollData(prev => ({
+      ...prev,
+      options: prev.options.map((option, i) => i === index ? value : option)
     }));
   };
 
@@ -144,31 +146,31 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
     // Check for @ symbol before cursor
     const textBeforeCursor = newContent.substring(0, cursorPosition);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      
+
       // Show dropdown if valid mention context
       const charBeforeAt = lastAtIndex > 0 ? newContent[lastAtIndex - 1] : ' ';
       const isValidMentionStart = charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0;
-      
+
       if (isValidMentionStart && !textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
         setMentionSearch(textAfterAt);
         setMentionStartIndex(lastAtIndex);
         setShowMentionDropdown(true);
-        
+
         // Calculate dropdown position relative to viewport
         if (textareaRef.current) {
           const textarea = textareaRef.current;
           const rect = textarea.getBoundingClientRect();
-          
+
           // Position below cursor approximately
           const lines = newContent.substring(0, lastAtIndex).split('\n');
           const lineHeight = 24;
           const cursorY = rect.top + Math.min((lines.length * lineHeight) + 30, 100);
-          
+
           console.log('[CreatePostForm] Mention position:', { top: cursorY, left: rect.left + 10 });
-          setMentionPosition({ 
+          setMentionPosition({
             top: cursorY,
             left: rect.left + 10
           });
@@ -195,16 +197,16 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
 
     // Extract clean username using utility function
     const username = extractCleanUsername(user);
-    
+
     const beforeMention = content.substring(0, mentionStartIndex);
     const afterMention = content.substring(mentionStartIndex + mentionSearch.length + 1);
     const newContent = `${beforeMention}@${username} ${afterMention}`;
-    
+
     setContent(newContent);
     setMentionedUsers(prev => new Map(prev).set(username, user.id)); // Store username -> userId for notifications
     setShowMentionDropdown(false);
     setMentionSearch('');
-    
+
     // Focus back on textarea
     if (textareaRef.current) {
       textareaRef.current.focus();
@@ -215,51 +217,51 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!content.trim() && selectedImages.length === 0) return;
     if (!user) {
-      setError('You must be logged in to create a post');
+      loginPrompt.open('Sign in to post', 'You need to sign in to create a post.');
       return;
     }
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Keep content as-is with simple @username format
       const processedContent = content;
-      
+
       // Determine post type based on whether images are present
       const finalPostType = selectedImages.length > 0 ? 'media' : 'text';
-      
+
       const { data: postData, error } = await createPost(
         user.id,
         environmentId,
         processedContent,
         finalPostType
       );
-      
+
       if (error) {
         throw new Error(error.message);
       }
-      
+
       // Upload media files to storage if media post
       if (selectedImages.length > 0 && postData) {
         console.log('[CreatePostForm] Uploading media files...');
         const { uploadPostMedia } = await import('@/utils/fileUpload');
         const { urls, error: uploadError } = await uploadPostMedia(selectedImages);
-        
+
         if (uploadError) {
           throw new Error(`Media upload failed: ${uploadError}`);
         }
-        
+
         // Save media URLs to post_media table
         if (urls.length > 0) {
           const mediaInserts = urls.map((url, index) => {
             const file = selectedImages[index];
             const isVideo = file.type.startsWith('video/');
             const result = compressedResults[index];
-            
+
             return supabase.from('post_media').insert({
               post_id: postData.id,
               media_url: url,
@@ -268,10 +270,10 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
               height: result?.height || null,
             });
           });
-          
+
           const mediaResults = await Promise.all(mediaInserts);
           const mediaErrors = mediaResults.filter(r => r.error);
-          
+
           if (mediaErrors.length > 0) {
             console.error('[CreatePostForm] Failed to save media records:', mediaErrors);
           } else {
@@ -279,27 +281,29 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
           }
         }
       }
-      
+
       // Send notifications to mentioned users
       if (postData && mentionedUsers.size > 0) {
         await notifyMentionedUsers(postData.id, user.id, Array.from(mentionedUsers.values()));
       }
-      
+
       setContent('');
       setSelectedImages([]);
       setImagePreviews([]);
       setCompressedResults([]);
       setMentionedUsers(new Map());
       setPollData({ question: '', options: ['', ''] });
+      toast.success('Post published!');
       if (onPostCreated) onPostCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create post');
+      setError(err instanceof Error ? err.message : 'Your post couldn\u2019t be published. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
+    <>
     <div className="backdrop-blur-xl bg-card border border-border rounded-xl p-4 shadow-sm mb-6">
       <form onSubmit={handleSubmit}>
         {/* Post Type Selection */}
@@ -307,22 +311,20 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
           <div className="flex gap-2">
             <button
               type="button"
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition ${
-                postType === 'text'
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition ${postType === 'text'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+                }`}
               onClick={() => setPostType('text')}
             >
               Text
             </button>
             <button
               type="button"
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition ${
-                postType === 'media'
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition ${postType === 'media'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+                }`}
               onClick={() => setPostType('media')}
             >
               <ImageIcon className="h-3 w-3" />
@@ -330,11 +332,10 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
             </button>
             <button
               type="button"
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition ${
-                postType === 'poll'
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition ${postType === 'poll'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+                }`}
               onClick={() => setPostType('poll')}
             >
               <BarChart2 className="h-3 w-3" />
@@ -345,29 +346,17 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
 
         <div className="flex gap-3">
           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-            {user?.user_metadata?.avatar_url ? (
-              <Image 
-                src={toProxyUrl(user.user_metadata.avatar_url, { width: 40, quality: 82 })}
-                alt={user.user_metadata.full_name || 'User avatar'} 
-                width={40}
-                height={40}
-                className="w-full h-full object-cover"
-                sizes="40px"
-                loading="lazy"
-              />
-            ) : (
-              <div className="text-lg font-semibold text-muted-foreground">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
+            <div className="text-lg font-semibold text-muted-foreground">
+              {user?.user_metadata?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
           </div>
-          
+
           <div className="flex-1">
             <div className="relative">
               <textarea
                 ref={textareaRef}
                 className="w-full min-h-[100px] bg-background border border-input rounded-lg p-3 text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder={postType === 'poll' ? 'Add a description (optional). Use @ to mention someone' : "What's on your mind? Use @ to mention someone"}
+                placeholder={postType === 'poll' ? 'Add a description (optional)' : "What's on your mind?"}
                 value={content}
                 onChange={handleContentChange}
                 disabled={isSubmitting}
@@ -381,7 +370,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
                 isVisible={showMentionDropdown}
               />
             </div>
-            
+
             {/* Image previews */}
             {imagePreviews.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2 mb-3">
@@ -414,7 +403,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
                 ))}
               </div>
             )}
-            
+
             {/* Compression Progress Indicator */}
             {compressionProgress.isCompressing && (
               <div className="mt-3 p-2 bg-muted/30 rounded-lg border border-border">
@@ -427,14 +416,14 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
                   <div className="text-xs text-muted-foreground">{compressionProgress.progress}%</div>
                 </div>
                 <div className="w-full bg-muted rounded-full h-1">
-                  <div 
-                    className="bg-primary h-1 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-primary h-1 rounded-full transition-all duration-300"
                     style={{ width: `${compressionProgress.progress}%` }}
                   ></div>
                 </div>
               </div>
             )}
-            
+
             {/* Poll Section */}
             {postType === 'poll' && (
               <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border">
@@ -479,7 +468,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
                         </div>
                       ))}
                     </div>
-                    
+
                     {/* Add Option Button */}
                     {pollData.options.length < 4 && (
                       <button
@@ -495,11 +484,11 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
                 </div>
               </div>
             )}
-            
+
             {error && (
               <p className="text-sm text-destructive mt-1">{error}</p>
             )}
-            
+
             <div className="flex justify-between items-center mt-3">
               <input
                 type="file"
@@ -525,7 +514,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
                 )}
                 {compressionProgress.isCompressing ? 'Processing...' : 'Add Photo/Video'}
               </Button>
-              
+
               <Button
                 type="submit"
                 variant="default"
@@ -546,5 +535,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
         </div>
       </form>
     </div>
+    <LoginPromptModal {...loginPrompt.modalProps} />
+    </>
   );
 }

@@ -2,14 +2,14 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase';
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (redirectTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -29,23 +29,24 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
       initializedRef.current = true;
 
       try {
-        // Set up auth state listener first
+        // Set up auth state listener — use session.user directly instead of
+        // calling getUser() (which makes a ~200-500ms network call) on every event.
+        // The session JWT is already validated locally by Supabase client.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          async (event: any, session: any) => {
+          (_event: AuthChangeEvent, session: Session | null) => {
             if (!mounted) return;
-            
-            console.log('Auth state changed:', event);
             setSession(session);
             setUser(session?.user ?? null);
             setIsLoading(false);
           }
         );
 
-        // If we already have a session from the server, skip client refetch
+        // If we already have a session from the server, skip client refetch entirely
         if (!initialSession) {
+          // Single call: getSession() validates JWT locally (fast, no network call).
+          // Only use getUser() for write operations that need server verification.
           const { data: { session }, error } = await supabase.auth.getSession();
-          
+
           if (error) {
             console.error('Error getting session:', error);
             setIsLoading(false);
@@ -58,7 +59,6 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
             setIsLoading(false);
           }
         } else {
-          // We already have session; ensure loading is false
           setIsLoading(false);
         }
 
@@ -81,13 +81,17 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
     };
   }, [initialSession]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectTo?: string) => {
     try {
       setIsLoading(true);
+      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      if (redirectTo) {
+        callbackUrl.searchParams.set('redirect', redirectTo);
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl.toString(),
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

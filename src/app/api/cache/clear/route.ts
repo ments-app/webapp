@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cacheClearAll, cacheClearByPrefix, cacheStats } from '@/lib/cache';
+import { createAuthClient } from '@/utils/supabase-server';
 
 /**
  * POST /api/cache/clear — Clear server-side in-memory cache.
@@ -12,6 +13,13 @@ import { cacheClearAll, cacheClearByPrefix, cacheStats } from '@/lib/cache';
  */
 export async function POST(req: NextRequest) {
     try {
+        // Auth check — only authenticated users can clear cache
+        const supabase = await createAuthClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const prefix = searchParams.get('prefix') || undefined;
 
@@ -39,6 +47,16 @@ export async function POST(req: NextRequest) {
  * GET /api/cache/clear — View cache stats (debug).
  */
 export async function GET() {
-    const stats = cacheStats();
-    return NextResponse.json(stats);
+    try {
+        const supabase = await createAuthClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const stats = cacheStats();
+        return NextResponse.json(stats);
+    } catch {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 }

@@ -97,3 +97,16 @@ Supporting systems:
   - **Social**: `users`, `posts`, `post_likes`, `messages`, `conversations`
   - **Startups**: `startup_profiles`, `startup_founders`
   - **Content**: `events`, `competitions`, `resources`, `applications`
+  - **Investment Arena**: `event_stalls`, `event_audience`, `event_investments` — virtual investment simulation with QR-code-based audience investment flow
+
+---
+
+## Investment Arena & QR Code Flow
+
+Events with `arena_enabled=true` run a two-round virtual investment game:
+
+1. **Registration Round** — Startups register "stalls" via `/api/events/[id]/stalls` (POST). Each stall owner gets a QR code (`StallQRCode` component) encoding `/invest/[eventId]/[stallId]`.
+2. **Investment Round** — Audience registers via `/api/events/[id]/audience` (POST), receiving virtual funds (default 1M). They scan a stall's QR code which opens the invest page, or browse stalls on the event page.
+3. **QR Code Generation** — Uses `qrcode.react` (SVG). Stall owners can view, download (PNG), or copy the invest link. The QR encodes the public invest page URL.
+4. **Invest Page** (`/invest/[eventId]/[stallId]`) — Standalone page showing stall info, funding stats, and investment controls. Handles audience registration + investment in one flow.
+5. **Leaderboard** — Real-time ranking of stalls by total funding, polled every 15s during investment round.

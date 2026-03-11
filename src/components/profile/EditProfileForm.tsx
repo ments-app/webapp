@@ -9,6 +9,8 @@ import Image from 'next/image';
 import { Loader2, Camera, ArrowLeft, User, AtSign, MessageSquare, FileText, Zap, X, Search, ChevronDown, ChevronUp, MapPin, BadgeCheck, ShieldCheck } from 'lucide-react';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Link from 'next/link';
+import ResumeUpload from '@/components/profile/ResumeUpload';
+import { toast } from 'sonner';
 
 const EDGE_FUNCTION_NAME = 'upload-profile-image';
 
@@ -203,8 +205,8 @@ function SkillsInput({ skills, setSkills }: { skills: string[]; setSkills: React
                   type="button"
                   onClick={() => setActiveCategory(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeCategory === cat
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
-                      : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
+                    : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
                     }`}
                 >
                   {cat}
@@ -295,7 +297,7 @@ function CityInput({ city, setCity }: { city: string; setCity: React.Dispatch<Re
         setSuggestions(unique);
         setShowDropdown(unique.length > 0);
       } catch {
-        // silently fail
+        toast.error('Location search failed');
       } finally {
         setLoading(false);
       }
@@ -354,6 +356,7 @@ export default function EditProfileForm() {
   const [initial, setInitial] = useState<ProfileShape | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -595,7 +598,7 @@ export default function EditProfileForm() {
     try {
       const res = await fetch('/api/verify/send', { method: 'POST' });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to send code');
+      if (!res.ok) throw new Error(json.error || 'Verification code couldn\u2019t be sent');
       setVerifyStep('input');
       setResendCooldown(60);
       const interval = setInterval(() => {
@@ -605,7 +608,7 @@ export default function EditProfileForm() {
         });
       }, 1000);
     } catch (e) {
-      setVerifyError(e instanceof Error ? e.message : 'Failed to send');
+      setVerifyError(e instanceof Error ? e.message : 'Couldn\u2019t send code. Try again?');
       setVerifyStep('idle');
     }
   };
@@ -635,6 +638,7 @@ export default function EditProfileForm() {
     if (!user?.id || saving) return;
     setSaving(true);
     setError(null);
+    setSuccessMsg(null);
 
     try {
       let newAvatarUrl: string | null | undefined = undefined; // undefined -> unchanged
@@ -660,11 +664,15 @@ export default function EditProfileForm() {
       if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
       if (newBannerUrl !== undefined) payload.banner_image = newBannerUrl;
 
-      const { error: upError } = await supabase
+      console.log('[EditProfile] saving payload:', JSON.stringify(payload));
+      console.log('[EditProfile] user.id:', user.id);
+
+      const { error: upError, status, statusText } = await supabase
         .from('users')
         .update(payload)
         .eq('id', user.id);
 
+      console.log('[EditProfile] update result:', { error: upError, status, statusText });
       if (upError) throw upError;
 
       // Reset local refs and change flags
@@ -673,7 +681,7 @@ export default function EditProfileForm() {
       setAvatarChanged(false);
       setCoverChanged(false);
 
-      // Optionally re-fetch to ensure state is accurate
+      // Re-fetch to ensure state is accurate
       const { data: latest } = await supabase
         .from('users')
         .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, about, skills')
@@ -682,8 +690,18 @@ export default function EditProfileForm() {
       if (latest) {
         setInitial(latest as ProfileShape);
       }
+      setSuccessMsg('Profile saved successfully!');
+      setTimeout(() => setSuccessMsg(null), 4000);
+      toast.success('Profile saved successfully!');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to save');
+      const err = e as { code?: string; message?: string };
+      if (err.code === '23505' || err.message?.includes('duplicate') || err.message?.includes('unique')) {
+        setError('This username is already taken. Please choose a different one.');
+        toast.error('This username is already taken.');
+      } else {
+        setError(err.message || 'Your profile changes couldn\u2019t be saved');
+        toast.error(err.message || 'Your profile changes couldn\u2019t be saved');
+      }
     } finally {
       setSaving(false);
     }
@@ -763,7 +781,7 @@ export default function EditProfileForm() {
                       value={verifyCode}
                       onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       className="w-32 px-3 py-2 text-center text-lg tracking-widest border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="000000"
+                      placeholder="Enter 6-digit code"
                     />
                     <Button
                       onClick={handleConfirmVerification}
@@ -830,6 +848,25 @@ export default function EditProfileForm() {
         </div>
       </div>
 
+      {/* Resume Upload Section */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <FileText className="h-4 w-4" />
+            <span className="text-sm font-medium">Import from Resume</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Upload your CV and auto-fill your profile with AI</p>
+        </div>
+        <div className="p-6">
+          <ResumeUpload
+            onProfileUpdated={() => {
+              // Re-fetch profile data after resume apply
+              window.location.reload();
+            }}
+          />
+        </div>
+      </div>
+
       {/* Profile Information Section */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
@@ -844,14 +881,15 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <User className="h-4 w-4" />
-              <label className="text-sm font-medium">Full Name</label>
+              <label htmlFor="edit-fullname" className="text-sm font-medium">Full Name</label>
             </div>
             <input
+              id="edit-fullname"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-              placeholder="Ashish kushwaha"
+              placeholder="Your full name"
             />
           </div>
 
@@ -859,16 +897,17 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <AtSign className="h-4 w-4" />
-              <label className="text-sm font-medium">Username</label>
+              <label htmlFor="edit-username" className="text-sm font-medium">Username</label>
             </div>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-medium">@</span>
               <input
+                id="edit-username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-8 pr-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                placeholder="ashishweapons"
+                placeholder="your-username"
               />
             </div>
           </div>
@@ -877,14 +916,15 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <MessageSquare className="h-4 w-4" />
-              <label className="text-sm font-medium">Tagline</label>
+              <label htmlFor="edit-tagline" className="text-sm font-medium">Tagline</label>
             </div>
             <input
+              id="edit-tagline"
               type="text"
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
               className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-              placeholder="frontend"
+              placeholder="e.g. Full-stack developer"
             />
           </div>
 
@@ -895,14 +935,15 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <FileText className="h-4 w-4" />
-              <label className="text-sm font-medium">About</label>
+              <label htmlFor="edit-about" className="text-sm font-medium">About</label>
             </div>
             <textarea
+              id="edit-about"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={4}
               className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none transition-colors"
-              placeholder="Tell something about you"
+              placeholder="Write a brief intro about yourself…"
             />
           </div>
 
@@ -912,6 +953,9 @@ export default function EditProfileForm() {
       </div>
       {error && (
         <div className="text-sm text-destructive">{error}</div>
+      )}
+      {successMsg && (
+        <div className="text-sm text-emerald-600 font-medium">{successMsg}</div>
       )}
       {/* Save Button */}
       <div className="flex justify-end pt-4">

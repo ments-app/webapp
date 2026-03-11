@@ -59,10 +59,10 @@ export default function CreateEducationPage() {
       });
       if (!res.ok) throw new Error('Failed to add education');
 
-      showToast('success', 'Education added');
+      showToast('success', 'Education added ✓');
       setTimeout(() => router.push(`/profile/${encodeURIComponent(username)}/education/edit`), 400);
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Failed to save');
+      showToast('error', e instanceof Error ? e.message : 'Education couldn\u2019t be saved');
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { useUserData } from '@/hooks/useUserData';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, Pencil, Trash2, Share2 } from 'lucide-react';
@@ -43,6 +44,8 @@ const PLATFORM_ICONS: Record<PlatformKey, ReactNode> = {
 
 export default function UserPortfoliosPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
+  const { userData } = useUserData();
+  const isOwner = !!(userData?.username && userData.username.toLowerCase() === username.toLowerCase());
 
   type PlatformLinkRow = { platform: PlatformKey; link?: string | null };
   type PortfolioItem = {
@@ -138,18 +141,22 @@ export default function UserPortfoliosPage({ params }: { params: Promise<{ usern
               <h1 className="text-2xl font-semibold">{latest?.title || 'Portfolio'}</h1>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Link href={`/profile/${encodeURIComponent(username)}/portfolios/edit`} className="p-2 rounded-lg hover:bg-white/5" title="Edit">
-                <Pencil className="h-5 w-5" />
-              </Link>
-              <button
-                className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-60"
-                title={deleting ? 'Deleting…' : 'Delete'}
-                onClick={handleDelete}
-                disabled={deleting || loading || !latest}
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-              <button className="p-2 rounded-lg hover:bg-white/5" title="Share" onClick={() => navigator.share?.({ title: 'Portfolio', url: location.href }).catch(() => {})}>
+              {isOwner && (
+                <Link href={`/profile/${encodeURIComponent(username)}/portfolios/edit`} className="p-2 rounded-lg hover:bg-white/5" title="Edit">
+                  <Pencil className="h-5 w-5" />
+                </Link>
+              )}
+              {isOwner && (
+                <button
+                  className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-60"
+                  title={deleting ? 'Deleting…' : 'Delete'}
+                  onClick={handleDelete}
+                  disabled={deleting || loading || !latest}
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
+              <button className="p-2 rounded-lg hover:bg-white/5" title="Share" onClick={() => navigator.share?.({ title: 'Portfolio', url: location.href }).catch(() => { })}>
                 <Share2 className="h-5 w-5" />
               </button>
             </div>
@@ -201,14 +208,14 @@ export default function UserPortfoliosPage({ params }: { params: Promise<{ usern
                         >
                           Tap to view
                         </a>
-                      ) : (
+                      ) : isOwner ? (
                         <Link
                           href={`/profile/${encodeURIComponent(username)}/portfolios/edit`}
                           className="inline-flex items-center px-3 py-1.5 rounded-full text-xs bg-white/5 hover:bg-white/10 border border-border"
                         >
                           Add link
                         </Link>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 )}

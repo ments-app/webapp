@@ -152,7 +152,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
         setStep('review');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to skip question');
+      setError(err instanceof Error ? err.message : 'Couldn\u2019t skip this question');
     } finally {
       setSkippingQuestion(false);
     }
@@ -170,7 +170,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
           body: JSON.stringify({ [refKey]: listingId }),
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to start');
+        if (!res.ok) throw new Error(json.error || 'We couldn\u2019t start the application');
         if (!cancelled) {
           setApp(json.data);
           // If resumed and already submitted or cancelled
@@ -194,7 +194,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
         }
       } catch (err) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Something went wrong';
+          const msg = err instanceof Error ? err.message : 'Something unexpected happened';
           // Show user-friendly message for duplicate/constraint errors
           if (msg.includes('unique constraint') || msg.includes('duplicate key') || msg.includes('already applied')) {
             setError('You have already applied to this position.');
@@ -247,7 +247,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
         setStep('review');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit answer');
+      setError(err instanceof Error ? err.message : 'Your answer couldn\u2019t be saved. Try again?');
     } finally {
       setSubmittingAnswer(false);
     }
@@ -275,7 +275,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
       setApp(json.data);
       setStep('submitted');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit');
+      setError(err instanceof Error ? err.message : 'Submission didn\u2019t go through. Please try again.');
     } finally {
       setSubmittingFinal(false);
     }
@@ -307,7 +307,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
         {error ? (
           <div className="text-center">
             <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
-            <p className="text-lg font-semibold text-foreground mb-2">Failed to Start</p>
+            <p className="text-lg font-semibold text-foreground mb-2">Couldn&apos;t start the application</p>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
             <button onClick={() => router.back()} className="text-sm text-primary hover:underline">
               Go Back

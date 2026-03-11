@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
       const { data, error } = await supabase
         .from('users')
         .select('id, username, full_name, avatar_url, tagline, current_city, user_type, is_verified')
+        .eq('account_status', 'active')
         .or(`username.ilike.${pattern},full_name.ilike.${pattern},tagline.ilike.${pattern}`)
         .order('is_verified', { ascending: false })
         .order('full_name', { ascending: true })
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
     if (type === 'posts') {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, content, created_at, user_id, users(username, full_name, avatar_url)')
+        .select('id, content, created_at, user_id, users!inner(username, full_name, avatar_url, account_status)')
+        .eq('users.account_status', 'active')
         .ilike('content', pattern)
         .order('created_at', { ascending: false })
         .limit(20);

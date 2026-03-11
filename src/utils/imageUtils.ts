@@ -13,7 +13,7 @@ export function toProxyUrl(
   }
 ): string {
   if (!rawUrl) return '';
-  
+
   // If already a proxy URL, return as-is
   if (rawUrl.includes('/functions/v1/get-image')) {
     return rawUrl;
@@ -23,12 +23,33 @@ export function toProxyUrl(
   if (rawUrl.startsWith('/')) {
     return rawUrl;
   }
-  
+
+  // Supabase Storage public URLs — serve directly without proxy
+  // Matches both https://<project>.supabase.co/storage/... and custom domains like api.ments.app/storage/...
+  if (rawUrl.includes('/storage/v1/object/public/')) {
+    return rawUrl;
+  }
+
+  // External CDN URLs that don't need proxying — return directly
+  try {
+    const url = new URL(rawUrl);
+    const directHosts = [
+      'lh3.googleusercontent.com',  // Google profile pictures
+      'platform-lookaside.fbsbx.com', // Facebook profile pictures
+      'avatars.githubusercontent.com', // GitHub avatars
+    ];
+    if (directHosts.includes(url.hostname)) {
+      return rawUrl;
+    }
+  } catch {
+    // Invalid URL — fall through to proxy
+  }
+
   // Build query parameters with optimization settings
   const params = new URLSearchParams({
     url: rawUrl,
   });
-  
+
   // Add optimization parameters to match mobile app
   if (options?.width) {
     params.append('w', options.width.toString());
@@ -41,7 +62,7 @@ export function toProxyUrl(
   if (options?.format) {
     params.append('f', options.format);
   }
-  
+
   return `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?${params.toString()}`;
 }
 
@@ -52,7 +73,7 @@ export function toProxyUrl(
  */
 export async function getImageUrl(imagePath: string | null): Promise<string | null> {
   if (!imagePath) return null;
-  
+
   try {
     // If the path is already a full URL, return it as is
     if (imagePath.startsWith('http')) {
@@ -83,7 +104,7 @@ export async function getImageUrl(imagePath: string | null): Promise<string | nu
  */
 export async function getProcessedImageUrl(imagePath: string | null): Promise<string | null> {
   if (!imagePath) return null;
-  
+
   // Use the optimized proxy URL function
   return toProxyUrl(imagePath, { quality: 82, format: 'webp' });
 }

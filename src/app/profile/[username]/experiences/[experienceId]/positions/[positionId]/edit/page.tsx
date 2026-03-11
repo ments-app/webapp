@@ -83,11 +83,11 @@ export default function EditPositionPage() {
         }),
       });
       if (!res.ok) throw new Error('Failed to save');
-      showToast('success', 'Position updated');
+      showToast('success', 'Position updated ✓');
       // small delay so toast is visible
       setTimeout(() => router.push(`/profile/${encodeURIComponent(username)}/experiences/${encodeURIComponent(experienceId)}/edit`), 400);
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Failed to save');
+      showToast('error', e instanceof Error ? e.message : 'Position couldn\u2019t be saved');
     } finally {
       setSaving(false);
     }

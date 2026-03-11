@@ -11,20 +11,19 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '20');
 
   try {
-    const supabase = await createAuthClient();
-
-    // Verify session — derive userId from the authenticated session
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
+    const headerUserId = req.headers.get('x-user-id');
+    if (!headerUserId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Accept userId param for backward-compatibility but enforce it matches session
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== user.id) {
+    if (requestedUserId && requestedUserId !== headerUserId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const userId = user.id;
+    const userId = headerUserId;
+
+    const supabase = await createAuthClient();
 
     // Get basic conversation data first
     const { data: conversationData, error } = await supabase
@@ -53,15 +52,15 @@ export async function GET(req: NextRequest) {
     // Fetch user details in a separate query
     const { data: usersData, error: usersError } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, is_verified')
+      .select('id, username, full_name, avatar_url, is_verified, account_status')
       .in('id', Array.from(userIds));
 
     if (usersError) throw usersError;
 
     // Create a map for quick user lookup
     const userMap = new Map<string, Record<string, unknown>>();
-    usersData?.forEach((user: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => {
-      userMap.set(user.id, user);
+    usersData?.forEach((user: Record<string, unknown>) => {
+      userMap.set(user.id as string, user);
     });
 
     // Batch fetch unread counts for all conversations
@@ -96,6 +95,7 @@ export async function GET(req: NextRequest) {
         other_full_name: otherUser.full_name || '',
         other_avatar_url: otherUser.avatar_url || null,
         other_is_verified: otherUser.is_verified || false,
+        other_account_status: otherUser.account_status || 'active',
         last_message: conv.last_message,
         updated_at: conv.updated_at,
         unread_count: unreadByConv.get(conv.id) || 0,
@@ -222,8 +222,9 @@ export async function POST(req: NextRequest) {
 // PATCH: Update conversation (e.g., last_message, status)
 export async function PATCH(req: NextRequest) {
   const supabase = await createAuthClient();
-  const user_id = req.headers.get('x-user-id');
-  if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const user_id = user.id;
   const body = await req.json();
   const { id, last_message, status } = body;
   if (!id) {
@@ -258,8 +259,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE: Remove a conversation by id
 export async function DELETE(req: NextRequest) {
   const supabase = await createAuthClient();
-  const user_id = req.headers.get('x-user-id');
-  if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const user_id = user.id;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) {
