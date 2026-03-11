@@ -32,6 +32,58 @@ interface ApplyPayload {
     platform: string;
     link: string;
   }[];
+  side_projects?: {
+    title: string;
+    tagline: string;
+    url: string;
+    category: string;
+  }[];
+}
+
+const VALID_PROJECT_CATEGORIES = new Set([
+  'Web App',
+  'Mobile App',
+  'AI / ML',
+  'Open Source Tool',
+  'Game',
+  'Design',
+  'Data / Analytics',
+  'API / Dev Tool',
+  'Browser Extension',
+  'Hardware',
+  'Other',
+]);
+
+type UserSocialLinks = {
+  github?: string;
+  instagram?: string;
+  dribbble?: string;
+  behance?: string;
+  youtube?: string;
+  figma?: string;
+  website?: string;
+  substack?: string;
+};
+
+function normalizeUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function inferPlatform(platform: string, url: string): keyof UserSocialLinks | 'linkedin' | null {
+  const value = `${platform} ${url}`.toLowerCase();
+  if (value.includes('linkedin')) return 'linkedin';
+  if (value.includes('github')) return 'github';
+  if (value.includes('instagram')) return 'instagram';
+  if (value.includes('dribbble')) return 'dribbble';
+  if (value.includes('behance')) return 'behance';
+  if (value.includes('youtube') || value.includes('youtu.be')) return 'youtube';
+  if (value.includes('figma')) return 'figma';
+  if (value.includes('substack')) return 'substack';
+  if (value.includes('notion') || value.includes('portfolio') || value.includes('website') || value.includes('personal')) return 'website';
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -50,6 +102,11 @@ export async function POST(req: NextRequest) {
 
     const body: ApplyPayload = await req.json();
     const errors: string[] = [];
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('linkedin, social_links')
+      .eq('id', user.id)
+      .maybeSingle();
 
     // 1. Update user profile fields
     const userUpdate: Record<string, unknown> = {};
@@ -58,6 +115,27 @@ export async function POST(req: NextRequest) {
     if (body.about) userUpdate.about = body.about;
     if (body.current_city) userUpdate.current_city = body.current_city;
     if (body.skills && body.skills.length > 0) userUpdate.skills = body.skills;
+
+    if (body.portfolio_links && body.portfolio_links.length > 0) {
+      const socialLinks: UserSocialLinks = { ...((existingUser?.social_links as UserSocialLinks | null) || {}) };
+      let linkedin = typeof existingUser?.linkedin === 'string' ? existingUser.linkedin : null;
+
+      for (const item of body.portfolio_links) {
+        const normalized = normalizeUrl(item.link);
+        if (!normalized) continue;
+        const platform = inferPlatform(item.platform || '', normalized);
+        if (!platform) continue;
+
+        if (platform === 'linkedin') {
+          linkedin = linkedin || normalized;
+        } else if (!socialLinks[platform]) {
+          socialLinks[platform] = normalized;
+        }
+      }
+
+      if (linkedin) userUpdate.linkedin = linkedin;
+      if (Object.keys(socialLinks).length > 0) userUpdate.social_links = socialLinks;
+    }
 
     console.log('[resume/apply] userId:', user.id);
     console.log('[resume/apply] userUpdate fields:', Object.keys(userUpdate));
@@ -153,51 +231,80 @@ export async function POST(req: NextRequest) {
       if (edError) errors.push(`Education: ${edError.message}`);
     }
 
-    // 4. Insert portfolio links
-    if (body.portfolio_links && body.portfolio_links.length > 0) {
-      // First, ensure user has a portfolio entry
-      let portfolioId: string;
-      const { data: existingPortfolio } = await supabase
-        .from('portfolios')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    // 4. Insert side projects into the profile projects system.
+    if (body.side_projects && body.side_projects.length > 0) {
+      const { data: existingProjects, error: existingProjectsError } = await supabase
+        .from('projects')
+        .select('id, title')
+        .eq('owner_id', user.id);
 
-      if (existingPortfolio) {
-        portfolioId = existingPortfolio.id;
+      if (existingProjectsError) {
+        errors.push(`Existing projects lookup: ${existingProjectsError.message}`);
       } else {
-        const { data: newPortfolio, error: pfError } = await supabase
-          .from('portfolios')
-          .insert({ user_id: user.id, title: 'My Portfolio' })
-          .select('id')
-          .single();
+        const seenTitles = new Set(
+          (existingProjects || [])
+            .map((project) => (project.title || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
+        const nextSortBase = existingProjects?.length || 0;
 
-        if (pfError || !newPortfolio) {
-          errors.push(`Portfolio creation: ${pfError?.message || 'Unknown error'}`);
-          // Can't add links without portfolio
-          return NextResponse.json({
-            success: errors.length === 0,
-            errors: errors.length > 0 ? errors : undefined,
-          });
+        const projectsToInsert = body.side_projects
+          .map((project, index) => {
+            const title = project.title?.trim();
+            if (!title) return null;
+            if (seenTitles.has(title.toLowerCase())) return null;
+
+            seenTitles.add(title.toLowerCase());
+
+            return {
+              owner_id: user.id,
+              title,
+              tagline: project.tagline?.trim() || null,
+              category: VALID_PROJECT_CATEGORIES.has(project.category) ? project.category : 'Other',
+              visibility: 'public',
+              sort_order: nextSortBase + index,
+              source_url: normalizeUrl(project.url),
+            };
+          })
+          .filter((project): project is NonNullable<typeof project> => project !== null);
+
+        if (projectsToInsert.length > 0) {
+          const projectRows = projectsToInsert.map((project) => ({
+            owner_id: project.owner_id,
+            title: project.title,
+            tagline: project.tagline,
+            category: project.category,
+            visibility: project.visibility,
+            sort_order: project.sort_order,
+          }));
+          const { data: insertedProjects, error: projectInsertError } = await supabase
+            .from('projects')
+            .insert(projectRows)
+            .select('id, title');
+
+          if (projectInsertError) errors.push(`Side projects: ${projectInsertError.message}`);
+          if (!projectInsertError && insertedProjects) {
+            const projectLinksToInsert = insertedProjects.flatMap((insertedProject) => {
+              const matchingSource = projectsToInsert.find((project) => project.title === insertedProject.title);
+              if (!matchingSource?.source_url) return [];
+              return [{
+                project_id: insertedProject.id,
+                title: 'Project Link',
+                url: matchingSource.source_url,
+                icon_name: 'link',
+                display_order: 0,
+              }];
+            });
+
+            if (projectLinksToInsert.length > 0) {
+              const { error: projectLinksError } = await supabase
+                .from('project_links')
+                .insert(projectLinksToInsert);
+
+              if (projectLinksError) errors.push(`Project links: ${projectLinksError.message}`);
+            }
+          }
         }
-        portfolioId = newPortfolio.id;
-      }
-
-      const validPlatforms = new Set(['github', 'figma', 'dribbble', 'behance', 'linkedin', 'youtube', 'notion', 'substack', 'custom']);
-      const linksToInsert = body.portfolio_links
-        .filter(pl => pl.link?.startsWith('http'))
-        .map(pl => ({
-          portfolio_id: portfolioId,
-          platform: validPlatforms.has(pl.platform) ? pl.platform : 'custom',
-          link: pl.link,
-        }));
-
-      if (linksToInsert.length > 0) {
-        const { error: linkError } = await supabase
-          .from('portfolio_platforms')
-          .insert(linksToInsert);
-
-        if (linkError) errors.push(`Portfolio links: ${linkError.message}`);
       }
     }
 

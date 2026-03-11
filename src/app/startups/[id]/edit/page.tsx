@@ -303,18 +303,6 @@ export default function EditStartupPage() {
           <Link href={`/startups/${id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to Profile
           </Link>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? (
-              <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save Changes
-          </button>
         </div>
 
         {error && (
@@ -376,20 +364,22 @@ export default function EditStartupPage() {
           )}
         </div>
 
-        {/* Bottom save */}
-        <div className="flex justify-end pt-6 border-t border-border/50">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? (
-              <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save Changes
-          </button>
+        {/* Sticky save bar */}
+        <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-background/80 backdrop-blur-sm border-t border-border/50">
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save Changes
+            </button>
+          </div>
         </div>
 
         {/* Danger Zone */}
@@ -397,26 +387,30 @@ export default function EditStartupPage() {
           <h3 className="text-sm font-semibold text-red-500 mb-1">Danger Zone</h3>
           <p className="text-xs text-muted-foreground mb-3">Permanently delete this profile. This action cannot be undone.</p>
           {showDeleteConfirm ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-foreground">Are you sure?</span>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
-                {deleting ? (
-                  <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                Yes, delete
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-xl hover:bg-accent/50 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="space-y-3">
+              <p className="text-sm text-foreground">
+                This will permanently delete <strong>{profileData.brand_name || 'this profile'}</strong>, including all funding rounds, team associations, media, and analytics data.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Yes, delete permanently
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-xl hover:bg-accent/50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
             <button

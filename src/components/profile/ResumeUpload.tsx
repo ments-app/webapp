@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { supabase } from '@/utils/supabase';
 import {
   Upload, X, Check, ChevronDown, ChevronUp,
-  Briefcase, GraduationCap, Link2, Sparkles, Loader2, AlertCircle,
+  Briefcase, GraduationCap, Link2, Sparkles, Loader2, AlertCircle, FolderOpen,
   User, MapPin, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +38,12 @@ interface ParsedResume {
     platform: string;
     link: string;
   }[];
+  side_projects: {
+    title: string;
+    tagline: string;
+    url: string;
+    category: string;
+  }[];
 }
 
 type Step = 'idle' | 'uploading' | 'parsing' | 'preview' | 'applying' | 'done' | 'error';
@@ -64,11 +70,11 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedResume | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    profile: true, skills: true, experience: false, education: false, links: false,
+    profile: true, skills: true, experience: false, education: false, links: false, projects: false,
   });
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({
     full_name: true, tagline: true, about: true, current_city: true,
-    skills: true, work_experiences: true, education: true, portfolio_links: true,
+    skills: true, work_experiences: true, education: true, portfolio_links: true, side_projects: true,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,7 +165,7 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
   const buildPayload = useCallback((data: ParsedResume, fields: Record<string, boolean>): Partial<ParsedResume> => {
     const payload: Partial<ParsedResume> = {};
     const textFields: (keyof ParsedResume)[] = ['full_name', 'tagline', 'about', 'current_city'];
-    const arrayFields: (keyof ParsedResume)[] = ['skills', 'work_experiences', 'education', 'portfolio_links'];
+    const arrayFields: (keyof ParsedResume)[] = ['skills', 'work_experiences', 'education', 'portfolio_links', 'side_projects'];
 
     for (const key of textFields) {
       if (fields[key] && data[key]) {
@@ -221,7 +227,7 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
     setParsed(null);
     setSelectedFields({
       full_name: true, tagline: true, about: true, current_city: true,
-      skills: true, work_experiences: true, education: true, portfolio_links: true,
+      skills: true, work_experiences: true, education: true, portfolio_links: true, side_projects: true,
     });
   };
 
@@ -242,7 +248,7 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
           <div className="text-center">
             <p className="text-sm font-semibold">Upload your Resume / CV</p>
             <p className="text-[11px] text-muted-foreground/60 mt-1">
-              PDF format, max 10MB — AI will extract your profile details
+              PDF format, max 10MB — AI will extract profile details, social links, and side projects
             </p>
           </div>
         </button>
@@ -387,8 +393,8 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
             onSelectToggle={() => toggleField('skills')}
           >
             <div className="flex flex-wrap gap-1.5">
-              {parsed.skills.map((skill) => (
-                <span key={skill} className="inline-flex px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-medium">
+              {parsed.skills.map((skill, index) => (
+                <span key={`${skill}-${index}`} className="inline-flex px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-medium">
                   {skill}
                 </span>
               ))}
@@ -407,12 +413,12 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
             onSelectToggle={() => toggleField('work_experiences')}
           >
             <div className="space-y-3">
-              {parsed.work_experiences.map((we) => (
-                <div key={`${we.company_name}-${we.positions[0]?.position || ''}`} className="p-3 rounded-lg bg-accent/30 border border-border/40">
+              {parsed.work_experiences.map((we, index) => (
+                <div key={`${we.company_name}-${we.positions[0]?.position || 'role'}-${index}`} className="p-3 rounded-lg bg-accent/30 border border-border/40">
                   <p className="text-sm font-semibold">{we.company_name}</p>
                   {we.domain && <p className="text-xs text-muted-foreground">{we.domain}</p>}
-                  {we.positions.map((pos) => (
-                    <div key={`${pos.position}-${pos.start_date}`} className="mt-2 pl-3 border-l-2 border-emerald-500/30">
+                  {we.positions.map((pos, posIndex) => (
+                    <div key={`${pos.position}-${pos.start_date || 'start'}-${posIndex}`} className="mt-2 pl-3 border-l-2 border-emerald-500/30">
                       <p className="text-xs font-medium">{pos.position}</p>
                       {(pos.start_date || pos.end_date) && (
                         <p className="text-[10px] text-muted-foreground">
@@ -439,8 +445,8 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
             onSelectToggle={() => toggleField('education')}
           >
             <div className="space-y-3">
-              {parsed.education.map((ed) => (
-                <div key={`${ed.institution_name}-${ed.degree}`} className="p-3 rounded-lg bg-accent/30 border border-border/40">
+              {parsed.education.map((ed, index) => (
+                <div key={`${ed.institution_name}-${ed.degree || 'degree'}-${index}`} className="p-3 rounded-lg bg-accent/30 border border-border/40">
                   <p className="text-sm font-semibold">{ed.institution_name}</p>
                   {ed.degree && (
                     <p className="text-xs text-muted-foreground">
@@ -462,21 +468,56 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
         {parsed.portfolio_links.length > 0 && (
           <SectionCard
             icon={<Link2 className="h-4 w-4" />}
-            title={`Links (${parsed.portfolio_links.length})`}
+            title={`Social & Portfolio Links (${parsed.portfolio_links.length})`}
             expanded={expandedSections.links}
             onToggle={() => toggleSection('links')}
             selected={selectedFields.portfolio_links}
             onSelectToggle={() => toggleField('portfolio_links')}
           >
             <div className="space-y-2">
-              {parsed.portfolio_links.map((pl) => (
-                <div key={pl.link} className="flex items-center gap-2 text-xs">
+              {parsed.portfolio_links.map((pl, index) => (
+                <div key={`${pl.platform}-${pl.link || 'link'}-${index}`} className="flex items-center gap-2 text-xs">
                   <span className="px-2 py-0.5 rounded bg-accent/50 text-muted-foreground font-medium capitalize">
                     {pl.platform}
                   </span>
                   <a href={pl.link} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline truncate">
                     {pl.link}
                   </a>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Side Projects */}
+        {parsed.side_projects.length > 0 && (
+          <SectionCard
+            icon={<FolderOpen className="h-4 w-4" />}
+            title={`Side Projects (${parsed.side_projects.length})`}
+            expanded={expandedSections.projects}
+            onToggle={() => toggleSection('projects')}
+            selected={selectedFields.side_projects}
+            onSelectToggle={() => toggleField('side_projects')}
+          >
+            <div className="space-y-3">
+              {parsed.side_projects.map((project, index) => (
+                <div key={`${project.title}-${project.url || project.tagline || 'project'}-${index}`} className="p-3 rounded-lg bg-accent/30 border border-border/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">{project.title}</p>
+                      {project.tagline && (
+                        <p className="text-xs text-muted-foreground mt-1">{project.tagline}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-medium">
+                      {project.category || 'Other'}
+                    </span>
+                  </div>
+                  {project.url && (
+                    <a href={project.url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-xs text-emerald-400 hover:underline truncate max-w-full">
+                      {project.url}
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

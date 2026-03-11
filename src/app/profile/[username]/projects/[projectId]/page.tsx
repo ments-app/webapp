@@ -90,18 +90,22 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
       try {
         setLoading(true);
         setError(null);
-        const [projResp, slidesResp, sectionsResp, linksResp] = await Promise.all([
-          getProject(username, projectId),
-          listProjectSlides(username, projectId).catch(() => ({ data: [] as ProjectSlide[] })),
-          listProjectTextSections(username, projectId).catch(() => ({ data: [] as ProjectTextSection[] })),
-          listProjectLinks(username, projectId).catch(() => ({ data: [] as ProjectLink[] })),
+        const projResp = await getProject(username, projectId);
+        if (cancelled) return;
+
+        setItem((projResp as { data: ProjectItem | null })?.data ?? null);
+        setLoading(false);
+
+        const [slidesResp, sectionsResp, linksResp] = await Promise.allSettled([
+          listProjectSlides(username, projectId),
+          listProjectTextSections(username, projectId),
+          listProjectLinks(username, projectId),
         ]);
-        if (!cancelled) {
-          setItem((projResp as { data: ProjectItem | null })?.data ?? null);
-          setSlides((slidesResp as { data: ProjectSlide[] })?.data || []);
-          setSections((sectionsResp as { data: ProjectTextSection[] })?.data || []);
-          setLinks((linksResp as { data: ProjectLink[] })?.data || []);
-        }
+        if (cancelled) return;
+
+        setSlides(slidesResp.status === 'fulfilled' ? ((slidesResp.value as { data: ProjectSlide[] })?.data || []) : []);
+        setSections(sectionsResp.status === 'fulfilled' ? ((sectionsResp.value as { data: ProjectTextSection[] })?.data || []) : []);
+        setLinks(linksResp.status === 'fulfilled' ? ((linksResp.value as { data: ProjectLink[] })?.data || []) : []);
       } catch (e: unknown) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load project');
       } finally {

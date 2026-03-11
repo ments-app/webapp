@@ -33,6 +33,12 @@ export interface ParsedResume {
     platform: string;
     link: string;
   }[];
+  side_projects: {
+    title: string;
+    tagline: string;
+    url: string;
+    category: string;
+  }[];
 }
 
 function str(v: unknown): string {
@@ -80,7 +86,19 @@ function sanitizeResult(parsed: Record<string, unknown>): ParsedResume {
   const portfolio_links = Array.isArray(parsed.portfolio_links)
     ? (parsed.portfolio_links as Record<string, unknown>[])
         .filter((pl) => typeof pl.platform === 'string' && typeof pl.link === 'string')
-        .map((pl) => ({ platform: pl.platform as string, link: pl.link as string }))
+        .map((pl) => ({ platform: str(pl.platform), link: str(pl.link) }))
+    : [];
+
+  const side_projects = Array.isArray(parsed.side_projects)
+    ? (parsed.side_projects as Record<string, unknown>[])
+        .map((project) => ({
+          title: str(project.title),
+          tagline: str(project.tagline),
+          url: str(project.url),
+          category: str(project.category) || 'Other',
+        }))
+        .filter((project) => project.title)
+        .slice(0, 8)
     : [];
 
   return {
@@ -94,6 +112,7 @@ function sanitizeResult(parsed: Record<string, unknown>): ParsedResume {
     work_experiences,
     education,
     portfolio_links,
+    side_projects,
   };
 }
 
@@ -177,6 +196,14 @@ Respond ONLY with valid JSON matching this exact schema:
       "platform": "github|figma|dribbble|behance|linkedin|youtube|notion|substack|custom",
       "link": "full URL"
     }
+  ],
+  "side_projects": [
+    {
+      "title": "project name",
+      "tagline": "one-line summary",
+      "url": "full URL or empty string",
+      "category": "Web App|Mobile App|AI / ML|Open Source Tool|Game|Design|Data / Analytics|API / Dev Tool|Browser Extension|Hardware|Other"
+    }
   ]
 }
 
@@ -187,7 +214,8 @@ Rules:
 - Tagline: concise professional headline from resume.
 - About: 2-3 sentence summary in first person.
 - Missing fields: use empty string or empty array.
-- portfolio_links: extract GitHub, LinkedIn, portfolio site URLs.
+- portfolio_links: extract GitHub, LinkedIn, Instagram, portfolio site URLs, design links, creator links, and public social profiles.
+- side_projects: extract notable personal projects, freelance builds, open-source tools, hackathon projects, and portfolio pieces. Do not include normal job roles as projects.
 - ONLY output valid JSON. No markdown. No code blocks.`
       },
       {

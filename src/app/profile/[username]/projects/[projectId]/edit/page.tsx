@@ -215,12 +215,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
     let cancelled = false;
     const run = async () => {
       try {
-        const [projRes, slidesRes, linksRes, sectionsRes] = await Promise.all([
-          getProject(username, projectId),
-          listProjectSlides(username, projectId).catch(() => ({ data: [] as ProjectSlide[] })),
-          listProjectLinks(username, projectId).catch(() => ({ data: [] as ProjectLink[] })),
-          listProjectTextSections(username, projectId).catch(() => ({ data: [] as ProjectTextSection[] })),
-        ]);
+        const projRes = await getProject(username, projectId);
         if (cancelled) return;
         const p = (projRes as { data: Project }).data;
         setProject(p);
@@ -229,9 +224,17 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         setCategory(p?.category ?? "");
         setVisibility(p?.visibility || "public");
         setCoverUrl(p?.cover_url ?? null);
-        setSlides((slidesRes as { data: ProjectSlide[] }).data || []);
-        setLinks((linksRes as { data: ProjectLink[] }).data || []);
-        setSections((sectionsRes as { data: ProjectTextSection[] }).data || []);
+
+        const [slidesRes, linksRes, sectionsRes] = await Promise.allSettled([
+          listProjectSlides(username, projectId),
+          listProjectLinks(username, projectId),
+          listProjectTextSections(username, projectId),
+        ]);
+        if (cancelled) return;
+
+        setSlides(slidesRes.status === 'fulfilled' ? ((slidesRes.value as { data: ProjectSlide[] }).data || []) : []);
+        setLinks(linksRes.status === 'fulfilled' ? ((linksRes.value as { data: ProjectLink[] }).data || []) : []);
+        setSections(sectionsRes.status === 'fulfilled' ? ((sectionsRes.value as { data: ProjectTextSection[] }).data || []) : []);
       } catch {
         // keep silent for now; optional to surface a toast
       } finally {

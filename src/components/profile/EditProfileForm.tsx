@@ -10,6 +10,7 @@ import { Loader2, Camera, ArrowLeft, User, AtSign, MessageSquare, FileText, Zap,
 import { DribbbleIcon, BehanceIcon, FigmaIcon, SubstackIcon, InstagramIcon } from '@/components/ui/SocialIcons';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { ImageCropModal } from '@/components/ui/ImageCropModal';
+import ResumeUpload from '@/components/profile/ResumeUpload';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PROJECT_CATEGORIES } from '@/lib/projectCategories';
@@ -466,6 +467,9 @@ export default function EditProfileForm() {
   const [showProjects, setShowProjects] = useState(true);
   const [showStartups, setShowStartups] = useState(true);
 
+  // Reload trigger (incremented after resume apply to re-fetch profile)
+  const [reloadKey, setReloadKey] = useState(0);
+
   const isLocalUrl = (u?: string | null) => !!u && (/^blob:/i.test(u) || /^data:/i.test(u));
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const asPublic = useCallback((u?: string | null) => {
@@ -622,7 +626,7 @@ export default function EditProfileForm() {
 
     load();
     return () => { cancelled = true; };
-  }, [user?.id, asPublic]);
+  }, [user?.id, asPublic, reloadKey]);
 
   const profileCompletion = useMemo(() => {
     const fields = [
@@ -954,6 +958,20 @@ export default function EditProfileForm() {
             }`}>
             {profileCompletion.percent}%
           </span>
+        </div>
+      </div>
+
+      {/* Resume Upload */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <FileText className="h-4 w-4" />
+            <span className="text-sm font-medium">Quick Fill with Resume</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Upload your resume and AI will auto-fill your profile details.</p>
+        </div>
+        <div className="p-6">
+          <ResumeUpload onProfileUpdated={() => setReloadKey(k => k + 1)} />
         </div>
       </div>
 

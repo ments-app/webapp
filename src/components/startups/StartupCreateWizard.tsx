@@ -14,7 +14,7 @@ import { Step6Financials } from './Step6Financials';
 import { Step7Media } from './Step7Media';
 import { Step8Visibility } from './Step8Visibility';
 import { StepShowcase } from './StepShowcase';
-import { ChevronLeft, ChevronRight, Send, Check, Rocket, FolderKanban } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, Check, Rocket, FolderKanban, AlertCircle } from 'lucide-react';
 
 const STARTUP_STEPS = [
   { label: 'Identity', short: 'Identity' },
@@ -420,7 +420,7 @@ export function StartupCreateWizard({ entityType }: Props) {
         {/* Error */}
         {error && (
           <div className="mt-6 p-3.5 bg-red-500/10 border border-red-500/15 rounded-xl text-sm text-red-600 flex items-start gap-2">
-            <span className="shrink-0 mt-0.5">!</span>
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
@@ -443,10 +443,14 @@ export function StartupCreateWizard({ entityType }: Props) {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push('/startups/my')}
+            onClick={() => {
+              if (window.confirm('You have unsaved changes. Leave without saving?')) {
+                router.push('/startups?tab=my');
+              }
+            }}
             className="px-4 py-2.5 text-sm font-medium text-muted-foreground/70 hover:text-foreground transition-colors"
           >
-            Skip for now
+            Exit
           </button>
 
           {step === STEPS.length - 1 ? (
