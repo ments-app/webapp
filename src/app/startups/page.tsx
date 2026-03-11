@@ -8,7 +8,7 @@ import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Rocket, Plus, ChevronUp, Bookmark, MapPin, Zap, Loader2, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban } from 'lucide-react';
+import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles } from 'lucide-react';
 import { fetchMyVentures, updateStartup, StartupProfile } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
 import { DealFlowTab } from '@/components/investor/DealFlowTab';
@@ -40,25 +40,10 @@ const STAGE_LABELS: Record<string, string> = {
   ideation: 'Ideation', mvp: 'MVP', scaling: 'Scaling', expansion: 'Expansion', maturity: 'Maturity',
 };
 
-const STAGE_COLORS: Record<string, { pill: string; hex: string }> = {
-  ideation:  { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/25',      hex: '#4A9EFF' },
-  mvp:       { pill: 'bg-purple-500/10 text-purple-400 border-purple-500/25',  hex: '#AB70FF' },
-  scaling:   { pill: 'bg-orange-500/10 text-orange-400 border-orange-500/25',  hex: '#FF9500' },
-  expansion: { pill: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25', hex: '#34D399' },
-  maturity:  { pill: 'bg-teal-500/10 text-teal-400 border-teal-500/25',        hex: '#20CFCF' },
-};
-
-const MEDALS = ['🥇', '🥈', '🥉'];
-const MEDAL_COLORS = ['#F5A623', '#C0C0C0', '#CD7F32'];
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
   return name.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('') || '?';
-}
-
-function stageHex(stage: string): string {
-  return STAGE_COLORS[stage]?.hex ?? '#34D399';
 }
 
 function resolveImageUrl(raw: string | null | undefined): string | null {
@@ -72,8 +57,10 @@ export default function StartupsPage() {
   return (
     <Suspense fallback={
       <DashboardLayout>
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="w-full max-w-2xl h-24 bg-muted animate-pulse rounded-2xl" />
+          <div className="w-full max-w-2xl h-24 bg-muted animate-pulse rounded-2xl" />
+          <div className="w-full max-w-2xl h-24 bg-muted animate-pulse rounded-2xl" />
         </div>
       </DashboardLayout>
     }>
@@ -202,17 +189,13 @@ function StartupsPageContent() {
     );
   }
 
-  const showPodium = sortMode === 'hot' && startups.length >= 3;
-  const top3 = showPodium ? startups.slice(0, 3) : [];
-  const ranked = showPodium ? startups.slice(3) : startups;
-
   return (
     <DashboardLayout>
       <div>
         {/* ── Header ── */}
         <div className="flex items-center gap-3 pb-4">
-          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Rocket className="h-5 w-5 text-emerald-400" />
+          <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Rocket className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-foreground leading-tight">Directory</h1>
@@ -222,16 +205,16 @@ function StartupsPageContent() {
           </div>
           <Link
             href="/startups/create"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20 transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors shrink-0"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
             <span>List</span>
           </Link>
           <button
             onClick={() => setShowBookmarks(true)}
-            className="h-9 w-9 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="h-11 w-11 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
           >
-            <Bookmark className="h-4 w-4" />
+            <Bookmark className="h-5 w-5" />
           </button>
         </div>
 
@@ -245,9 +228,9 @@ function StartupsPageContent() {
 
         {/* ── Investor Verification CTA ── */}
         {activeTab === 'directory' && investorStatus === 'none' && (
-          <div className="mb-3 p-3.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-4 w-4 text-emerald-400" />
+          <div className="mb-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <TrendingUp className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">Verify as investor</p>
@@ -255,7 +238,7 @@ function StartupsPageContent() {
             </div>
             <button
               onClick={() => setShowVerifyModal(true)}
-              className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
+              className="shrink-0 px-4 py-2 min-h-[44px] rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
             >
               Get Verified
             </button>
@@ -276,9 +259,16 @@ function StartupsPageContent() {
 
         {/* ── Content ── */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="h-7 w-7 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground">Loading startups...</p>
+          <div className="space-y-3 py-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="bg-card border border-border rounded-2xl p-3 flex items-start gap-3 h-24 animate-pulse">
+                <div className="w-12 h-12 bg-muted rounded-full shrink-0" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-4 bg-muted rounded w-1/3" />
+                  <div className="h-3 bg-muted rounded w-1/4" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : startups.length === 0 ? (
           <EmptyState
@@ -287,32 +277,25 @@ function StartupsPageContent() {
           />
         ) : (
           <>
-            {/* Podium */}
-            {showPodium && (
-              <Podium top3={top3} upvotedIds={upvotedIds} votingIds={votingIds} onVote={toggleVote} />
-            )}
-
             {/* Rankings header */}
             <div className="flex items-center gap-2 py-3">
-              <span className="text-sm">{sortMode === 'hot' ? '📊' : '🕐'}</span>
+              {sortMode === 'hot' ? <BarChart3 className="h-4 w-4 text-muted-foreground" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
               <span className="text-sm font-semibold text-foreground">
                 {sortMode === 'hot' ? 'All Rankings' : 'Latest'}
               </span>
-              <div className="ml-auto px-2 py-0.5 rounded-lg bg-muted/50 border border-border">
-                <span className="text-xs text-muted-foreground">{startups.length} total</span>
-              </div>
             </div>
 
             {/* Ranked list */}
-            <div className="space-y-2">
-              {ranked.map((s, i) => (
-                <RankedCard
+            <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
+              {startups.map((s, i) => (
+                <RankedRow
                   key={s.id}
                   startup={s}
-                  rank={showPodium ? i + 4 : i + 1}
+                  rank={i + 1}
                   upvoted={upvotedIds.has(s.id)}
                   loading={votingIds.has(s.id)}
                   onVote={toggleVote}
+                  isTop3={sortMode === 'hot' && i < 3}
                 />
               ))}
             </div>
@@ -359,268 +342,131 @@ function Controls({
   setFilterEntityType: (t: EntityType | null) => void;
 }) {
   return (
-    <div className="space-y-2 pb-3">
-      {/* Sort pills + entity type filter */}
-      <div className="flex items-center gap-2">
-        <SortPill emoji="🔥" label="Hot" active={sortMode === 'hot'} onClick={() => setSortMode('hot')} />
-        <SortPill emoji="✨" label="New" active={sortMode === 'new'} onClick={() => setSortMode('new')} />
-        <div className="ml-auto flex items-center gap-1.5">
-          {filterStage && (
-            <button
-              onClick={() => setFilterStage(null)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium"
-            >
-              {STAGE_LABELS[filterStage] ?? filterStage}
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-      </div>
-      {/* Entity type pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-        <StageChip label="All" active={filterEntityType === null} onClick={() => setFilterEntityType(null)} />
-        <StageChip label="Startups" active={filterEntityType === 'startup'} onClick={() => setFilterEntityType('startup')} />
-        <StageChip label="Org Projects" active={filterEntityType === 'org_project'} onClick={() => setFilterEntityType('org_project')} />
-      </div>
-      {/* Stage chips — horizontally scrollable */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-        <StageChip label="All Stages" active={filterStage === null} onClick={() => setFilterStage(null)} />
-        {STAGES.map(s => (
-          <StageChip key={s} label={STAGE_LABELS[s]!} active={filterStage === s} onClick={() => setFilterStage(s)} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SortPill({ emoji, label, active, onClick }: { emoji: string; label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm border transition-all ${
-        active
-          ? 'bg-emerald-500/10 border-emerald-500/60 text-emerald-400 font-semibold shadow-sm'
-          : 'bg-card border-border text-muted-foreground hover:text-foreground font-medium'
-      }`}
-    >
-      <span>{emoji}</span>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function StageChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 px-3 py-1 rounded-lg text-xs border transition-all ${
-        active
-          ? 'bg-emerald-500/10 border-emerald-500/45 text-emerald-400 font-semibold'
-          : 'bg-transparent border-border text-muted-foreground hover:text-foreground font-normal'
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ── Podium ────────────────────────────────────────────────────────────────────
-
-function Podium({ top3, upvotedIds, votingIds, onVote }: {
-  top3: StartupItem[];
-  upvotedIds: Set<string>;
-  votingIds: Set<string>;
-  onVote: (id: string) => void;
-}) {
-  return (
-    <div className="mb-1">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <span className="text-xs">🏆</span>
-          <span className="text-xs font-semibold text-yellow-500">Community Top 3</span>
-        </div>
-        <span className="text-xs text-muted-foreground pr-1">Scroll →</span>
-      </div>
-
-      <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-        {top3.map((s, i) => (
-          <PodiumCard
-            key={s.id}
-            startup={s}
-            rank={i + 1}
-            upvoted={upvotedIds.has(s.id)}
-            loading={votingIds.has(s.id)}
-            onVote={onVote}
-          />
-        ))}
-      </div>
-      <div className="mt-3 border-b border-border" />
-    </div>
-  );
-}
-
-function PodiumCard({ startup, rank, upvoted, loading, onVote }: {
-  startup: StartupItem;
-  rank: number;
-  upvoted: boolean;
-  loading: boolean;
-  onVote: (id: string) => void;
-}) {
-  const hex = stageHex(startup.stage);
-  const bannerSrc = resolveImageUrl(startup.banner_url);
-  const logoSrc = resolveImageUrl(startup.logo_url);
-  const medal = MEDALS[rank - 1] ?? '';
-  const medalColor = MEDAL_COLORS[rank - 1] ?? '#888';
-  const pitch = startup.elevator_pitch || startup.description || '';
-  const inits = getInitials(startup.brand_name);
-  const stageStyle = STAGE_COLORS[startup.stage];
-
-  return (
-    <Link href={`/startups/${startup.id}`} className="shrink-0 block" style={{ width: 192 }}>
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Banner */}
-        <div className="relative overflow-hidden" style={{ height: 96 }}>
-          {bannerSrc ? (
-            <Image src={bannerSrc} alt={startup.brand_name} fill className="object-cover" unoptimized />
-          ) : (
-            <div
-              className="absolute inset-0"
-              style={{ background: `linear-gradient(135deg, ${hex}50 0%, ${hex}14 60%, rgba(0,0,0,0.5) 100%)` }}
-            />
-          )}
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/75" />
-          {/* Medal */}
-          <div
-            className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/60 border"
-            style={{ borderColor: `${medalColor}88` }}
-          >
-            <span className="text-[10px]">{medal}</span>
-            <span className="text-[10px] font-extrabold" style={{ color: medalColor }}>#{rank}</span>
-          </div>
-          {/* Name */}
-          <p className="absolute bottom-2 left-2.5 right-2.5 text-[13px] font-bold text-white leading-tight truncate drop-shadow">
-            {startup.brand_name}
-          </p>
-        </div>
-
-        {/* Body */}
-        <div className="p-2.5 space-y-2">
-          {/* Logo + tags */}
-          <div className="flex items-center gap-2">
-            <LogoWidget logoSrc={logoSrc} inits={inits} hex={hex} size={30} />
-            <div className="flex flex-wrap gap-1">
-              {startup.entity_type === 'org_project' && (
-                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/25">
-                  <FolderKanban className="h-2.5 w-2.5" />
-                  Project
-                </span>
-              )}
-              {stageStyle && (
-                <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${stageStyle.pill}`}>
-                  {STAGE_LABELS[startup.stage] ?? startup.stage}
-                </span>
-              )}
-              {startup.is_actively_raising && (
-                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-yellow-500/10 text-yellow-500 border border-yellow-500/25">
-                  <Zap className="h-2.5 w-2.5" />
-                  Raising
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Pitch */}
-          {pitch && (
-            <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{pitch}</p>
-          )}
-
-          {/* Upvote button */}
+    <div className="flex flex-col sm:flex-row gap-3 pb-4">
+      {/* Category Segmented Control */}
+      <div className="flex p-1 bg-muted rounded-xl">
+        {[
+          { id: null, label: 'All' },
+          { id: 'startup', label: 'Startups' },
+          { id: 'org_project', label: 'Projects' }
+        ].map(opt => (
           <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
-            className={`w-full h-8 rounded-lg flex items-center justify-center gap-1.5 text-[11px] font-semibold border transition-all ${
-              upvoted
-                ? 'bg-emerald-500/10 border-emerald-500/45 text-emerald-400'
-                : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'
+            key={opt.id || 'all'}
+            onClick={() => setFilterEntityType(opt.id as EntityType | null)}
+            className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[36px] ${
+              filterEntityType === opt.id
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {loading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <>
-                <ChevronUp className="h-3.5 w-3.5" />
-                {upvoted ? `Upvoted · ${startup._votes}` : `Upvote · ${startup._votes}`}
-              </>
-            )}
+            {opt.label}
           </button>
+        ))}
+      </div>
+      
+      {/* Dropdowns */}
+      <div className="flex items-center gap-2 sm:ml-auto">
+        {/* Stage Dropdown */}
+        <div className="relative flex-1 sm:flex-none">
+          <select
+            value={filterStage || ''}
+            onChange={(e) => setFilterStage(e.target.value || null)}
+            className="w-full appearance-none pl-3 pr-8 py-2 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">All Stages</option>
+            {STAGES.map(s => (
+              <option key={s} value={s}>{STAGE_LABELS[s]}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        </div>
+
+        {/* Sort Dropdown */}
+        <div className="relative flex-1 sm:flex-none">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground flex items-center">
+            {sortMode === 'hot' ? <Flame className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+          </div>
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as 'hot' | 'new')}
+            className="w-full appearance-none pl-9 pr-8 py-2 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="hot">Hot</option>
+            <option value="new">New</option>
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
-// ── Ranked Card ───────────────────────────────────────────────────────────────
+// ── Ranked Row ───────────────────────────────────────────────────────────────
 
-function RankedCard({ startup, rank, upvoted, loading, onVote }: {
+function RankedRow({ startup, rank, upvoted, loading, onVote, isTop3 }: {
   startup: StartupItem;
   rank: number;
   upvoted: boolean;
   loading: boolean;
   onVote: (id: string) => void;
+  isTop3?: boolean;
 }) {
-  const hex = stageHex(startup.stage);
   const logoSrc = resolveImageUrl(startup.logo_url);
+  const bannerSrc = resolveImageUrl(startup.banner_url);
   const inits = getInitials(startup.brand_name);
-  const stageStyle = STAGE_COLORS[startup.stage];
   const pitch = startup.elevator_pitch || startup.description || '';
   const location = [startup.city, startup.country].filter(Boolean).join(', ');
-  const rankColor = rank <= 3 ? MEDAL_COLORS[rank - 1] : undefined;
 
   return (
-    <Link href={`/startups/${startup.id}`} className="block">
-      <div className="bg-card border border-border rounded-2xl p-3 flex items-start gap-2 hover:shadow-sm transition-all">
+    <Link href={`/startups/${startup.id}`} className={`block hover:bg-muted/30 transition-all ${isTop3 ? 'bg-primary/5 pb-4' : 'p-4'}`}>
+      {/* Expanded view for Top 3 */}
+      {isTop3 && bannerSrc && (
+        <div className="w-full h-24 sm:h-32 relative mb-4">
+          <Image src={bannerSrc} alt={startup.brand_name} fill className="object-cover" unoptimized />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        </div>
+      )}
+      
+      <div className={`flex items-start gap-4 ${isTop3 && bannerSrc ? 'px-4' : ''}`}>
         {/* Rank */}
-        <div className="w-6 shrink-0 pt-1 text-center">
-          <span
-            className="text-[13px] font-bold"
-            style={{ color: rankColor ?? 'var(--muted-foreground)' }}
-          >
+        <div className={`w-6 shrink-0 text-center ${isTop3 ? (bannerSrc ? '' : 'pt-3') : 'pt-3'}`}>
+          <span className={`text-sm font-bold ${isTop3 ? 'text-primary text-base' : 'text-muted-foreground'}`}>
             {rank}
           </span>
         </div>
 
         {/* Logo */}
-        <LogoWidget logoSrc={logoSrc} inits={inits} hex={hex} size={48} />
+        <div className={`${isTop3 && bannerSrc ? '-mt-8 relative z-10 rounded-2xl shadow-sm border-[3px] border-card' : ''}`}>
+           <LogoWidget logoSrc={logoSrc} inits={inits} size={isTop3 ? 64 : 48} />
+        </div>
 
         {/* Info */}
-        <div className="flex-1 min-w-0 ml-1">
-          <p className="text-sm font-semibold text-foreground truncate">{startup.brand_name}</p>
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {startup.entity_type === 'org_project' && (
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/25">
-                <FolderKanban className="h-2.5 w-2.5" />
-                Project
-              </span>
-            )}
-            {stageStyle && (
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${stageStyle.pill}`}>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+            <p className={`${isTop3 ? 'text-lg' : 'text-base'} font-semibold text-foreground truncate`}>{startup.brand_name}</p>
+            <div className="flex items-center gap-1.5">
+              {startup.entity_type === 'org_project' && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
+                  Project
+                </span>
+              )}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
                 {STAGE_LABELS[startup.stage] ?? startup.stage}
               </span>
-            )}
-            {startup.is_actively_raising && (
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-500/10 text-yellow-500 border border-yellow-500/25">
-                <Zap className="h-2.5 w-2.5" />
-                Raising
-              </span>
-            )}
+              {startup.is_actively_raising && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-600">
+                  Raising
+                </span>
+              )}
+            </div>
           </div>
           {pitch && (
-            <p className="text-xs text-muted-foreground leading-snug line-clamp-2 mt-1.5">{pitch}</p>
+            <p className={`text-sm text-muted-foreground leading-snug mt-1 ${isTop3 ? 'line-clamp-2' : 'line-clamp-1'}`}>{pitch}</p>
           )}
           {location && (
             <div className="flex items-center gap-1 mt-1.5">
-              <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-              <span className="text-[11px] text-muted-foreground truncate">{location}</span>
+              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground truncate">{location}</span>
             </div>
           )}
         </div>
@@ -628,25 +474,18 @@ function RankedCard({ startup, rank, upvoted, loading, onVote }: {
         {/* Upvote pill */}
         <button
           onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
-          className={`shrink-0 py-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all ${
+          className={`shrink-0 min-w-[56px] min-h-[56px] rounded-xl flex flex-col items-center justify-center gap-1 border transition-all ${
             upvoted
-              ? 'bg-emerald-500/10 border-emerald-500/45'
-              : 'bg-muted/40 border-border hover:border-muted-foreground/30'
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-muted'
           }`}
-          style={{ width: 44 }}
         >
           {loading ? (
-            <Loader2
-              className="h-3.5 w-3.5 animate-spin"
-              style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
-            />
+            <div className="h-5 w-5 bg-muted-foreground/20 rounded-full animate-pulse" />
           ) : (
             <>
-              <ChevronUp className="h-4 w-4" style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }} />
-              <span
-                className="text-[11px] font-bold leading-none"
-                style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
-              >
+              <ChevronUp className="h-5 w-5" />
+              <span className="text-[11px] font-bold leading-none">
                 {startup._votes}
               </span>
             </>
@@ -659,19 +498,15 @@ function RankedCard({ startup, rank, upvoted, loading, onVote }: {
 
 // ── Logo Widget ───────────────────────────────────────────────────────────────
 
-function LogoWidget({ logoSrc, inits, hex, size }: { logoSrc: string | null; inits: string; hex: string; size: number }) {
+function LogoWidget({ logoSrc, inits, size }: { logoSrc: string | null; inits: string; size: number }) {
   const [failed, setFailed] = useState(false);
   const radius = Math.round(size * 0.26);
 
   if (logoSrc && !failed) {
     return (
       <div
-        className="shrink-0 overflow-hidden"
-        style={{
-          width: size, height: size, borderRadius: radius,
-          border: `1.5px solid ${hex}4D`,
-          background: `${hex}14`,
-        }}
+        className="shrink-0 overflow-hidden border border-border bg-card"
+        style={{ width: size, height: size, borderRadius: radius }}
       >
         <Image
           src={logoSrc} alt="logo" width={size} height={size}
@@ -685,14 +520,10 @@ function LogoWidget({ logoSrc, inits, hex, size }: { logoSrc: string | null; ini
 
   return (
     <div
-      className="shrink-0 flex items-center justify-center"
-      style={{
-        width: size, height: size, borderRadius: radius,
-        border: `1.5px solid ${hex}4D`,
-        background: `linear-gradient(135deg, ${hex}2E 0%, ${hex}0D 100%)`,
-      }}
+      className="shrink-0 flex items-center justify-center bg-muted border border-border"
+      style={{ width: size, height: size, borderRadius: radius }}
     >
-      <span className="font-bold leading-none" style={{ fontSize: size * 0.32, color: hex }}>{inits}</span>
+      <span className="font-bold leading-none text-muted-foreground" style={{ fontSize: size * 0.32 }}>{inits}</span>
     </div>
   );
 }
@@ -750,16 +581,18 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="h-1 w-9 rounded-full bg-border" />
+          <div className="h-1.5 w-12 rounded-full bg-border" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center gap-2.5 px-5 py-3 border-b border-border shrink-0">
-          <Bookmark className="h-4 w-4 text-emerald-400" />
-          <span className="text-base font-bold text-foreground">Upvoted Startups</span>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
+          <div className="p-2 bg-muted rounded-xl">
+            <Bookmark className="h-5 w-5 text-foreground" />
+          </div>
+          <span className="text-lg font-bold text-foreground">Upvoted Startups</span>
           {!loading && (
-            <div className="ml-auto px-2.5 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
-              <span className="text-xs font-semibold text-emerald-400">{bookmarked.length}</span>
+            <div className="ml-auto px-3 py-1 rounded-lg bg-muted border border-border">
+              <span className="text-sm font-semibold text-foreground">{bookmarked.length}</span>
             </div>
           )}
         </div>
@@ -767,37 +600,47 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-3 p-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex items-center gap-3 bg-muted/30 border border-border rounded-xl px-4 py-3 h-20 animate-pulse">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-1/4" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : bookmarked.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 gap-3">
-              <Bookmark className="h-11 w-11 text-muted-foreground/40" />
-              <p className="text-base text-foreground">No upvoted startups yet</p>
-              <p className="text-sm text-muted-foreground">Upvote startups you find interesting</p>
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="p-4 bg-muted rounded-full">
+                <Bookmark className="h-8 w-8 text-muted-foreground/60" />
+              </div>
+              <div className="text-center">
+                <p className="text-base font-semibold text-foreground">No upvoted startups yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Upvote startups you find interesting</p>
+              </div>
             </div>
           ) : (
             <div className="p-4 space-y-2 pb-10">
               {bookmarked.map(s => {
-                const stageStyle = STAGE_COLORS[s.stage];
                 const kw = Array.isArray(s.keywords) && s.keywords.length > 0 ? s.keywords[0] : null;
                 return (
                   <Link key={s.id} href={`/startups/${s.id}`} onClick={onClose} className="block">
-                    <div className="flex items-center gap-3 bg-muted/30 border border-border rounded-xl px-3.5 py-3 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3 bg-muted/30 border border-border rounded-xl px-4 py-3 hover:bg-muted/60 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{s.brand_name}</p>
-                        {stageStyle && (
-                          <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${stageStyle.pill}`}>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-card text-muted-foreground border border-border">
                             {STAGE_LABELS[s.stage] ?? s.stage}
                           </span>
-                        )}
-                        {kw && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{kw}</p>}
+                          {kw && <span className="text-[11px] text-muted-foreground truncate">{kw}</span>}
+                        </div>
                       </div>
                       <button
                         onClick={e => { e.preventDefault(); e.stopPropagation(); removeBookmark(s.id); }}
-                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                        className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card rounded-xl transition-colors"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-5 w-5" />
                       </button>
                     </div>
                   </Link>
@@ -815,12 +658,14 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
 
 function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3.5">
-      <div className="h-[72px] w-[72px] rounded-full bg-card border border-border flex items-center justify-center">
-        <Rocket className="h-8 w-8 text-muted-foreground/40" />
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <div className="h-16 w-16 rounded-full bg-muted border border-border flex items-center justify-center">
+        <Rocket className="h-8 w-8 text-muted-foreground" />
       </div>
-      <p className="text-base font-semibold text-foreground">{title}</p>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <div className="text-center">
+        <p className="text-base font-semibold text-foreground">{title}</p>
+        <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+      </div>
     </div>
   );
 }
@@ -834,7 +679,7 @@ function TabBar({ activeTab, setActiveTab, showMyVentures, showDealFlow }: {
   showDealFlow: boolean;
 }) {
   return (
-    <div className="flex gap-1 pb-3 mb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+    <div className="flex gap-2 pb-4 mb-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
       <TabPill label="Directory" active={activeTab === 'directory'} onClick={() => setActiveTab('directory')} />
       {showMyVentures && (
         <TabPill label="My Ventures" active={activeTab === 'my'} onClick={() => setActiveTab('my')} />
@@ -850,10 +695,10 @@ function TabPill({ label, active, onClick }: { label: string; active: boolean; o
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+      className={`shrink-0 px-4 py-2 min-h-[44px] rounded-xl text-sm font-medium transition-all ${
         active
-          ? 'bg-emerald-500/10 border border-emerald-500/40 text-emerald-400'
-          : 'text-muted-foreground hover:text-foreground border border-transparent'
+          ? 'bg-primary/10 border border-primary/30 text-primary'
+          : 'bg-card text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50'
       }`}
     >
       {label}
@@ -862,12 +707,6 @@ function TabPill({ label, active, onClick }: { label: string; active: boolean; o
 }
 
 // ── My Ventures Tab ──────────────────────────────────────────────────────────
-
-const MY_STAGE_COLORS: Record<string, string> = {
-  ideation: 'from-blue-500 to-cyan-500', mvp: 'from-purple-500 to-pink-500',
-  scaling: 'from-green-500 to-emerald-500', expansion: 'from-orange-500 to-amber-500',
-  maturity: 'from-red-500 to-rose-500',
-};
 
 function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onUpdate: (v: StartupProfile[]) => void }) {
   const togglePublish = async (venture: StartupProfile) => {
@@ -882,74 +721,74 @@ function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onU
       {ventures.map((startup) => {
         const isProject = startup.entity_type === 'org_project';
         return (
-          <div key={startup.id} className="space-y-4">
+          <div key={startup.id} className="space-y-4 pb-4">
             {/* Venture Overview */}
-            <div className="bg-card border border-border/50 rounded-2xl p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${MY_STAGE_COLORS[startup.stage] || 'from-primary to-primary/80'} shadow-lg`}>
-                    {isProject ? <FolderKanban className="h-6 w-6 text-white" /> : <Rocket className="h-6 w-6 text-white" />}
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">{startup.brand_name}</h2>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                        isProject ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : `bg-gradient-to-r ${MY_STAGE_COLORS[startup.stage]} text-white`
-                      }`}>
-                        {isProject ? 'Project' : STAGE_LABELS[startup.stage]}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${startup.is_published ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>
-                        {startup.is_published ? 'Published' : 'Draft'}
-                      </span>
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-5">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-muted border border-border shrink-0">
+                      {isProject ? <FolderKanban className="h-6 w-6 text-foreground" /> : <Rocket className="h-6 w-6 text-foreground" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-base sm:text-lg font-bold text-foreground truncate">{startup.brand_name}</h2>
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                          {isProject ? 'Project' : STAGE_LABELS[startup.stage]}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${startup.is_published ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
+                          {startup.is_published ? 'Published' : 'Draft'}
+                        </span>
+                        {!isProject && startup.is_actively_raising && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-600 border border-green-500/20">
+                            <TrendingUp className="h-3 w-3" /> Raising
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-                {!isProject && startup.is_actively_raising && (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500/10 text-green-500 border border-green-500/20">
-                    <TrendingUp className="h-3 w-3" /> Raising
-                  </span>
-                )}
-              </div>
-            </div>
 
-            {/* Stats */}
-            <div className={`grid gap-3 ${isProject ? 'grid-cols-2' : 'grid-cols-3'}`}>
-              <div className="bg-card border border-border/50 rounded-xl p-3 text-center">
-                <Eye className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
-                <p className="text-xl font-bold text-foreground">{startup.view_count || 0}</p>
-                <p className="text-[10px] text-muted-foreground">Views</p>
-              </div>
-              <div className="bg-card border border-border/50 rounded-xl p-3 text-center">
-                <p className="text-xl font-bold text-foreground">{startup.founders?.length || 0}</p>
-                <p className="text-[10px] text-muted-foreground">Team</p>
-              </div>
-              {!isProject && (
-                <div className="bg-card border border-border/50 rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-foreground">{startup.funding_rounds?.length || 0}</p>
-                  <p className="text-[10px] text-muted-foreground">Rounds</p>
+                {/* Stats - Inline Row Layout */}
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-3 border-t border-border/50">
+                  <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">{startup.view_count || 0}</span>
+                    <span className="text-xs text-muted-foreground">Views</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50">
+                    <span className="text-sm font-semibold text-foreground">{startup.founders?.length || 0}</span>
+                    <span className="text-xs text-muted-foreground">Team</span>
+                  </div>
+                  {!isProject && (
+                    <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50">
+                      <span className="text-sm font-semibold text-foreground">{startup.funding_rounds?.length || 0}</span>
+                      <span className="text-xs text-muted-foreground">Rounds</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Actions */}
             <div className="grid grid-cols-3 gap-2">
               <Link
                 href={`/startups/${startup.id}`}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-card border border-border/50 rounded-xl text-xs font-medium text-foreground hover:bg-accent/50 transition-colors"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors"
               >
-                <ExternalLink className="h-3.5 w-3.5" /> View
+                <ExternalLink className="h-4 w-4" /> View
               </Link>
               <Link
                 href={`/startups/${startup.id}/edit`}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-card border border-border/50 rounded-xl text-xs font-medium text-foreground hover:bg-accent/50 transition-colors"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors"
               >
-                <Edit className="h-3.5 w-3.5" /> Edit
+                <Edit className="h-4 w-4" /> Edit
               </Link>
               <button
                 onClick={() => togglePublish(startup)}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-colors ${
                   startup.is_published
-                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20'
+                    ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90'
                 }`}
               >
@@ -959,7 +798,7 @@ function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onU
 
             {/* Separator between ventures */}
             {ventures.indexOf(startup) < ventures.length - 1 && (
-              <div className="border-b border-border/40" />
+              <div className="border-b border-border mt-4" />
             )}
           </div>
         );
