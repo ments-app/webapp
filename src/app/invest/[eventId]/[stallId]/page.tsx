@@ -56,6 +56,23 @@ export default function InvestViaQRPage() {
   const [totalFunding, setTotalFunding] = useState(0);
   const [investorCount, setInvestorCount] = useState(0);
 
+  // Try to open in mobile app if on mobile device
+  useEffect(() => {
+    if (!eventId || !stallId) return;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile) return;
+
+    // Try custom scheme — if app is installed, it opens; otherwise nothing happens
+    const appUrl = `ments://invest/${eventId}/${stallId}`;
+    const timeout = setTimeout(() => {
+      // If we're still here after 1.5s, app didn't open — stay on web
+    }, 1500);
+
+    window.location.href = appUrl;
+
+    return () => clearTimeout(timeout);
+  }, [eventId, stallId]);
+
   // Fetch event + stall info
   useEffect(() => {
     if (!eventId || !stallId) return;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, createServiceClient } from '@/utils/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,9 +11,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { postId, replyId, replyContent } = await request.json();
+    const { postId, replyId } = await request.json();
 
-    if (!postId || !replyId || !replyContent) {
+    if (!postId || !replyId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -23,41 +23,76 @@ export async function POST(request: NextRequest) {
     // Derive replierId from the authenticated session, not the request body
     const replierId = user.id;
 
-    // Get Supabase service role key for Edge Function auth
+    const serviceClient = createServiceClient();
+
+    // Verify the reply exists, belongs to the authenticated user, AND is actually a
+    // reply to the claimed postId — prevents content spoofing and ownership abuse.
+    const { data: replyPost } = await serviceClient
+      .from('posts')
+      .select('author_id, parent_post_id, content')
+      .eq('id', replyId)
+      .eq('deleted', false)
+      .maybeSingle();
+
+    if (!replyPost || replyPost.author_id !== replierId || replyPost.parent_post_id !== postId) {
+      // Reply does not exist, doesn't belong to caller, or isn't a reply to postId
+      return NextResponse.json({ success: true }); // silent — no spoofed notification
+    }
+
+    // Use DB content — never trust client-supplied content
+    const verifiedReplyContent = replyPost.content ?? '';
+
+    // Fetch the original post to get author_id
+    const { data: originalPost } = await serviceClient
+      .from('posts')
+      .select('author_id')
+      .eq('id', postId)
+      .eq('deleted', false)
+      .maybeSingle();
+
+    const postAuthorId = originalPost?.author_id ?? null;
+
+    // Write in-app notification directly (primary path — no edge function dependency)
+    if (postAuthorId && postAuthorId !== replierId) {
+      try {
+        // Fetch replier's profile for notification metadata
+        const { data: replierProfile } = await serviceClient
+          .from('users')
+          .select('username, full_name, avatar_url')
+          .eq('id', replierId)
+          .maybeSingle();
+
+        await serviceClient.from('inapp_notification').insert({
+          recipient_id: postAuthorId,
+          type: 'reply',
+          content: verifiedReplyContent,
+          is_read: false,
+          actor_id: replierId,
+          actor_name: replierProfile?.full_name ?? null,
+          actor_username: replierProfile?.username ?? null,
+          actor_avatar_url: replierProfile?.avatar_url ?? null,
+          post_id: postId,
+          reply_id: replyId,
+        });
+      } catch (notifErr) {
+        console.error('[push-on-reply] Failed to write inapp_notification:', notifErr);
+      }
+    }
+
+    // Fire-and-forget edge function for device push notification (best effort)
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseServiceKey) {
-      console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
+    if (supabaseServiceKey) {
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({ postId, replyId, replierId, replyContent: verifiedReplyContent }),
+      }).catch(() => { });
     }
 
-    // Call the Supabase Edge Function to send push notification with proper auth
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-reply`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify({
-        postId,
-        replyId,
-        replierId,
-        replyContent
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.error || 'Failed to send reply notification' },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in push-on-reply:', error);
     return NextResponse.json(

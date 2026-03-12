@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, createServiceClient } from '@/utils/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,66 +23,82 @@ export async function POST(request: NextRequest) {
     // Derive mentionerId from the authenticated session, not the request body
     const mentionerId = user.id;
 
-    // Get Supabase service role key for Edge Function auth
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseServiceKey) {
-      console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
+    // Skip self-mentions
+    if (mentionerId === mentionedUserId) {
+      return NextResponse.json({ success: true });
     }
 
-    console.log(`[push-on-mention] Sending notification: postId=${postId}, mentionerId=${mentionerId}, mentionedUserId=${mentionedUserId}`);
+    const serviceClient = createServiceClient();
 
-    // Call the Supabase Edge Function to send push notification with proper auth
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-mention`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify({
-        postId,
-        mentionerId,
-        mentionedUserId
-      })
-    });
+    // Verify the post exists and was authored by the caller — prevents notification spam
+    // where any user could mention-notify any other user on any post.
+    const { data: postRow } = await serviceClient
+      .from('posts')
+      .select('author_id, content')
+      .eq('id', postId)
+      .eq('deleted', false)
+      .maybeSingle();
 
-    console.log(`[push-on-mention] Edge function response status: ${response.status}`);
-
-    if (!response.ok) {
-      let errorData;
-      const responseText = await response.text();
-      console.log(`[push-on-mention] Error response text:`, responseText);
-
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { error: responseText || 'Unknown error' };
-      }
-
-      console.error(`[push-on-mention] Edge function failed:`, errorData);
-      return NextResponse.json(
-        {
-          error: errorData.error || 'Failed to send notification',
-          details: errorData,
-          status: response.status
-        },
-        { status: response.status }
-      );
+    if (!postRow || postRow.author_id !== mentionerId) {
+      return NextResponse.json({ success: true }); // silent — caller doesn't own this post
     }
 
-    let data;
-    const responseText = await response.text();
+    // Verify the mentioned user actually exists and their username is in the post content.
+    // This prevents abusing the endpoint to spam arbitrary user IDs.
+    const { data: mentionedUser } = await serviceClient
+      .from('users')
+      .select('username')
+      .eq('id', mentionedUserId)
+      .eq('account_status', 'active')
+      .maybeSingle();
+
+    if (!mentionedUser) {
+      return NextResponse.json({ success: true }); // user not found or inactive
+    }
+
+    const postContent = postRow.content ?? '';
+    const mentionPattern = new RegExp(`@${mentionedUser.username}(?:\\b|$)`, 'i');
+    if (!mentionPattern.test(postContent)) {
+      return NextResponse.json({ success: true }); // username not actually in the post
+    }
+
+    // Write in-app notification directly (primary path — no edge function dependency)
     try {
-      data = JSON.parse(responseText);
-    } catch {
-      data = { success: true, response: responseText };
+      const { data: mentionerProfile } = await serviceClient
+        .from('users')
+        .select('username, full_name, avatar_url')
+        .eq('id', mentionerId)
+        .maybeSingle();
+
+      await serviceClient.from('inapp_notification').insert({
+        recipient_id: mentionedUserId,
+        type: 'mention',
+        content: postContent,
+        is_read: false,
+        actor_id: mentionerId,
+        actor_name: mentionerProfile?.full_name ?? null,
+        actor_username: mentionerProfile?.username ?? null,
+        actor_avatar_url: mentionerProfile?.avatar_url ?? null,
+        post_id: postId,
+      });
+    } catch (notifErr) {
+      console.error('[push-on-mention] Failed to write inapp_notification:', notifErr);
     }
 
-    console.log(`[push-on-mention] Success:`, data);
-    return NextResponse.json(data);
+    // Fire-and-forget edge function for device push notification (best effort)
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseServiceKey) {
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-mention`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({ postId, mentionerId, mentionedUserId }),
+      }).catch(() => { });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in push-on-mention:', error);
     return NextResponse.json(

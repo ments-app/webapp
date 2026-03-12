@@ -64,12 +64,9 @@ async function fallbackCandidateQuery(
   userId: string,
   limit: number
 ): Promise<RawCandidate[]> {
-  // Fetch follows, seen posts, and candidate posts in parallel
-  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-
-  const [followsRes, seenRes, postsRes] = await Promise.all([
+  // Fetch follows and candidate posts in parallel
+  const [followsRes, postsRes] = await Promise.all([
     supabase.from('user_follows').select('followee_id').eq('follower_id', userId),
-    supabase.from('feed_seen_posts').select('post_id').eq('user_id', userId).gte('seen_at', sixHoursAgo),
     supabase
       .from('posts')
       .select(`
@@ -78,14 +75,12 @@ async function fallbackCandidateQuery(
       `)
       .eq('deleted', false)
       .is('parent_post_id', null)
-      .neq('author_id', userId)
       .eq('author.account_status', 'active')
       .order('created_at', { ascending: false })
       .limit(limit * 2),
   ]);
 
   const followingIds = (followsRes.data || []).map((f: { followee_id: string }) => f.followee_id);
-  const seenIds = new Set((seenRes.data || []).map((s: { post_id: string }) => s.post_id));
   const posts = postsRes.data;
 
   if (postsRes.error) {
@@ -107,7 +102,6 @@ async function fallbackCandidateQuery(
   });
 
   return posts
-    .filter((p: { id: string }) => !seenIds.has(p.id))
     .slice(0, limit)
     .map((p: Record<string, unknown>) => {
       const author = p.author as Record<string, unknown> | null;
