@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { StartupProfile } from '@/api/startups';
 import {
-  Rocket, TrendingUp, Users, MapPin, Briefcase,
+  Rocket, TrendingUp, Users, MapPin,
   BrainCircuit, DraftingCompass, Globe2, Medal, Zap,
   FolderKanban
 } from 'lucide-react';
@@ -28,22 +28,12 @@ const stagePills: Record<string, string> = {
   expansion: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
   maturity: 'bg-red-500/10 text-red-600 border-red-500/20',
 };
-const stageAccents: Record<string, string> = {
-  ideation: 'via-blue-500/10',
-  mvp: 'via-purple-500/10',
-  scaling: 'via-emerald-500/10',
-  expansion: 'via-orange-500/10',
-  maturity: 'via-red-500/10',
-};
 const stageIcons: Record<string, typeof Rocket> = {
   ideation: BrainCircuit,
   mvp: DraftingCompass,
   scaling: Zap,
   expansion: Globe2,
   maturity: Medal,
-};
-const businessModelLabels: Record<string, string> = {
-  B2B: 'B2B', B2C: 'B2C', B2B2C: 'B2B2C',
 };
 
 function StartupLogo({ startup }: { startup: StartupProfile }) {
@@ -72,7 +62,7 @@ function StartupLogo({ startup }: { startup: StartupProfile }) {
             } else {
               setDirectFailed(true);
             }
-            proxyFailed && setProxyFailed(true);
+            if (proxyFailed) setProxyFailed(true);
           } else {
             setDirectFailed(true);
           }

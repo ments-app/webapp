@@ -3,13 +3,13 @@
 import { StartupProfile } from '@/api/startups';
 import { toProxyUrl } from '@/utils/imageUtils';
 import {
-  Rocket, Globe, Mail, Phone, FileText, TrendingUp, Users, Award,
+  Rocket, Globe, Mail, Phone, FileText, TrendingUp, Award,
   Building, Bookmark, BookmarkCheck, ExternalLink, Eye, MapPin,
-  Calendar, Zap, Target, BarChart3,
+  Calendar, Zap, Target,
   Briefcase, Hash, BrainCircuit, DraftingCompass, Globe2, Medal,
   ChevronRight, Mic, Clock, FolderKanban, Link2, Github, Linkedin,
   Twitter, Youtube, Info, Component, UsersRound, CircleDollarSign,
-  ChevronLeft, Video
+  Video
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -229,7 +229,7 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
               <Mic className="h-3.5 w-3.5" />
               <span className="text-[10px] font-bold uppercase tracking-widest">Elevator Pitch</span>
             </div>
-            <p className="text-base text-foreground/90 font-medium leading-relaxed italic">"{startup.elevator_pitch}"</p>
+            <p className="text-base text-foreground/90 font-medium leading-relaxed italic">&ldquo;{startup.elevator_pitch}&rdquo;</p>
           </div>
         )}
 
@@ -332,11 +332,10 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
             }).map((f) => {
               const isAccepted = f.status === 'accepted';
               const isPending = f.status === 'pending';
-              
               // Prefer real-time data from joined user, fallback to denormalized
               const username = f.user?.username || f.ments_username;
               const avatar = f.user?.avatar_url || f.avatar_url;
-              
+
               const hasMents = !!username && isAccepted;
               const profileHref = hasMents ? `/profile/${username}` : null;
 

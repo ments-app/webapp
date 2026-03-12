@@ -10,6 +10,7 @@ import { createDeal, getDealForStartup, updateDealStage, removeDeal, InvestorDea
 import { supabase } from '@/utils/supabase';
 import { ArrowLeft, Plus, ChevronDown, Trash2, IndianRupee, Wallet, TrendingUp, Loader2, CheckCircle, X } from 'lucide-react';
 import Link from 'next/link';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 export default function StartupDetailPage() {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ export default function StartupDetailPage() {
   const [loadingArena, setLoadingArena] = useState(false);
   const [joiningAudience, setJoiningAudience] = useState(false);
   const [virtualFundAmount, setVirtualFundAmount] = useState(1000000);
+  const loginPrompt = useLoginPrompt();
 
   useEffect(() => {
     const load = async () => {
@@ -82,28 +84,36 @@ export default function StartupDetailPage() {
     fetchInvestor();
   }, [user, id]);
 
-  // Fetch arena context when coming from investment arena
+  // Fetch arena context when coming from investment arena (works even without login)
   useEffect(() => {
-    if (!fromArena || !arenaEventId || !arenaStallId || !user) return;
+    if (!fromArena || !arenaEventId || !arenaStallId) return;
     setLoadingArena(true);
     (async () => {
       try {
-        const [audienceRes, leaderRes, eventRes] = await Promise.all([
-          fetch(`/api/events/${encodeURIComponent(arenaEventId)}/audience`),
+        // Always fetch leaderboard and event info (public data)
+        const fetches: Promise<Response>[] = [
           fetch(`/api/events/${encodeURIComponent(arenaEventId)}/leaderboard`),
           fetch(`/api/events/${encodeURIComponent(arenaEventId)}`),
-        ]);
-        const audienceJson = await audienceRes.json();
-        const leaderJson = await leaderRes.json();
-        const eventJson = await eventRes.json();
+        ];
+        // Only fetch audience (user-specific) if logged in
+        if (user) {
+          fetches.push(fetch(`/api/events/${encodeURIComponent(arenaEventId)}/audience`));
+        }
+
+        const responses = await Promise.all(fetches);
+        const leaderJson = await responses[0].json();
+        const eventJson = await responses[1].json();
 
         setArenaRound(leaderJson.arena_round ?? eventJson.data?.arena_round ?? null);
         setVirtualFundAmount(eventJson.data?.virtual_fund_amount ?? 1000000);
-        setIsStallOwner(audienceJson.isStallOwner ?? false);
 
-        if (audienceJson.audience) {
-          setIsAudience(true);
-          setArenaBalance(audienceJson.audience.virtual_balance ?? 0);
+        if (user && responses[2]) {
+          const audienceJson = await responses[2].json();
+          setIsStallOwner(audienceJson.isStallOwner ?? false);
+          if (audienceJson.audience) {
+            setIsAudience(true);
+            setArenaBalance(audienceJson.audience.virtual_balance ?? 0);
+          }
         }
 
         const entry = (leaderJson.leaderboard ?? []).find((l: { id: string }) => l.id === arenaStallId);
@@ -270,7 +280,7 @@ export default function StartupDetailPage() {
 
         {/* Virtual Money Investment Modal */}
         {showInvestModal && fromArena && arenaEventId && arenaStallId && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowInvestModal(false); setInvestError(null); }} />
             <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-border/60 bg-background shadow-2xl mx-auto">
               {/* Modal Header */}
@@ -316,7 +326,7 @@ export default function StartupDetailPage() {
                 {/* Not audience yet — join first */}
                 {!isAudience && !isStallOwner && (
                   <div className="rounded-xl border border-border/60 bg-card/70 p-5 text-center space-y-3">
-                    <Wallet className="h-10 w-10 text-blue-500 mx-auto" />
+                    <Wallet className="h-10 w-10 text-emerald-500 mx-auto" />
                     <h4 className="font-bold text-lg">Join as Investor</h4>
                     <p className="text-sm text-muted-foreground">
                       Get <strong>₹{virtualFundAmount.toLocaleString('en-IN')}</strong> virtual cash to invest!
@@ -325,7 +335,7 @@ export default function StartupDetailPage() {
                     <button
                       onClick={handleJoinAudience}
                       disabled={joiningAudience}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
                     >
                       {joiningAudience ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
                       {joiningAudience ? 'Joining...' : 'Join & Get Virtual Cash'}
@@ -337,16 +347,16 @@ export default function StartupDetailPage() {
                 {isAudience && (
                   <>
                     {/* Balance Card */}
-                    <div className="rounded-xl border-2 border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-4">
+                    <div className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">Your Virtual Balance</p>
-                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                             <IndianRupee className="h-5 w-5" />
                             {arenaBalance.toLocaleString('en-IN')}
                           </p>
                         </div>
-                        <Wallet className="h-8 w-8 text-blue-500/50" />
+                        <Wallet className="h-8 w-8 text-emerald-500/50" />
                       </div>
                     </div>
 
@@ -451,34 +461,54 @@ export default function StartupDetailPage() {
           </div>
         )}
         {/* Bottom spacer so content isn't hidden behind sticky bar */}
-        {fromArena && arenaEventId && arenaStallId && user && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
-          <div className="h-28" />
+        {fromArena && arenaEventId && arenaStallId && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
+          <div className="h-40 md:h-28" />
         )}
       </div>
 
       {/* PhonePe-style sticky bottom invest bar */}
-      {fromArena && arenaEventId && arenaStallId && user && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-md safe-bottom">
+      {fromArena && arenaEventId && arenaStallId && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
+        <div className="fixed bottom-[60px] md:bottom-0 left-0 right-0 z-[51] border-t border-border/60 bg-background/95 backdrop-blur-md safe-bottom">
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
-            {/* Balance info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Virtual Balance</p>
-              <p className="text-lg font-bold text-foreground flex items-center gap-0.5">
-                <IndianRupee className="h-4 w-4" />
-                {arenaBalance.toLocaleString('en-IN')}
-              </p>
-            </div>
-            {/* Big Invest button */}
-            <button
-              onClick={() => setShowInvestModal(true)}
-              className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold shadow-lg shadow-emerald-600/30 transition active:scale-[0.97] min-w-[160px]"
-            >
-              <IndianRupee className="h-5 w-5" />
-              Invest Now
-            </button>
+            {user ? (
+              <>
+                {/* Balance info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Virtual Balance</p>
+                  <p className="text-lg font-bold text-foreground flex items-center gap-0.5">
+                    <IndianRupee className="h-4 w-4" />
+                    {arenaBalance.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                {/* Big Invest button */}
+                <button
+                  onClick={() => setShowInvestModal(true)}
+                  className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold shadow-lg shadow-emerald-600/30 transition active:scale-[0.97] min-w-[160px]"
+                >
+                  <IndianRupee className="h-5 w-5" />
+                  Invest Now
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Not logged in — prompt to login */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Login to invest virtual funds</p>
+                  <p className="text-xs text-muted-foreground">Join the arena and get virtual cash!</p>
+                </div>
+                <button
+                  onClick={() => loginPrompt.open('Sign in to Invest', 'Sign in to get virtual cash and invest in startups!')}
+                  className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold shadow-lg shadow-emerald-600/30 transition active:scale-[0.97] min-w-[160px]"
+                >
+                  <IndianRupee className="h-5 w-5" />
+                  Login & Invest
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
+      <LoginPromptModal {...loginPrompt.modalProps} redirectTo={typeof window !== 'undefined' ? window.location.href : undefined} />
     </DashboardLayout>
   );
 }
