@@ -433,10 +433,10 @@ export default function ConversationPage() {
     setSelectedMessages(new Set());
   }, []);
 
-  // Clear chat handler
+  // Clear chat handler (per-user: only clears your view, other user still sees messages)
   const handleClearChat = useCallback(() => {
     if (!conversationId) return;
-    showConfirm('Clear Chat', 'Are you sure you want to clear all messages? This cannot be undone.', async () => {
+    showConfirm('Clear Chat', 'Clear all messages from your view? The other person will still see the messages.', async () => {
       setActionLoading('clear');
       try {
         const res = await fetch('/api/messages/clear', {

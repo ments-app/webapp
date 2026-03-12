@@ -20,7 +20,6 @@ export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {})
   const {
     posts,
     isLoading,
-    isLoadingMore,
     error,
     hasMore,
     loadMore,

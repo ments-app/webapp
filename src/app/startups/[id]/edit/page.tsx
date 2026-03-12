@@ -13,7 +13,7 @@ import { Step6Financials } from '@/components/startups/Step6Financials';
 import { Step7Media } from '@/components/startups/Step7Media';
 import {
   fetchStartupById, updateStartup, upsertFundingRounds,
-  uploadPitchDeck, uploadStartupImage, StartupProfile,
+  uploadPitchDeck, uploadPitchVideo, uploadStartupImage, StartupProfile,
   upsertTextSections, upsertLinks, upsertSlides,
 } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
@@ -33,6 +33,7 @@ export default function EditStartupPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUploadingDeck, setIsUploadingDeck] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export default function EditStartupPage() {
     brand_name: '', registered_name: '', legal_status: 'not_registered', cin: '',
     stage: 'ideation', description: '', keywords: [] as string[], website: '',
     founded_date: '', address_line1: '', address_line2: '', startup_email: '',
-    startup_phone: '', pitch_deck_url: '', is_actively_raising: false,
+    startup_phone: '', pitch_deck_url: '', pitch_video_url: '', is_actively_raising: false,
     business_model: '', city: '', state: '', country: '', categories: [] as string[],
     team_size: '', key_strengths: '', target_audience: '',
     revenue_amount: '', revenue_currency: 'USD', revenue_growth: '',
@@ -87,6 +88,7 @@ export default function EditStartupPage() {
         address_line2: data.address_line2 || '',
         startup_email: data.startup_email || '', startup_phone: data.startup_phone || '',
         pitch_deck_url: data.pitch_deck_url || '',
+        pitch_video_url: data.pitch_video_url || '',
         is_actively_raising: data.is_actively_raising,
         business_model: data.business_model || '', city: data.city || '',
         state: data.state || '', country: data.country || '', categories: data.categories || [],
@@ -162,6 +164,14 @@ export default function EditStartupPage() {
     else setProfileData(prev => ({ ...prev, banner_url: url }));
   };
 
+  const handlePitchVideoUpload = async (file: File) => {
+    setIsUploadingVideo(true);
+    const { url, error } = await uploadPitchVideo(file);
+    setIsUploadingVideo(false);
+    if (error) setError(error);
+    else setProfileData(prev => ({ ...prev, pitch_video_url: url }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -203,6 +213,7 @@ export default function EditStartupPage() {
         elevator_pitch: profileData.elevator_pitch || null,
         logo_url: profileData.logo_url || null,
         banner_url: profileData.banner_url || null,
+        pitch_video_url: profileData.pitch_video_url || null,
         raise_target: isOrgProject ? null : (profileData.raise_target || null),
         equity_offered: isOrgProject ? null : (profileData.equity_offered || null),
         min_ticket_size: isOrgProject ? null : (profileData.min_ticket_size || null),
@@ -357,8 +368,10 @@ export default function EditStartupPage() {
               <Step7Media
                 data={profileData}
                 isUploadingDeck={isUploadingDeck}
+                isUploadingVideo={isUploadingVideo}
                 onChange={handleProfileChange}
                 onPitchDeckUpload={handlePitchDeckUpload}
+                onPitchVideoUpload={handlePitchVideoUpload}
               />
             </>
           )}

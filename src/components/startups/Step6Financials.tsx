@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, X, TrendingUp, DollarSign, BarChart3, ChevronDown } from 'lucide-react';
+import { Plus, X, TrendingUp, DollarSign, BarChart3, ChevronDown, Calendar } from 'lucide-react';
 
 type FundingRound = {
   investor: string;
@@ -50,6 +50,10 @@ const fundingStages = [
   { value: 'bridge', label: 'Bridge' },
 ];
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
 const inputClass = "w-full px-3.5 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 const selectClass = `${inputClass} appearance-none pr-9 cursor-pointer`;
 
@@ -58,6 +62,65 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
     <div className="relative">
       {children}
       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+    </div>
+  );
+}
+
+function MonthYearPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const parsed = value ? new Date(value + 'T00:00:00') : null;
+  const selectedMonth = parsed ? parsed.getMonth() : -1;
+  const selectedYear = parsed ? parsed.getFullYear() : -1;
+
+  const handleChange = (month: number, year: number) => {
+    if (month >= 0 && year > 0) {
+      const m = String(month + 1).padStart(2, '0');
+      onChange(`${year}-${m}-01`);
+    }
+  };
+
+  const pickerSelect = `${inputClass} appearance-none pr-8 cursor-pointer`;
+
+  return (
+    <div className="flex items-center gap-2">
+      <Calendar className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+      <div className="relative flex-1">
+        <select
+          value={selectedMonth >= 0 ? selectedMonth : ''}
+          onChange={e => {
+            const m = Number(e.target.value);
+            handleChange(m, selectedYear > 0 ? selectedYear : currentYear);
+          }}
+          className={pickerSelect}
+        >
+          <option value="">Month</option>
+          {MONTHS.map((m, i) => (
+            <option key={m} value={i}>{m}</option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+      </div>
+      <div className="relative flex-1">
+        <select
+          value={selectedYear > 0 ? selectedYear : ''}
+          onChange={e => {
+            const y = Number(e.target.value);
+            handleChange(selectedMonth >= 0 ? selectedMonth : 0, y);
+          }}
+          className={pickerSelect}
+        >
+          <option value="">Year</option>
+          {YEARS.map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+      </div>
     </div>
   );
 }
@@ -290,7 +353,7 @@ export function Step6Financials({ data, fundingRounds, onChange, onFundingChange
                     className={inputClass}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-2.5">
                   <input
                     type="text"
                     value={round.investor}
@@ -298,11 +361,9 @@ export function Step6Financials({ data, fundingRounds, onChange, onFundingChange
                     placeholder="Investor name"
                     className={inputClass}
                   />
-                  <input
-                    type="date"
+                  <MonthYearPicker
                     value={round.round_date}
-                    onChange={(e) => updateRound(i, 'round_date', e.target.value)}
-                    className={inputClass}
+                    onChange={(v) => updateRound(i, 'round_date', v)}
                   />
                 </div>
               </div>

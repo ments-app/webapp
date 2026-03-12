@@ -8,9 +8,12 @@ import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles, Trophy, Layers } from 'lucide-react';
+import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles, Trophy, Layers, Building2, CheckCircle2, Inbox } from 'lucide-react';
+
+// ... (types and helpers unchanged)
 import { fetchMyVentures, updateStartup, StartupProfile } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
+import { fetchStartupOrgRequests, respondToOrgRequest, type StartupOrgRequest } from '@/api/organizations';
 import { DealFlowTab } from '@/components/investor/DealFlowTab';
 import { InvestorVerifyModal } from '@/components/investor/InvestorVerifyModal';
 
@@ -96,6 +99,7 @@ function StartupsPageContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'directory' | 'my' | 'dealflow'>('directory');
   const [myVentures, setMyVentures] = useState<StartupProfile[]>([]);
+  const [orgRequests, setOrgRequests] = useState<StartupOrgRequest[]>([]);
   const [investorStatus, setInvestorStatus] = useState<string>('none');
   const [primaryInterest, setPrimaryInterest] = useState<string | null>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -116,6 +120,12 @@ function StartupsPageContent() {
       setMyVentures(venturesRes.data ?? []);
       setInvestorStatus(userRes.data?.investor_status ?? 'none');
       setPrimaryInterest(userRes.data?.primary_interest ?? null);
+      try {
+        const requestsRes = await fetchStartupOrgRequests();
+        setOrgRequests(requestsRes.data);
+      } catch {
+        setOrgRequests([]);
+      }
     };
     fetchMeta();
   }, [user]);
@@ -254,6 +264,19 @@ function StartupsPageContent() {
                     <p className="text-xs text-muted-foreground">Club, team, or group</p>
                   </div>
                 </Link>
+                <Link
+                  href="/organizations/create"
+                  onClick={() => setShowListMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Building2 className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Organization</p>
+                    <p className="text-xs text-muted-foreground">Incubator, accelerator, e-cell</p>
+                  </div>
+                </Link>
                 <div className="mx-3 my-1 border-t border-border" />
                 <Link
                   href="/profile/edit"
@@ -390,7 +413,7 @@ function StartupsPageContent() {
 
         {/* ── My Ventures Tab ── */}
         {activeTab === 'my' && myVentures.length > 0 && (
-          <MyVenturesTab ventures={myVentures} onUpdate={setMyVentures} />
+          <MyVenturesTab ventures={myVentures} onUpdate={setMyVentures} orgRequests={orgRequests} onRequestsUpdate={setOrgRequests} />
         )}
 
         {/* ── Deal Flow Tab ── */}
@@ -903,7 +926,17 @@ function TabPill({ label, active, onClick }: { label: string; active: boolean; o
 
 // ── My Ventures Tab ──────────────────────────────────────────────────────────
 
-function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onUpdate: (v: StartupProfile[]) => void }) {
+function MyVenturesTab({
+  ventures,
+  onUpdate,
+  orgRequests,
+  onRequestsUpdate,
+}: {
+  ventures: StartupProfile[];
+  onUpdate: (v: StartupProfile[]) => void;
+  orgRequests: StartupOrgRequest[];
+  onRequestsUpdate: (requests: StartupOrgRequest[]) => void;
+}) {
   const togglePublish = async (venture: StartupProfile) => {
     const { data } = await updateStartup(venture.id, { is_published: !venture.is_published });
     if (data) {
@@ -911,10 +944,20 @@ function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onU
     }
   };
 
+  const handleRequestAction = async (requestId: string, action: 'accept' | 'reject') => {
+    try {
+      await respondToOrgRequest(requestId, action);
+      onRequestsUpdate(orgRequests.filter((request) => request.id !== requestId));
+    } catch (error) {
+      console.error('Failed to respond to org request:', error);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {ventures.map((startup) => {
         const isProject = startup.entity_type === 'org_project';
+        const pendingRequests = orgRequests.filter((request) => request.startup_id === startup.id);
         return (
           <div key={startup.id} className="space-y-4 pb-4">
             {/* Venture Overview */}
@@ -964,6 +1007,57 @@ function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onU
                 </div>
               </div>
             </div>
+
+            {pendingRequests.length > 0 && (
+              <div className="bg-card border border-amber-500/20 rounded-2xl p-4 sm:p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Inbox className="h-4 w-4 text-amber-500" />
+                  <h3 className="text-sm font-semibold text-foreground">Pending organization requests</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  These organizations requested to show <span className="font-medium text-foreground">{startup.brand_name}</span> under their profile. Nothing goes live unless you accept it.
+                </p>
+                <div className="space-y-2">
+                  {pendingRequests.map((request) => (
+                    <div key={request.id} className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-foreground">{request.organization.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {request.organization.org_type.replace(/_/g, ' ')} · wants to mark this startup as {request.relation_type.replace(/_/g, ' ')}
+                          </div>
+                          {request.organization.short_bio && (
+                            <p className="text-sm text-muted-foreground mt-2">{request.organization.short_bio}</p>
+                          )}
+                        </div>
+                        <Link
+                          href={`/organizations/${request.organization.slug}`}
+                          className="shrink-0 text-xs font-medium text-primary hover:underline"
+                        >
+                          View org
+                        </Link>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <button
+                          onClick={() => handleRequestAction(request.id, 'accept')}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleRequestAction(request.id, 'reject')}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/30"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="grid grid-cols-3 gap-2">

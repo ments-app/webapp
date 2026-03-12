@@ -61,7 +61,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
 
   useEffect(() => {
     fetchUnreadCounts();
-    const interval = setInterval(fetchUnreadCounts, 300_000); // 5 min
+    const interval = setInterval(fetchUnreadCounts, 60_000); // 1 min
     return () => clearInterval(interval);
   }, [fetchUnreadCounts]);
 
@@ -108,7 +108,9 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
             <Link href="/notifications" className="relative inline-flex items-center justify-center h-11 w-11 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Bell className="h-5 w-5" />
               {unreadNotifications > 0 && (
-                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-[10px] font-bold text-white ring-2 ring-background leading-none">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
               )}
             </Link>
 

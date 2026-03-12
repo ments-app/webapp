@@ -1,22 +1,26 @@
 "use client";
 
 import { useRef } from 'react';
-import { FileText, Upload, X, Mic } from 'lucide-react';
+import { FileText, Upload, X, Mic, Video } from 'lucide-react';
 
 type Step7Props = {
   data: {
     pitch_deck_url: string;
+    pitch_video_url: string;
     elevator_pitch: string;
   };
   isUploadingDeck: boolean;
+  isUploadingVideo: boolean;
   onChange: (field: string, value: string) => void;
   onPitchDeckUpload: (file: File) => void;
+  onPitchVideoUpload: (file: File) => void;
 };
 
 const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 
-export function Step7Media({ data, isUploadingDeck, onChange, onPitchDeckUpload }: Step7Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export function Step7Media({ data, isUploadingDeck, isUploadingVideo, onChange, onPitchDeckUpload, onPitchVideoUpload }: Step7Props) {
+  const deckInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const charCount = data.elevator_pitch.length;
   const charLimit = 300;
@@ -26,7 +30,7 @@ export function Step7Media({ data, isUploadingDeck, onChange, onPitchDeckUpload 
     <div className="space-y-8">
       <div>
         <h2 className="text-xl font-bold text-foreground">Media & Documents</h2>
-        <p className="text-sm text-muted-foreground mt-1">Share your pitch deck and elevator pitch</p>
+        <p className="text-sm text-muted-foreground mt-1">Share your pitch deck, pitch video, and elevator pitch</p>
       </div>
 
       {/* Pitch Deck */}
@@ -52,7 +56,7 @@ export function Step7Media({ data, isUploadingDeck, onChange, onPitchDeckUpload 
         ) : (
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => deckInputRef.current?.click()}
             disabled={isUploadingDeck}
             className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 rounded-xl bg-accent/20 border-2 border-dashed border-border/50 text-muted-foreground hover:border-primary/30 hover:bg-accent/40 hover:text-foreground transition-all disabled:opacity-50 group"
           >
@@ -75,12 +79,75 @@ export function Step7Media({ data, isUploadingDeck, onChange, onPitchDeckUpload 
           </button>
         )}
         <input
-          ref={fileInputRef}
+          ref={deckInputRef}
           type="file"
           accept=".pdf"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) onPitchDeckUpload(file);
+            e.target.value = '';
+          }}
+          className="hidden"
+        />
+      </div>
+
+      {/* Pitch Video */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-500/10">
+            <Video className="h-3.5 w-3.5 text-rose-500" />
+          </div>
+          Pitch Video
+          <span className="text-muted-foreground/60 font-normal text-xs">(Optional)</span>
+        </label>
+
+        {data.pitch_video_url ? (
+          <div className="rounded-xl overflow-hidden border border-border/40 bg-black relative">
+            <video
+              src={data.pitch_video_url}
+              controls
+              className="w-full max-h-64 object-contain"
+            />
+            <button
+              type="button"
+              onClick={() => onChange('pitch_video_url', '')}
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500/80 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => videoInputRef.current?.click()}
+            disabled={isUploadingVideo}
+            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 rounded-xl bg-accent/20 border-2 border-dashed border-border/50 text-muted-foreground hover:border-rose-500/30 hover:bg-rose-500/5 hover:text-foreground transition-all disabled:opacity-50 group"
+          >
+            {isUploadingVideo ? (
+              <>
+                <span className="h-6 w-6 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Uploading video...</span>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-rose-500/10 group-hover:bg-rose-500/20 transition-colors">
+                  <Video className="h-5 w-5 text-rose-500" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium">Upload your pitch video</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">MP4, MOV, WebM — max 100MB</p>
+                </div>
+              </>
+            )}
+          </button>
+        )}
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/mp4,video/quicktime,video/webm"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onPitchVideoUpload(file);
             e.target.value = '';
           }}
           className="hidden"
@@ -98,7 +165,7 @@ export function Step7Media({ data, isUploadingDeck, onChange, onPitchDeckUpload 
         <textarea
           value={data.elevator_pitch}
           onChange={(e) => onChange('elevator_pitch', e.target.value)}
-          placeholder="A concise 2-3 sentence pitch for your startup. This can also be a link to a video pitch."
+          placeholder="A concise 2-3 sentence pitch for your startup."
           rows={4}
           maxLength={charLimit}
           className={`${inputClass} resize-none`}

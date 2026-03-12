@@ -98,6 +98,17 @@
 
 ## Notifications
 
-- Notifications fetched via POST `/api/notifications` (not GET) — allows sending user context in body rather than query params
-- Real-time notification context via `context/NotificationsContext`
-- Push notifications sent server-side on mention/reply events
+- Notifications fetched via GET `/api/notifications` — user identity read from `x-user-id` header set by middleware; no body needed
+- In-app notifications are written **directly to `inapp_notification` table** by Next.js API routes (`/api/users/[username]/follow`, `/api/push-on-reply`, `/api/push-on-mention`) using the service role client (`createServiceClient()`) — this is the primary write path and does not depend on Supabase Edge Functions
+- Supabase Edge Functions (`push-on-follow`, `push-on-reply`, `push-on-mention`) are called fire-and-forget after the DB insert, **solely for device push notifications** — their failure does not affect in-app notifications
+- `createServiceClient()` (service role, bypasses RLS) used for notification writes because the actor (follower/replier/mentioner) cannot write notifications on behalf of the recipient under RLS
+- Unread count fetched via HEAD `/api/notifications` — count returned in `X-Unread-Count` response header, polled every 60 seconds in the layout
+
+## Investment Arena: QR Code Investment Flow
+
+- QR codes generated client-side using `qrcode.react` (SVG) — no server-side generation needed
+- Each QR encodes a public URL `/invest/[eventId]/[stallId]` that acts as a standalone invest page
+- Decision: standalone page rather than deep-link into event page — simpler for audience scanning at physical events, works without prior app context
+- QR download exports as PNG (512x512) for printing/display at physical stalls
+- Virtual currency is event-scoped (not global wallet) — prevents cross-event balance leakage
+- The invest page handles the full flow: auth check, audience registration, and investment — so a single scan is all that's needed

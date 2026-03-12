@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createStartup, upsertFundingRounds, upsertTextSections, upsertLinks, upsertSlides, uploadPitchDeck, uploadStartupImage } from '@/api/startups';
+import { createStartup, upsertFundingRounds, upsertTextSections, upsertLinks, upsertSlides, uploadPitchDeck, uploadPitchVideo, uploadStartupImage } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
 import { Step1Identity } from './Step1Identity';
 import { Step2Description } from './Step2Description';
@@ -14,7 +14,7 @@ import { Step6Financials } from './Step6Financials';
 import { Step7Media } from './Step7Media';
 import { Step8Visibility } from './Step8Visibility';
 import { StepShowcase } from './StepShowcase';
-import { ChevronLeft, ChevronRight, Send, Check, Rocket, FolderKanban, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, Check, FolderKanban, AlertCircle, Rocket } from 'lucide-react';
 
 const STARTUP_STEPS = [
   { label: 'Identity', short: 'Identity' },
@@ -47,6 +47,7 @@ export function StartupCreateWizard({ entityType }: Props) {
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingDeck, setIsUploadingDeck] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export function StartupCreateWizard({ entityType }: Props) {
     funding_stage: '',
     sector: '',
     pitch_deck_url: '',
+    pitch_video_url: '',
     elevator_pitch: '',
     logo_url: '',
     banner_url: '',
@@ -141,6 +143,17 @@ export function StartupCreateWizard({ entityType }: Props) {
     }
   };
 
+  const handlePitchVideoUpload = async (file: File) => {
+    setIsUploadingVideo(true);
+    const { url, error } = await uploadPitchVideo(file);
+    setIsUploadingVideo(false);
+    if (error) {
+      setError(error);
+    } else {
+      setProfileData(prev => ({ ...prev, pitch_video_url: url }));
+    }
+  };
+
   // Validation — step indices differ by entity type
   const canProceed = () => {
     const stepLabel = STEPS[step]?.label;
@@ -159,7 +172,7 @@ export function StartupCreateWizard({ entityType }: Props) {
     }
   };
 
-  const isUploading = isUploadingDeck || isUploadingLogo || isUploadingBanner;
+  const isUploading = isUploadingDeck || isUploadingVideo || isUploadingLogo || isUploadingBanner;
 
   // Submit
   const handleSubmit = async () => {
@@ -213,6 +226,7 @@ export function StartupCreateWizard({ entityType }: Props) {
         elevator_pitch: profileData.elevator_pitch || null,
         logo_url: profileData.logo_url || null,
         banner_url: profileData.banner_url || null,
+        pitch_video_url: profileData.pitch_video_url || null,
         raise_target: isOrgProject ? null : profileData.raise_target || null,
         equity_offered: isOrgProject ? null : profileData.equity_offered || null,
         min_ticket_size: isOrgProject ? null : profileData.min_ticket_size || null,
@@ -399,8 +413,10 @@ export function StartupCreateWizard({ entityType }: Props) {
           <Step7Media
             data={profileData}
             isUploadingDeck={isUploadingDeck}
+            isUploadingVideo={isUploadingVideo}
             onChange={handleProfileChange}
             onPitchDeckUpload={handlePitchDeckUpload}
+            onPitchVideoUpload={handlePitchVideoUpload}
           />
         )}
         {STEPS[step]?.label === 'Showcase' && (

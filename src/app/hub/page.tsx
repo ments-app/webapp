@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon, CalendarOff, Package, FolderOpen } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon, CalendarOff, Package, FolderOpen, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
@@ -116,8 +116,25 @@ type ResourceItem = {
   metadata?: Record<string, string>;
 };
 
+type OrganizationResourceItem = {
+  id: string;
+  slug: string;
+  name: string;
+  org_type: string;
+  short_bio?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  is_verified?: boolean;
+  sectors?: string[];
+  support_types?: string[];
+};
+
 const RESOURCE_CATEGORIES = [
   { key: 'All', label: 'All' },
+  { key: 'Organizations', label: 'Organizations' },
   { key: 'accelerator_incubator', label: 'Accelerators' },
   { key: 'company_offer', label: 'Company Offers' },
   { key: 'tool', label: 'Tools' },
@@ -741,6 +758,78 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
   );
 };
 
+function formatOrganizationLocation(org: OrganizationResourceItem): string {
+  return [org.city, org.state, org.country].filter(Boolean).join(', ');
+}
+
+const OrganizationHubCard = ({ organization }: { organization: OrganizationResourceItem }) => {
+  const location = formatOrganizationLocation(organization);
+
+  return (
+    <div className="group rounded-2xl bg-card/70 border border-border/60 p-4 sm:p-5 hover:bg-card/80 hover:border-primary/30 hover:shadow-lg transition-all duration-200">
+      <div className="flex items-start gap-4">
+        {organization.logo_url ? (
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center overflow-hidden border border-border/40">
+            <img src={organization.logo_url} alt={organization.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <Building2 className="h-6 w-6" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+              {organization.name}
+            </h4>
+            <span className="text-[11px] font-semibold text-primary/80 dark:text-primary/70 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+              {organization.org_type.replace(/_/g, ' ')}
+            </span>
+            {organization.is_verified && (
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                Verified
+              </span>
+            )}
+          </div>
+          {organization.short_bio && (
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{organization.short_bio}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {location && (
+              <span className="text-[11px] font-medium text-muted-foreground bg-muted/40 border border-border px-2 py-0.5 rounded-full">
+                {location}
+              </span>
+            )}
+            {(organization.support_types || []).slice(0, 2).map((item) => (
+              <span key={item} className="text-[10px] font-medium text-muted-foreground bg-muted/40 border border-border px-1.5 py-0.5 rounded-full">
+                {item}
+              </span>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Link
+              href={`/organizations/${encodeURIComponent(organization.slug)}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-transparent px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
+            >
+              <Eye className="h-3.5 w-3.5" /> View Profile
+            </Link>
+            {organization.website && (
+              <a
+                href={organization.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
+              >
+                Visit <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Hub Page ---
 
 function HubPageContent() {
@@ -777,6 +866,7 @@ function HubPageContent() {
 
   // Resources tab data
   const [resources, setResources] = useState<ResourceItem[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationResourceItem[]>([]);
   const [resourceFilter, setResourceFilter] = useState<string>('All');
   const [resourcePage, setResourcePage] = useState(0);
   const RESOURCES_PER_PAGE = 10;
@@ -787,16 +877,27 @@ function HubPageContent() {
   const [loadingRecs, setLoadingRecs] = useState(false);
 
   const filteredResources = useMemo(() => {
+    if (resourceFilter === 'Organizations') return [];
     if (resourceFilter === 'All') return resources;
     return resources.filter(r => r.category === resourceFilter);
   }, [resourceFilter, resources]);
 
-  const totalResourcePages = Math.max(1, Math.ceil(filteredResources.length / RESOURCES_PER_PAGE));
+  const filteredOrganizations = useMemo(() => {
+    if (resourceFilter === 'Organizations' || resourceFilter === 'All') return organizations;
+    return [];
+  }, [resourceFilter, organizations]);
+
+  const totalResourcePages = Math.max(1, Math.ceil((resourceFilter === 'Organizations' ? filteredOrganizations.length : filteredResources.length) / RESOURCES_PER_PAGE));
 
   const paginatedResources = useMemo(() => {
     const start = resourcePage * RESOURCES_PER_PAGE;
     return filteredResources.slice(start, start + RESOURCES_PER_PAGE);
   }, [filteredResources, resourcePage]);
+
+  const paginatedOrganizations = useMemo(() => {
+    const start = resourcePage * RESOURCES_PER_PAGE;
+    return filteredOrganizations.slice(start, start + RESOURCES_PER_PAGE);
+  }, [filteredOrganizations, resourcePage]);
 
   // Fetch data for the Events tab (competitions + events from DB)
   useEffect(() => {
@@ -856,12 +957,18 @@ function HubPageContent() {
       setLoading(true);
       (async () => {
         try {
-          const res = await fetch(`/api/resources?activeOnly=true&orderBy=created_at&ascending=false&limit=500`, { cache: 'no-store' });
-          const json = await res.json();
-          setResources(Array.isArray(json.data) ? json.data : []);
+          const [resourcesRes, orgsRes] = await Promise.all([
+            fetch(`/api/resources?activeOnly=true&orderBy=created_at&ascending=false&limit=500`, { cache: 'no-store' }),
+            fetch(`/api/organizations`, { cache: 'no-store' }),
+          ]);
+          const resourcesJson = await resourcesRes.json();
+          const orgsJson = await orgsRes.json();
+          setResources(Array.isArray(resourcesJson.data) ? resourcesJson.data : []);
+          setOrganizations(Array.isArray(orgsJson.data) ? orgsJson.data : []);
         } catch (e) {
           console.error('Failed to load resources', e);
           setResources([]);
+          setOrganizations([]);
         }
         setLoading(false);
       })();
@@ -1235,16 +1342,20 @@ function HubPageContent() {
                   <div key={i} className="h-36 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                 ))}
               </div>
-            ) : paginatedResources.length > 0 ? (
+            ) : (resourceFilter === 'Organizations' ? paginatedOrganizations.length > 0 : paginatedResources.length > 0) ? (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {paginatedResources.map(resource => (
-                    <ResourceCard key={resource.id} resource={resource} />
-                  ))}
+                  {resourceFilter === 'Organizations'
+                    ? paginatedOrganizations.map((organization) => (
+                      <OrganizationHubCard key={organization.id} organization={organization} />
+                    ))
+                    : paginatedResources.map(resource => (
+                      <ResourceCard key={resource.id} resource={resource} />
+                    ))}
                 </div>
 
                 {/* Pagination controls */}
-                {filteredResources.length > RESOURCES_PER_PAGE && (
+                {(resourceFilter === 'Organizations' ? filteredOrganizations.length : filteredResources.length) > RESOURCES_PER_PAGE && (
                   <div className="flex items-center justify-center gap-3 pt-4">
                     <button
                       onClick={() => setResourcePage((prev) => Math.max(0, prev - 1))}
@@ -1269,7 +1380,7 @@ function HubPageContent() {
                 <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
                   <FolderOpen className="h-5 w-5 text-muted-foreground/50" />
                 </div>
-                <p className="text-sm text-muted-foreground">No resources in this category yet. Try a different filter.</p>
+                <p className="text-sm text-muted-foreground">{resourceFilter === 'Organizations' ? 'No organization profiles available right now.' : 'No resources in this category yet. Try a different filter.'}</p>
               </div>
             )}
           </div>

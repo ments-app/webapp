@@ -44,20 +44,15 @@ BEGIN
         AND uf2.followee_id NOT IN (SELECT followee_id FROM following)
       LIMIT 100
     ),
-    -- Posts already seen by user
-    seen AS (
-      SELECT post_id FROM feed_seen_posts WHERE user_id = p_user_id
-    ),
     -- Candidate posts
     candidates AS (
-      -- Posts from followed users
+      -- Posts from followed users (including own posts)
       (SELECT p.id, p.author_id, 1 AS source_priority
        FROM posts p
-       WHERE p.author_id IN (SELECT followee_id FROM following)
+       WHERE (p.author_id IN (SELECT followee_id FROM following) OR p.author_id = p_user_id)
          AND p.deleted = false
          AND p.parent_post_id IS NULL
          AND p.created_at > v_cutoff
-         AND p.id NOT IN (SELECT post_id FROM seen)
        ORDER BY p.created_at DESC
        LIMIT p_limit / 2)
       UNION ALL
@@ -68,7 +63,6 @@ BEGIN
          AND p.deleted = false
          AND p.parent_post_id IS NULL
          AND p.created_at > v_cutoff
-         AND p.id NOT IN (SELECT post_id FROM seen)
        ORDER BY p.created_at DESC
        LIMIT p_limit / 4)
       UNION ALL
@@ -79,8 +73,6 @@ BEGIN
        WHERE p.deleted = false
          AND p.parent_post_id IS NULL
          AND p.created_at > v_cutoff
-         AND p.id NOT IN (SELECT post_id FROM seen)
-         AND p.author_id != p_user_id
        ORDER BY pf.engagement_score DESC
        LIMIT p_limit / 4)
     )

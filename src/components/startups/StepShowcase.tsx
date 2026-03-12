@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Trash2, ChevronUp, ChevronDown, Plus, ImagePlus, Loader2, X } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown, Plus, ImagePlus, Loader2, X, FileText } from 'lucide-react';
 import { SHOWCASE_LIMITS, uploadSlideImage } from '@/api/startups';
 
 type TextSection = { heading: string; content: string; display_order: number };
@@ -133,9 +133,10 @@ export function StepShowcase({ textSections, links, slides, onTextSectionsChange
 
       {/* Text Sections */}
       <div className="space-y-4">
-        <label className={labelClass}>
-          Custom Sections{' '}
-          <span className="text-muted-foreground/60 font-normal text-xs">
+        <label className={`${labelClass} flex items-center gap-2`}>
+          <FileText className="h-4 w-4 text-primary" />
+          <span>Custom Sections</span>
+          <span className="text-muted-foreground/60 font-normal text-xs ml-auto">
             {textSections.length} / {SHOWCASE_LIMITS.sections}
           </span>
         </label>
