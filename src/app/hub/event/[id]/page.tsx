@@ -100,9 +100,9 @@ const eventTypeLabels: Record<string, string> = {
 };
 
 const eventTypeColors: Record<string, string> = {
-  online: 'text-blue-700 dark:text-blue-300 bg-blue-400/10 border-blue-500/30 dark:border-blue-400/30',
-  'in-person': 'text-purple-700 dark:text-purple-300 bg-purple-400/10 border-purple-500/30 dark:border-purple-400/30',
-  hybrid: 'text-amber-700 dark:text-amber-300 bg-amber-400/10 border-amber-500/30 dark:border-amber-400/30',
+  online: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30 dark:border-emerald-400/30',
+  'in-person': 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30 dark:border-emerald-400/30',
+  hybrid: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30 dark:border-emerald-400/30',
 };
 
 const categoryLabels: Record<string, string> = {
@@ -510,7 +510,7 @@ export default function EventDetailsPage() {
           {user && (
             <Button
               variant="ghost" size="icon"
-              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300' : 'bg-accent/30 hover:bg-accent/60'}`}
+              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300' : 'bg-accent/30 hover:bg-accent/60'}`}
               onClick={handleToggleSave}
               disabled={savingBookmark}
               aria-label={saved ? 'Unsave' : 'Save'}
@@ -582,7 +582,7 @@ export default function EventDetailsPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 {isPast ? (
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border text-amber-600 dark:text-amber-300 bg-amber-400/10 border-amber-500/30 dark:border-amber-400/30">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border text-rose-600 dark:text-rose-300 bg-rose-400/10 border-rose-500/30 dark:border-rose-400/30">
                     Past Event
                   </span>
                 ) : (
@@ -712,10 +712,10 @@ export default function EventDetailsPage() {
                     <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                       <Store className="h-3.5 w-3.5" /> {arenaStats.total_stalls} Stalls
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                       <Users className="h-3.5 w-3.5" /> {arenaStats.total_audience} Investors
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                       <IndianRupee className="h-3.5 w-3.5" /> {formatCurrency(arenaStats.total_invested)} Invested
                     </span>
                   </div>
@@ -822,7 +822,7 @@ export default function EventDetailsPage() {
                 {/* Round 2: Audience Investment */}
                 {event.arena_round === 'investment' && user && !isStallOwner && !isAudience && (
                   <div className="rounded-2xl border border-border/60 bg-card/70 p-5 text-center">
-                    <Wallet className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                    <Wallet className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
                     <h3 className="font-semibold mb-1">Join as Investor</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Receive <strong>₹{(event.virtual_fund_amount ?? 1000000).toLocaleString('en-IN')}</strong> virtual cash and invest in your favorite {event.entry_type === 'startup' ? 'startups' : 'projects'}!
@@ -831,7 +831,7 @@ export default function EventDetailsPage() {
                     <button
                       onClick={handleJoinAudience}
                       disabled={joiningAudience}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
                     >
                       {joiningAudience ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
                       {joiningAudience ? 'Joining...' : 'Join & Get Virtual Cash'}
@@ -840,8 +840,8 @@ export default function EventDetailsPage() {
                 )}
 
                 {event.arena_round === 'investment' && isStallOwner && (
-                  <div className="rounded-2xl border border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 p-5 space-y-3">
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5 space-y-3">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
                       <strong>Investment round is live!</strong> Show your QR code to the audience so they can scan and invest in your stall!
                     </p>
                     {myStallId && (
@@ -854,19 +854,19 @@ export default function EventDetailsPage() {
                 {event.arena_round === 'investment' && isAudience && (
                   <div className="space-y-4">
                     {/* Balance Card */}
-                    <div className="rounded-2xl border-2 border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-4">
+                    <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">Your Virtual Balance</p>
-                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                             <IndianRupee className="h-5 w-5" />
                             {virtualBalance.toLocaleString('en-IN')}
                           </p>
                         </div>
-                        <Wallet className="h-8 w-8 text-blue-500/50" />
+                        <Wallet className="h-8 w-8 text-emerald-500/50" />
                       </div>
                       {virtualBalance === 0 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">You have invested all your funds!</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">You have invested all your funds!</p>
                       )}
                     </div>
 
@@ -897,7 +897,7 @@ export default function EventDetailsPage() {
                             </div>
                             {stall.tagline && <p className="text-xs text-muted-foreground">{stall.tagline}</p>}
                             {stall.startup && (
-                              <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
                                 Linked: {stall.startup.brand_name} ({stall.startup.stage})
                               </p>
                             )}
@@ -947,7 +947,7 @@ export default function EventDetailsPage() {
                                     href={`/startups/${stall.startup.id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full hover:underline"
+                                    className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full hover:underline"
                                   >
                                     <Store className="h-3 w-3" />
                                     {stall.startup.brand_name} — {stall.startup.stage}
@@ -975,7 +975,7 @@ export default function EventDetailsPage() {
                                   href={stall.startup.website}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                  className="inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
                                 >
                                   <ExternalLink className="h-3.5 w-3.5" /> Visit Website
                                 </a>
@@ -1004,7 +1004,7 @@ export default function EventDetailsPage() {
                                 <div className="rounded-xl border border-border/60 bg-card/70 p-4 space-y-3">
                                   <h4 className="text-sm font-semibold">Invest in this {event.entry_type === 'startup' ? 'startup' : 'project'}</h4>
                                   <p className="text-xs text-muted-foreground">
-                                    Your balance: <strong className="text-blue-600 dark:text-blue-400">₹{virtualBalance.toLocaleString('en-IN')}</strong>
+                                    Your balance: <strong className="text-emerald-600 dark:text-emerald-400">₹{virtualBalance.toLocaleString('en-IN')}</strong>
                                   </p>
 
                                   {/* Quick amount buttons */}
@@ -1028,7 +1028,7 @@ export default function EventDetailsPage() {
                                       onClick={() => setInvestAmounts(prev => ({ ...prev, [stall.id]: String(virtualBalance) }))}
                                       className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                                         investAmounts[stall.id] === String(virtualBalance)
-                                          ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                                           : 'border-border/60 text-muted-foreground hover:border-amber-500/50'
                                       }`}
                                     >
@@ -1068,8 +1068,8 @@ export default function EventDetailsPage() {
                                   {investError && <p className="text-xs text-red-500">{investError}</p>}
                                 </div>
                               ) : (
-                                <div className="rounded-xl bg-amber-500/5 border border-amber-500/20 p-4 text-center">
-                                  <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                                <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
+                                  <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
                                     You have invested all your virtual funds!
                                   </p>
                                 </div>
@@ -1086,15 +1086,15 @@ export default function EventDetailsPage() {
                 {leaderboard.length > 0 && (event.arena_round === 'investment' || event.arena_round === 'completed') && (
                   <div className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
                     <div className="px-5 py-4 border-b border-border/60 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-amber-500" />
+                      <TrendingUp className="h-5 w-5 text-emerald-500" />
                       <h3 className="font-semibold">
                         {event.arena_round === 'completed' ? 'Final Results' : 'Live Funding Leaderboard'}
                       </h3>
                     </div>
                     <div className="divide-y divide-border/40">
                       {leaderboard.map((entry, i) => (
-                        <div key={entry.id} className={`flex items-center gap-4 px-5 py-3 ${i === 0 ? 'bg-amber-500/5' : i === 1 ? 'bg-slate-500/5' : i === 2 ? 'bg-orange-500/5' : ''}`}>
-                          <span className={`text-lg font-bold w-8 text-center shrink-0 ${i === 0 ? 'text-amber-500' : i === 1 ? 'text-slate-400' : i === 2 ? 'text-orange-400' : 'text-muted-foreground'}`}>
+                        <div key={entry.id} className={`flex items-center gap-4 px-5 py-3 ${i === 0 ? 'bg-emerald-500/5' : ''}`}>
+                          <span className={`text-lg font-bold w-8 text-center shrink-0 ${i === 0 ? 'text-emerald-500' : i === 1 ? 'text-emerald-400' : i === 2 ? 'text-emerald-300' : 'text-muted-foreground'}`}>
                             {i + 1}
                           </span>
                           {entry.logo_url ? (
