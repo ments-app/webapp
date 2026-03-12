@@ -3,108 +3,229 @@ import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-const PUBLIC_RELATION_STATUSES = ['accepted', 'active', 'alumni'];
+const PUBLIC_RELATION_STATUSES = ['approved'];
+
+async function buildFacilitatorResponse(slug: string, viewerUserId?: string | null) {
+  const admin = createAdminClient();
+
+  const { data: facilitator, error: facilitatorError } = await admin
+    .from('facilitator_profiles')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (facilitatorError) {
+    return { error: facilitatorError.message, status: 500 as const };
+  }
+  if (!facilitator) {
+    return { error: 'Startup facilitator not found', status: 404 as const };
+  }
+
+  const { data: adminProfile, error: adminError } = await admin
+    .from('admin_profiles')
+    .select('id, role, verification_status, display_name, email')
+    .eq('id', facilitator.id)
+    .maybeSingle();
+
+  if (adminError) {
+    return { error: adminError.message, status: 500 as const };
+  }
+  if (!adminProfile || adminProfile.role !== 'facilitator') {
+    return { error: 'Startup facilitator not found', status: 404 as const };
+  }
+
+  const isAdmin = Boolean(viewerUserId && viewerUserId === facilitator.id);
+  const isPubliclyVisible = facilitator.is_published && adminProfile.verification_status === 'approved';
+  if (!isPubliclyVisible && !isAdmin) {
+    return { error: 'Startup facilitator not found', status: 404 as const };
+  }
+
+  let relationQuery = admin
+    .from('startup_facilitator_assignments')
+    .select('id, startup_id, relation_type, status, notes, reviewed_at, created_at')
+    .eq('facilitator_id', facilitator.id)
+    .order('updated_at', { ascending: false });
+
+  if (!isAdmin) {
+    relationQuery = relationQuery.in('status', PUBLIC_RELATION_STATUSES);
+  }
+
+  const { data: relations, error: relationError } = await relationQuery;
+  if (relationError) {
+    return { error: relationError.message, status: 500 as const };
+  }
+
+  const startupIds = (relations || []).map((relation) => relation.startup_id);
+  let startupsById = new Map<string, {
+    id: string;
+    brand_name: string;
+    description: string | null;
+    stage: string;
+    entity_type: 'startup' | 'org_project';
+    logo_url: string | null;
+    city: string | null;
+    country: string | null;
+    is_published: boolean;
+  }>();
+
+  if (startupIds.length > 0) {
+    let startupQuery = admin
+      .from('startup_profiles')
+      .select('id, brand_name, description, stage, entity_type, logo_url, city, country, is_published')
+      .in('id', startupIds);
+
+    if (!isAdmin) {
+      startupQuery = startupQuery.eq('is_published', true);
+    }
+
+    const { data: startups, error: startupError } = await startupQuery;
+    if (startupError) {
+      return { error: startupError.message, status: 500 as const };
+    }
+
+    startupsById = new Map((startups || []).map((startup) => [startup.id, startup]));
+  }
+
+  const hydratedRelations = (relations || [])
+    .map((relation) => ({
+      id: relation.id,
+      startup_id: relation.startup_id,
+      relation_type: relation.relation_type,
+      status: relation.status,
+      requested_at: relation.created_at,
+      responded_at: relation.reviewed_at,
+      notes: relation.notes,
+      start_date: null,
+      end_date: null,
+      startup: startupsById.get(relation.startup_id) || null,
+    }))
+    .filter((relation) => relation.startup);
+
+  return {
+    data: {
+      id: facilitator.id,
+      slug: facilitator.slug,
+      name: facilitator.organisation_name,
+      org_type: facilitator.organisation_type,
+      short_bio: facilitator.short_bio,
+      description: facilitator.public_description,
+      website: facilitator.website,
+      contact_email: facilitator.official_email,
+      logo_url: facilitator.logo_url,
+      banner_url: facilitator.banner_url,
+      city: facilitator.city,
+      state: facilitator.state,
+      country: facilitator.country,
+      university_name: facilitator.university_name,
+      sectors: facilitator.sectors || [],
+      stage_focus: facilitator.stage_focus || [],
+      support_types: facilitator.support_types || [],
+      is_verified: adminProfile.verification_status === 'approved',
+      verification_status: adminProfile.verification_status,
+      is_published: facilitator.is_published,
+      created_at: facilitator.created_at,
+      updated_at: facilitator.updated_at,
+      verification_requested_at: null,
+      verification_reviewed_at: facilitator.approved_at || facilitator.rejected_at || null,
+      verification_submitted_by: null,
+      verification_rejection_reason: facilitator.verification_notes,
+      verification_details: {
+        official_email: facilitator.official_email,
+      },
+      is_admin: isAdmin,
+      member_role: isAdmin ? 'facilitator' : null,
+      relations: hydratedRelations,
+    },
+  };
+}
+
+function sanitizeString(value: unknown) {
+  const str = String(value || '').trim();
+  return str || null;
+}
+
+function sanitizeTags(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || '').trim()).filter(Boolean);
+}
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
-    const admin = createAdminClient();
     const authClient = await createAuthClient();
     const { data: { user } } = await authClient.auth.getUser();
+    const result = await buildFacilitatorResponse(slug, user?.id);
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Error fetching facilitator profile:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
-    const { data: organization, error } = await admin
-      .from('organizations')
-      .select('*')
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const authClient = await createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { slug } = await params;
+    const admin = createAdminClient();
+    const { data: facilitator, error: facilitatorError } = await admin
+      .from('facilitator_profiles')
+      .select('id, slug, official_email')
       .eq('slug', slug)
       .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (facilitatorError) {
+      return NextResponse.json({ error: facilitatorError.message }, { status: 500 });
     }
-    if (!organization) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+    if (!facilitator) {
+      return NextResponse.json({ error: 'Startup facilitator not found' }, { status: 404 });
     }
-
-    let memberRole: string | null = null;
-    if (user) {
-      const { data: membership } = await admin
-        .from('organization_members')
-        .select('role')
-        .eq('organization_id', organization.id)
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .maybeSingle();
-      memberRole = membership?.role ?? null;
+    if (facilitator.id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const isAdmin = !!memberRole;
-    if (!organization.is_published && !isAdmin) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+    const body = await request.json();
+    const payload = {
+      short_bio: sanitizeString(body.short_bio),
+      public_description: sanitizeString(body.description),
+      website: sanitizeString(body.website),
+      official_email: sanitizeString(body.contact_email) || facilitator.official_email,
+      logo_url: sanitizeString(body.logo_url),
+      banner_url: sanitizeString(body.banner_url),
+      city: sanitizeString(body.city),
+      state: sanitizeString(body.state),
+      country: sanitizeString(body.country),
+      university_name: sanitizeString(body.university_name),
+      sectors: sanitizeTags(body.sectors),
+      stage_focus: sanitizeTags(body.stage_focus),
+      support_types: sanitizeTags(body.support_types),
+      is_published: Boolean(body.is_published),
+      public_updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await admin
+      .from('facilitator_profiles')
+      .update(payload)
+      .eq('id', facilitator.id);
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    let relationQuery = admin
-      .from('organization_startup_relations')
-      .select('id, startup_id, relation_type, status, requested_at, responded_at, start_date, end_date')
-      .eq('organization_id', organization.id)
-      .order('updated_at', { ascending: false });
-
-    if (!isAdmin) {
-      relationQuery = relationQuery.in('status', PUBLIC_RELATION_STATUSES);
+    const result = await buildFacilitatorResponse(slug, user.id);
+    if ('error' in result) {
+      return NextResponse.json({ error: 'Profile updated but reload failed' }, { status: 500 });
     }
-
-    const { data: relations, error: relationError } = await relationQuery;
-    if (relationError) {
-      return NextResponse.json({ error: relationError.message }, { status: 500 });
-    }
-
-    const startupIds = (relations || []).map((relation) => relation.startup_id);
-    let startupsById = new Map<string, {
-      id: string;
-      brand_name: string;
-      description: string | null;
-      stage: string;
-      entity_type: 'startup' | 'org_project';
-      logo_url: string | null;
-      city: string | null;
-      country: string | null;
-      is_published: boolean;
-    }>();
-
-    if (startupIds.length > 0) {
-      let startupQuery = admin
-        .from('startup_profiles')
-        .select('id, brand_name, description, stage, entity_type, logo_url, city, country, is_published')
-        .in('id', startupIds);
-
-      if (!isAdmin) {
-        startupQuery = startupQuery.eq('is_published', true);
-      }
-
-      const { data: startups, error: startupError } = await startupQuery;
-      if (startupError) {
-        return NextResponse.json({ error: startupError.message }, { status: 500 });
-      }
-
-      startupsById = new Map((startups || []).map((startup) => [startup.id, startup]));
-    }
-
-    const hydratedRelations = (relations || [])
-      .map((relation) => ({
-        ...relation,
-        startup: startupsById.get(relation.startup_id) || null,
-      }))
-      .filter((relation) => relation.startup);
-
-    return NextResponse.json({
-      data: {
-        ...organization,
-        is_admin: isAdmin,
-        member_role: memberRole,
-        relations: hydratedRelations,
-      },
-    });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching organization:', error);
+    console.error('Error updating facilitator profile:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

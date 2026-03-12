@@ -20,6 +20,7 @@ type SearchResult = {
 };
 
 const RELATION_TYPES: OrganizationRelationType[] = [
+  'supported',
   'incubated',
   'accelerated',
   'partnered',
@@ -218,7 +219,7 @@ export function OrganizationRelationManager({
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {relation.relation_type.replace(/_/g, ' ')} · {relation.status.replace(/_/g, ' ')}
                   </div>
-                  {relation.status === 'requested' && (
+                  {relation.status === 'pending' && (
                     <div className="text-[11px] text-amber-600 mt-1">
                       Waiting for startup owner approval
                     </div>

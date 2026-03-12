@@ -29,48 +29,58 @@ export async function GET() {
     const startupNameById = new Map((startups || []).map((startup) => [startup.id, startup.brand_name]));
 
     const { data: requests, error: requestError } = await admin
-      .from('organization_startup_relations')
-      .select('id, startup_id, relation_type, status, requested_at, organization_id')
+      .from('startup_facilitator_assignments')
+      .select('id, startup_id, relation_type, status, created_at, facilitator_id')
       .in('startup_id', startupIds)
-      .eq('status', 'requested')
-      .order('requested_at', { ascending: false });
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
 
     if (requestError) {
       return NextResponse.json({ error: requestError.message }, { status: 500 });
     }
 
-    const orgIds = [...new Set((requests || []).map((request) => request.organization_id))];
-    if (orgIds.length === 0) {
+    const facilitatorIds = [...new Set((requests || []).map((request) => request.facilitator_id))];
+    if (facilitatorIds.length === 0) {
       return NextResponse.json({ data: [] });
     }
 
-    const { data: organizations, error: orgError } = await admin
-      .from('organizations')
-      .select('id, slug, name, org_type, logo_url, short_bio')
-      .in('id', orgIds);
+    const { data: facilitators, error: facilitatorError } = await admin
+      .from('facilitator_profiles')
+      .select('id, slug, organisation_name, organisation_type, logo_url, short_bio')
+      .in('id', facilitatorIds);
 
-    if (orgError) {
-      return NextResponse.json({ error: orgError.message }, { status: 500 });
+    if (facilitatorError) {
+      return NextResponse.json({ error: facilitatorError.message }, { status: 500 });
     }
 
-    const organizationById = new Map((organizations || []).map((organization) => [organization.id, organization]));
+    const facilitatorById = new Map((facilitators || []).map((facilitator) => [facilitator.id, facilitator]));
 
     const data = (requests || [])
-      .map((request) => ({
-        id: request.id,
-        startup_id: request.startup_id,
-        startup_name: startupNameById.get(request.startup_id) || 'Startup',
-        relation_type: request.relation_type,
-        status: request.status,
-        requested_at: request.requested_at,
-        organization: organizationById.get(request.organization_id),
-      }))
-      .filter((request) => request.organization);
+      .map((request) => {
+        const facilitator = facilitatorById.get(request.facilitator_id);
+        if (!facilitator?.slug) return null;
+        return {
+          id: request.id,
+          startup_id: request.startup_id,
+          startup_name: startupNameById.get(request.startup_id) || 'Startup',
+          relation_type: request.relation_type,
+          status: request.status,
+          requested_at: request.created_at,
+          organization: {
+            id: facilitator.id,
+            slug: facilitator.slug,
+            name: facilitator.organisation_name,
+            org_type: facilitator.organisation_type,
+            logo_url: facilitator.logo_url,
+            short_bio: facilitator.short_bio,
+          },
+        };
+      })
+      .filter(Boolean);
 
     return NextResponse.json({ data });
   } catch (error) {
-    console.error('Error fetching startup org requests:', error);
+    console.error('Error fetching startup facilitator requests:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { fetchOrganizationBySlug, type OrganizationProfile } from '@/api/organizations';
 import { FacilitatorVerificationCard } from '@/components/organizations/FacilitatorVerificationCard';
+import { FacilitatorProfileManager } from '@/components/organizations/FacilitatorProfileManager';
 import { OrganizationRelationManager } from '@/components/organizations/OrganizationRelationManager';
 import { ArrowLeft, Building2, Eye, Globe, Loader2, MapPin, Sparkles } from 'lucide-react';
 
@@ -37,7 +38,7 @@ export default function OrganizationDashboardPage() {
   }, [slug]);
 
   const publicRelationsCount = useMemo(
-    () => (organization?.relations || []).filter((relation) => ['accepted', 'active', 'alumni'].includes(relation.status)).length,
+    () => (organization?.relations || []).filter((relation) => relation.status === 'approved').length,
     [organization]
   );
 
@@ -144,10 +145,12 @@ export default function OrganizationDashboardPage() {
                 onRelationsChange={(relations) => setOrganization((prev) => prev ? { ...prev, relations } : prev)}
               />
 
-              <FacilitatorVerificationCard
+              <FacilitatorProfileManager
                 organization={organization}
-                onUpdate={(patch) => setOrganization((prev) => (prev ? { ...prev, ...patch } : prev))}
+                onUpdate={(next) => setOrganization(next)}
               />
+
+              <FacilitatorVerificationCard organization={organization} />
             </>
           ) : (
             <div className="rounded-3xl border border-border/50 bg-card px-6 py-12 text-center">

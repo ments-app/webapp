@@ -1,4 +1,3 @@
-
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
@@ -198,6 +197,8 @@ CREATE TABLE public.conversations (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   status text NOT NULL DEFAULT 'approved'::text,
+  user1_cleared_at timestamp with time zone,
+  user2_cleared_at timestamp with time zone,
   CONSTRAINT conversations_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.education (
@@ -670,6 +671,69 @@ CREATE TABLE public.objects (
   version text,
   CONSTRAINT objects_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.organization_members (
+  organization_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['owner'::text, 'admin'::text, 'reviewer'::text, 'editor'::text])),
+  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'invited'::text, 'disabled'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT organization_members_pkey PRIMARY KEY (organization_id, user_id),
+  CONSTRAINT organization_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT organization_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.organization_startup_relations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL,
+  startup_id uuid NOT NULL,
+  relation_type text NOT NULL CHECK (relation_type = ANY (ARRAY['incubated'::text, 'accelerated'::text, 'partnered'::text, 'mentored'::text, 'funded'::text, 'community_member'::text])),
+  status text NOT NULL CHECK (status = ANY (ARRAY['requested'::text, 'accepted'::text, 'active'::text, 'alumni'::text, 'rejected'::text, 'withdrawn'::text])),
+  start_date date,
+  end_date date,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  requested_by_user_id uuid,
+  requested_at timestamp with time zone,
+  responded_by_user_id uuid,
+  responded_at timestamp with time zone,
+  CONSTRAINT organization_startup_relations_pkey PRIMARY KEY (id),
+  CONSTRAINT organization_startup_relations_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT organization_startup_relations_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id),
+  CONSTRAINT organization_startup_relations_requested_by_user_id_fkey FOREIGN KEY (requested_by_user_id) REFERENCES public.users(id),
+  CONSTRAINT organization_startup_relations_responded_by_user_id_fkey FOREIGN KEY (responded_by_user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.organizations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  slug text NOT NULL UNIQUE,
+  name text NOT NULL,
+  org_type text NOT NULL CHECK (org_type = ANY (ARRAY['incubator'::text, 'accelerator'::text, 'ecell'::text, 'college_incubator'::text, 'facilitator'::text, 'venture_studio'::text, 'grant_body'::text, 'community'::text, 'other'::text])),
+  short_bio text,
+  description text,
+  website text,
+  contact_email text,
+  logo_url text,
+  banner_url text,
+  city text,
+  state text,
+  country text,
+  university_name text,
+  sectors ARRAY NOT NULL DEFAULT '{}'::text[],
+  stage_focus ARRAY NOT NULL DEFAULT '{}'::text[],
+  support_types ARRAY NOT NULL DEFAULT '{}'::text[],
+  is_verified boolean NOT NULL DEFAULT false,
+  is_published boolean NOT NULL DEFAULT false,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  verification_status text NOT NULL DEFAULT 'unverified'::text CHECK (verification_status = ANY (ARRAY['unverified'::text, 'pending_review'::text, 'verified'::text, 'rejected'::text])),
+  verification_requested_at timestamp with time zone,
+  verification_reviewed_at timestamp with time zone,
+  verification_submitted_by uuid,
+  verification_rejection_reason text,
+  verification_details jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT organizations_pkey PRIMARY KEY (id),
+  CONSTRAINT organizations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT organizations_verification_submitted_by_fkey FOREIGN KEY (verification_submitted_by) REFERENCES public.users(id)
+);
 CREATE TABLE public.points_history (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   leaderboard_entry_id uuid NOT NULL,
@@ -707,6 +771,15 @@ CREATE TABLE public.positions (
   sort_order integer NOT NULL DEFAULT 0,
   CONSTRAINT positions_pkey PRIMARY KEY (id),
   CONSTRAINT positions_experience_id_fkey FOREIGN KEY (experience_id) REFERENCES public.work_experiences(id)
+);
+CREATE TABLE public.post_bookmarks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  post_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT post_bookmarks_pkey PRIMARY KEY (id),
+  CONSTRAINT post_bookmarks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT post_bookmarks_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id)
 );
 CREATE TABLE public.post_features (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -988,7 +1061,8 @@ CREATE TABLE public.startup_founders (
   role text,
   CONSTRAINT startup_founders_pkey PRIMARY KEY (id),
   CONSTRAINT startup_founders_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id),
-  CONSTRAINT startup_founders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT startup_founders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT startup_founders_user_id_public_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.startup_funding_rounds (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -1077,6 +1151,7 @@ CREATE TABLE public.startup_profiles (
   sector text,
   entity_type text NOT NULL DEFAULT 'startup'::text CHECK (entity_type = ANY (ARRAY['org_project'::text, 'startup'::text])),
   parent_org_id uuid,
+  pitch_video_url text,
   CONSTRAINT startup_profiles_pkey PRIMARY KEY (id),
   CONSTRAINT startup_profiles_parent_org_id_fkey FOREIGN KEY (parent_org_id) REFERENCES public.users(id)
 );

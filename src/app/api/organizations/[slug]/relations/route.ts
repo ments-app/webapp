@@ -3,28 +3,31 @@ import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_RELATION_TYPES = new Set(['incubated', 'accelerated', 'partnered', 'mentored', 'funded', 'community_member']);
-const MANAGER_ROLES = new Set(['owner', 'admin', 'reviewer']);
+const VALID_RELATION_TYPES = new Set(['supported', 'incubated', 'accelerated', 'partnered', 'mentored', 'funded', 'community_member']);
 
-async function authorizeOrganizationMember(slug: string, userId: string) {
+async function authorizeFacilitator(slug: string, userId: string) {
   const admin = createAdminClient();
-  const { data: organization } = await admin
-    .from('organizations')
+  const { data: facilitator } = await admin
+    .from('facilitator_profiles')
     .select('id, slug')
     .eq('slug', slug)
     .maybeSingle();
 
-  if (!organization) return { admin, organization: null, role: null };
+  if (!facilitator || facilitator.id !== userId) {
+    return { admin, facilitator: null };
+  }
 
-  const { data: membership } = await admin
-    .from('organization_members')
-    .select('role')
-    .eq('organization_id', organization.id)
-    .eq('user_id', userId)
-    .eq('status', 'active')
+  const { data: adminProfile } = await admin
+    .from('admin_profiles')
+    .select('id, role')
+    .eq('id', userId)
     .maybeSingle();
 
-  return { admin, organization, role: membership?.role ?? null };
+  if (!adminProfile || adminProfile.role !== 'facilitator') {
+    return { admin, facilitator: null };
+  }
+
+  return { admin, facilitator };
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
@@ -36,11 +39,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { slug } = await params;
-    const { admin, organization, role } = await authorizeOrganizationMember(slug, user.id);
-    if (!organization) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
-    }
-    if (!role || !MANAGER_ROLES.has(role)) {
+    const { admin, facilitator } = await authorizeFacilitator(slug, user.id);
+    if (!facilitator) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -65,31 +65,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Startup not found' }, { status: 404 });
     }
 
-    const { data: existing } = await admin
-      .from('organization_startup_relations')
-      .select('id, status')
-      .eq('organization_id', organization.id)
-      .eq('startup_id', startupId)
-      .maybeSingle();
-
-    if (existing && ['accepted', 'active', 'alumni'].includes(existing.status)) {
-      return NextResponse.json({ error: 'This startup is already linked to the organization' }, { status: 400 });
-    }
-
     const { data: relation, error } = await admin
-      .from('organization_startup_relations')
+      .from('startup_facilitator_assignments')
       .upsert({
-        organization_id: organization.id,
         startup_id: startupId,
+        facilitator_id: facilitator.id,
+        status: 'pending',
+        assigned_by: facilitator.id,
         relation_type: relationType,
-        status: 'requested',
-        requested_by_user_id: user.id,
-        requested_at: new Date().toISOString(),
-        responded_by_user_id: null,
-        responded_at: null,
+        reviewed_at: null,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'organization_id,startup_id' })
-      .select('id, startup_id, relation_type, status, requested_at, responded_at, start_date, end_date')
+      }, { onConflict: 'startup_id,facilitator_id' })
+      .select('id, startup_id, relation_type, status, notes, reviewed_at, created_at')
       .single();
 
     if (error) {
@@ -98,12 +85,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       data: {
-        ...relation,
+        id: relation.id,
+        startup_id: relation.startup_id,
+        relation_type: relation.relation_type,
+        status: relation.status,
+        requested_at: relation.created_at,
+        responded_at: relation.reviewed_at,
+        notes: relation.notes,
+        start_date: null,
+        end_date: null,
         startup,
       },
     });
   } catch (error) {
-    console.error('Error upserting organization relation:', error);
+    console.error('Error upserting facilitator relation:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -117,11 +112,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { slug } = await params;
-    const { admin, organization, role } = await authorizeOrganizationMember(slug, user.id);
-    if (!organization) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
-    }
-    if (!role || !MANAGER_ROLES.has(role)) {
+    const { admin, facilitator } = await authorizeFacilitator(slug, user.id);
+    if (!facilitator) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -132,10 +124,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { error } = await admin
-      .from('organization_startup_relations')
+      .from('startup_facilitator_assignments')
       .delete()
-      .eq('organization_id', organization.id)
-      .eq('startup_id', startupId);
+      .eq('startup_id', startupId)
+      .eq('facilitator_id', facilitator.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -143,7 +135,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting organization relation:', error);
+    console.error('Error deleting facilitator relation:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

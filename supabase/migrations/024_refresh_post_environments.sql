@@ -1,13 +1,12 @@
 -- 024_refresh_post_environments.sql
--- Replace legacy environments with startup-platform aligned spaces.
--- Final set: 12 environments (stage-based + topic-based + engagement)
+-- Refresh post environments to the intended 12-space model:
+-- stage-based + topic-based + engagement-based.
 
 DO $$
 DECLARE
   general_env_id UUID;
 BEGIN
-
-  -- ── Create new environments ──────────────────────────────────────────────
+  -- Canonical environments
 
   INSERT INTO public.environments (name, description)
   SELECT 'General', 'Updates, thoughts, and broad platform discussion.'
@@ -57,31 +56,36 @@ BEGIN
   SELECT 'Hot Takes', 'Spicy opinions, debates, and controversial startup takes.'
   WHERE NOT EXISTS (SELECT 1 FROM public.environments WHERE lower(name) = 'hot takes');
 
-  -- ── Ensure descriptions are up-to-date ───────────────────────────────────
-
   UPDATE public.environments
   SET description = CASE lower(name)
-    WHEN 'general'       THEN 'Updates, thoughts, and broad platform discussion.'
-    WHEN 'ideation'      THEN 'Ideas, validation, brainstorming, and problem discovery.'
-    WHEN 'mvp'           THEN 'Building v1, early users, feedback loops, and pivots.'
-    WHEN 'scaling'       THEN 'Growth, metrics, hiring, ops, and product-market fit.'
-    WHEN 'marketing'     THEN 'GTM strategy, branding, content, growth hacking, and distribution.'
-    WHEN 'investing'     THEN 'Fundraising, deal flow, market views, and investor thinking.'
-    WHEN 'builders'      THEN 'Product, engineering, design, shipping, and practical execution.'
-    WHEN 'campus'        THEN 'Student founders, e-cells, university incubators, and campus entrepreneurship.'
+    WHEN 'general' THEN 'Updates, thoughts, and broad platform discussion.'
+    WHEN 'ideation' THEN 'Ideas, validation, brainstorming, and problem discovery.'
+    WHEN 'mvp' THEN 'Building v1, early users, feedback loops, and pivots.'
+    WHEN 'scaling' THEN 'Growth, metrics, hiring, ops, and product-market fit.'
+    WHEN 'marketing' THEN 'GTM strategy, branding, content, growth hacking, and distribution.'
+    WHEN 'investing' THEN 'Fundraising, deal flow, market views, and investor thinking.'
+    WHEN 'builders' THEN 'Product, engineering, design, shipping, and practical execution.'
+    WHEN 'campus' THEN 'Student founders, e-cells, university incubators, and campus entrepreneurship.'
     WHEN 'opportunities' THEN 'Jobs, gigs, grants, competitions, and open asks.'
-    WHEN 'ai & tech'     THEN 'AI, emerging tech, tools, and technical deep-dives.'
-    WHEN 'resources'     THEN 'Tools, templates, guides, frameworks, and recommended reads.'
-    WHEN 'hot takes'     THEN 'Spicy opinions, debates, and controversial startup takes.'
+    WHEN 'ai & tech' THEN 'AI, emerging tech, tools, and technical deep-dives.'
+    WHEN 'resources' THEN 'Tools, templates, guides, frameworks, and recommended reads.'
+    WHEN 'hot takes' THEN 'Spicy opinions, debates, and controversial startup takes.'
     ELSE description
   END
   WHERE lower(name) IN (
-    'general', 'ideation', 'mvp', 'scaling', 'marketing',
-    'investing', 'builders', 'campus', 'opportunities',
-    'ai & tech', 'resources', 'hot takes'
+    'general',
+    'ideation',
+    'mvp',
+    'scaling',
+    'marketing',
+    'investing',
+    'builders',
+    'campus',
+    'opportunities',
+    'ai & tech',
+    'resources',
+    'hot takes'
   );
-
-  -- ── Migrate old posts to General ─────────────────────────────────────────
 
   SELECT id INTO general_env_id
   FROM public.environments
@@ -92,21 +96,38 @@ BEGIN
   UPDATE public.posts
   SET environment_id = general_env_id
   WHERE environment_id IN (
-    SELECT id FROM public.environments
-    WHERE lower(name) IN (
-      'ai', 'app_dev', 'collaboration', 'data_science',
-      'idea_validation', 'memes', 'politics', 'random',
-      'startups', 'support', 'local ecosystems'
+    SELECT id
+    FROM public.environments
+    WHERE regexp_replace(lower(name), '[^a-z0-9]+', '_', 'g') IN (
+      'ai',
+      'app_dev',
+      'web_dev',
+      'collaboration',
+      'data_science',
+      'idea_validation',
+      'memes',
+      'politics',
+      'random',
+      'startups',
+      'support',
+      'local_ecosystems'
     )
   );
 
-  -- ── Delete legacy environments ───────────────────────────────────────────
-
   DELETE FROM public.environments
-  WHERE lower(name) IN (
-    'ai', 'app_dev', 'collaboration', 'data_science',
-    'idea_validation', 'memes', 'politics', 'random',
-    'startups', 'support', 'local ecosystems'
+  WHERE regexp_replace(lower(name), '[^a-z0-9]+', '_', 'g') IN (
+    'ai',
+    'app_dev',
+    'web_dev',
+      'collaboration',
+      'data_science',
+      'idea_validation',
+      'memes',
+      'politics',
+      'random',
+      'startups',
+      'support',
+      'local_ecosystems'
   );
 
 END $$;

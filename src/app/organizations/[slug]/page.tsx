@@ -12,7 +12,7 @@ function formatLocation(org: OrganizationProfile) {
 }
 
 function visibleRelations(relations: OrganizationStartupRelation[]) {
-  return relations.filter((relation) => ['accepted', 'active', 'alumni'].includes(relation.status));
+  return relations.filter((relation) => relation.status === 'approved');
 }
 
 export default function OrganizationDetailPage() {
@@ -182,7 +182,7 @@ export default function OrganizationDetailPage() {
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Associated startups</h2>
                 <p className="text-sm text-muted-foreground">
-                  Accepted, active, and alumni startups linked to this startup facilitator.
+                  Approved startups linked to this startup facilitator.
                 </p>
               </div>
 

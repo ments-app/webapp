@@ -12,9 +12,7 @@ const ORG_TYPES: { value: '' | OrganizationType; label: string }[] = [
   { value: 'incubator', label: 'Incubators' },
   { value: 'accelerator', label: 'Accelerators' },
   { value: 'ecell', label: 'E-Cells' },
-  { value: 'college_incubator', label: 'College Incubators' },
-  { value: 'facilitator', label: 'Facilitators' },
-  { value: 'community', label: 'Communities' },
+  { value: 'college_cell', label: 'College Cells' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -132,7 +130,7 @@ export default function OrganizationsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
             >
               <Plus className="h-4 w-4" />
-              Create Facilitator Profile
+              Set Up in Business
             </Link>
           </div>
         </section>

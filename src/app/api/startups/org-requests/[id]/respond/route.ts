@@ -20,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const admin = createAdminClient();
     const { data: relation, error: relationError } = await admin
-      .from('organization_startup_relations')
+      .from('startup_facilitator_assignments')
       .select('id, startup_id, status')
       .eq('id', id)
       .maybeSingle();
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!relation) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
-    if (relation.status !== 'requested') {
+    if (relation.status !== 'pending') {
       return NextResponse.json({ error: 'Request is no longer pending' }, { status: 400 });
     }
 
@@ -48,13 +48,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const nextStatus = action === 'accept' ? 'accepted' : 'rejected';
+    const nextStatus = action === 'accept' ? 'approved' : 'rejected';
     const { data, error } = await admin
-      .from('organization_startup_relations')
+      .from('startup_facilitator_assignments')
       .update({
         status: nextStatus,
-        responded_by_user_id: user.id,
-        responded_at: new Date().toISOString(),
+        reviewed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({ data });
   } catch (error) {
-    console.error('Error responding to org request:', error);
+    console.error('Error responding to facilitator request:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,18 +1,16 @@
+import { getFacilitatorBusinessDashboardUrl, getFacilitatorSetupUrl } from '@/utils/businessApp';
+
 export type OrganizationType =
+  | 'ecell'
   | 'incubator'
   | 'accelerator'
-  | 'ecell'
-  | 'college_incubator'
-  | 'facilitator'
-  | 'venture_studio'
-  | 'grant_body'
-  | 'community'
+  | 'college_cell'
   | 'other';
 
-export type OrganizationRole = 'owner' | 'admin' | 'reviewer' | 'editor';
-export type OrganizationRelationType = 'incubated' | 'accelerated' | 'partnered' | 'mentored' | 'funded' | 'community_member';
-export type OrganizationRelationStatus = 'requested' | 'accepted' | 'active' | 'alumni' | 'rejected' | 'withdrawn';
-export type FacilitatorVerificationStatus = 'unverified' | 'pending_review' | 'verified' | 'rejected';
+export type OrganizationRole = 'facilitator';
+export type OrganizationRelationType = 'supported' | 'incubated' | 'accelerated' | 'partnered' | 'mentored' | 'funded' | 'community_member';
+export type OrganizationRelationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+export type FacilitatorVerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 export type OrganizationListItem = {
   id: string;
@@ -40,6 +38,7 @@ export type OrganizationStartupRelation = {
   status: OrganizationRelationStatus;
   requested_at?: string | null;
   responded_at?: string | null;
+  notes?: string | null;
   start_date: string | null;
   end_date: string | null;
   startup: {
@@ -77,7 +76,6 @@ export type OrganizationProfile = OrganizationListItem & {
   banner_url: string | null;
   university_name: string | null;
   stage_focus: string[];
-  created_by: string;
   updated_at: string;
   verification_requested_at: string | null;
   verification_reviewed_at: string | null;
@@ -94,9 +92,7 @@ export type OrganizationProfile = OrganizationListItem & {
   relations: OrganizationStartupRelation[];
 };
 
-export type CreateOrganizationInput = {
-  name: string;
-  org_type: OrganizationType;
+export type UpdateOrganizationProfileInput = {
   short_bio?: string;
   description?: string;
   website?: string;
@@ -111,13 +107,6 @@ export type CreateOrganizationInput = {
   stage_focus?: string[];
   support_types?: string[];
   is_published?: boolean;
-};
-
-export type FacilitatorVerificationInput = {
-  official_email: string;
-  role_title?: string;
-  evidence_links?: string[];
-  proof_summary?: string;
 };
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -145,9 +134,9 @@ export async function fetchOrganizationBySlug(slug: string) {
   return parseJson<{ data: OrganizationProfile }>(res);
 }
 
-export async function createOrganization(input: CreateOrganizationInput) {
-  const res = await fetch('/api/organizations', {
-    method: 'POST',
+export async function updateOrganizationProfile(slug: string, input: UpdateOrganizationProfileInput) {
+  const res = await fetch(`/api/organizations/${slug}`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
@@ -192,23 +181,10 @@ export async function respondToOrgRequest(id: string, action: 'accept' | 'reject
   return parseJson<{ data: { id: string; status: OrganizationRelationStatus } }>(res);
 }
 
-export async function applyForFacilitatorVerification(
-  slug: string,
-  input: FacilitatorVerificationInput
-) {
-  const res = await fetch(`/api/organizations/${slug}/verification/apply`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  return parseJson<{
-    data: {
-      verification_status: FacilitatorVerificationStatus;
-      verification_requested_at: string | null;
-      verification_reviewed_at: string | null;
-      verification_rejection_reason: string | null;
-      verification_details: OrganizationProfile['verification_details'];
-      is_verified: boolean;
-    };
-  }>(res);
+export function getCreateFacilitatorRedirectUrl(returnPath?: string) {
+  return getFacilitatorSetupUrl(returnPath);
+}
+
+export function getManageFacilitatorBusinessUrl(returnPath?: string) {
+  return getFacilitatorBusinessDashboardUrl(returnPath);
 }
