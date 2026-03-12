@@ -48,6 +48,7 @@ export type StartupProfile = {
   elevator_pitch: string | null;
   logo_url: string | null;
   banner_url: string | null;
+  pitch_video_url: string | null;
   // Fundraising fields
   raise_target: string | null;
   equity_offered: string | null;
@@ -653,6 +654,35 @@ export async function uploadPitchDeck(file: File): Promise<{ url: string; error?
   } catch (error) {
     console.error('Error uploading pitch deck:', error);
     return { url: '', error: error instanceof Error ? error.message : 'Failed to upload pitch deck' };
+  }
+}
+
+export async function uploadPitchVideo(file: File): Promise<{ url: string; error?: string }> {
+  try {
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (!userId) throw new Error('User not authenticated');
+
+    const ext = file.name.split('.').pop() || 'mp4';
+    const fileName = `${Date.now()}.${ext}`;
+    const filePath = `pitch-videos/${userId}/${fileName}`;
+
+    const { error: storageError } = await supabase.storage
+      .from('media')
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (storageError) throw storageError;
+
+    const { data: publicUrlData } = supabase.storage
+      .from('media')
+      .getPublicUrl(filePath);
+
+    return { url: publicUrlData.publicUrl };
+  } catch (error) {
+    console.error('Error uploading pitch video:', error);
+    return { url: '', error: error instanceof Error ? error.message : 'Failed to upload video' };
   }
 }
 

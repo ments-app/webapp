@@ -148,7 +148,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         avatar_url: f.avatar_url || null,
         display_order: f.display_order,
         status: userId
-          ? acceptedUserIds.has(userId) ? 'accepted' : 'pending'
+          ? (userId === user.id || acceptedUserIds.has(userId)) ? 'accepted' : 'pending'
           : 'accepted',
       };
     });

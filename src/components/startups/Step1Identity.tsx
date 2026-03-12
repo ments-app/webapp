@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Country, State, City, ICountry, IState, ICity } from 'country-state-city';
-import { Building2, User, Handshake, ShieldCheck, Lightbulb, Rocket, TrendingUp, Crown, Gem, ChevronDown, MapPin } from 'lucide-react';
+import { Building2, User, Handshake, ShieldCheck, BrainCircuit, DraftingCompass, Zap, Globe2, Medal, ChevronDown, MapPin, Lightbulb, Search, Calendar } from 'lucide-react';
 import type { EntityType } from '@/api/startups';
 
 type Step1Props = {
@@ -33,11 +33,11 @@ const legalStatuses = [
 ];
 
 const stages = [
-  { value: 'ideation', label: 'Ideation', icon: Lightbulb },
-  { value: 'mvp', label: 'MVP', icon: Rocket },
-  { value: 'scaling', label: 'Scaling', icon: TrendingUp },
-  { value: 'expansion', label: 'Expansion', icon: Crown },
-  { value: 'maturity', label: 'Maturity', icon: Gem },
+  { value: 'ideation', label: 'Ideation', icon: BrainCircuit },
+  { value: 'mvp', label: 'MVP', icon: DraftingCompass },
+  { value: 'scaling', label: 'Scaling', icon: Zap },
+  { value: 'expansion', label: 'Expansion', icon: Globe2 },
+  { value: 'maturity', label: 'Maturity', icon: Medal },
 ];
 
 const businessModels = [
@@ -46,14 +46,158 @@ const businessModels = [
   { value: 'B2B2C', label: 'B2B2C' },
 ];
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
 const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 const labelClass = "block text-sm font-medium text-foreground mb-1.5";
 
-function SelectWrapper({ children }: { children: React.ReactNode }) {
+function SearchableSelect({
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedLabel = options.find(o => o.value === value)?.label || '';
+  const filtered = query
+    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   return (
-    <div className="relative">
-      {children}
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => {
+          if (disabled) return;
+          setOpen(true);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+        className={`${inputClass} flex items-center gap-2 cursor-pointer ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+      >
+        <Search className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
+        {open ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={`Search ${placeholder.toLowerCase()}...`}
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/50"
+            onClick={e => e.stopPropagation()}
+          />
+        ) : (
+          <span className={`flex-1 truncate text-sm ${value ? 'text-foreground' : 'text-muted-foreground/60'}`}>
+            {selectedLabel || placeholder}
+          </span>
+        )}
+        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </div>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full max-h-52 overflow-y-auto bg-background border border-border/60 rounded-xl shadow-lg py-1">
+          {filtered.length === 0 ? (
+            <div className="px-4 py-2.5 text-sm text-muted-foreground/60">No results</div>
+          ) : (
+            filtered.map(o => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                  setQuery('');
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/40 transition-colors ${
+                  o.value === value ? 'text-primary font-medium bg-primary/5' : 'text-foreground'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MonthYearPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const parsed = value ? new Date(value + 'T00:00:00') : null;
+  const selectedMonth = parsed ? parsed.getMonth() : -1;
+  const selectedYear = parsed ? parsed.getFullYear() : -1;
+
+  const handleChange = (month: number, year: number) => {
+    if (month >= 0 && year > 0) {
+      const m = String(month + 1).padStart(2, '0');
+      onChange(`${year}-${m}-01`);
+    }
+  };
+
+  const selectStyle = `${inputClass} appearance-none pr-8 cursor-pointer`;
+
+  return (
+    <div className="flex items-center gap-2">
+      <Calendar className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+      <div className="relative flex-1">
+        <select
+          value={selectedMonth >= 0 ? selectedMonth : ''}
+          onChange={e => {
+            const m = Number(e.target.value);
+            handleChange(m, selectedYear > 0 ? selectedYear : currentYear);
+          }}
+          className={selectStyle}
+        >
+          <option value="">Month</option>
+          {MONTHS.map((m, i) => (
+            <option key={m} value={i}>{m}</option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+      </div>
+      <div className="relative flex-1">
+        <select
+          value={selectedYear > 0 ? selectedYear : ''}
+          onChange={e => {
+            const y = Number(e.target.value);
+            handleChange(selectedMonth >= 0 ? selectedMonth : 0, y);
+          }}
+          className={selectStyle}
+        >
+          <option value="">Year</option>
+          {YEARS.map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+      </div>
     </div>
   );
 }
@@ -117,7 +261,6 @@ export function Step1Identity({ data, onChange, entityType }: Step1Props) {
     onChange('city', cityName);
   };
 
-  const selectClass = `${inputClass} appearance-none pr-10 cursor-pointer`;
 
   return (
     <div className="space-y-8">
@@ -293,11 +436,9 @@ export function Step1Identity({ data, onChange, entityType }: Step1Props) {
           </div>
           <div>
             <label className={labelClass}>Founded Date</label>
-            <input
-              type="date"
+            <MonthYearPicker
               value={data.founded_date}
-              onChange={(e) => onChange('founded_date', e.target.value)}
-              className={inputClass}
+              onChange={(v) => onChange('founded_date', v)}
             />
           </div>
         </div>
@@ -305,50 +446,32 @@ export function Step1Identity({ data, onChange, entityType }: Step1Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className={labelClass}>Country</label>
-            <SelectWrapper>
-              <select
-                value={selectedCountryCode}
-                onChange={(e) => handleCountryChange(e.target.value)}
-                className={selectClass}
-              >
-                <option value="">Select country</option>
-                {countries.map((c) => (
-                  <option key={c.isoCode} value={c.isoCode}>{c.name}</option>
-                ))}
-              </select>
-            </SelectWrapper>
+            <SearchableSelect
+              options={countries.map(c => ({ value: c.isoCode, label: c.name }))}
+              value={selectedCountryCode}
+              onChange={handleCountryChange}
+              placeholder="Select country"
+            />
           </div>
           <div>
             <label className={labelClass}>State</label>
-            <SelectWrapper>
-              <select
-                value={selectedStateCode}
-                onChange={(e) => handleStateChange(e.target.value)}
-                disabled={!selectedCountryCode}
-                className={`${selectClass} disabled:opacity-40 disabled:cursor-not-allowed`}
-              >
-                <option value="">Select state</option>
-                {states.map((s) => (
-                  <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
-                ))}
-              </select>
-            </SelectWrapper>
+            <SearchableSelect
+              options={states.map(s => ({ value: s.isoCode, label: s.name }))}
+              value={selectedStateCode}
+              onChange={handleStateChange}
+              placeholder="Select state"
+              disabled={!selectedCountryCode}
+            />
           </div>
           <div>
             <label className={labelClass}>City</label>
-            <SelectWrapper>
-              <select
-                value={data.city}
-                onChange={(e) => handleCityChange(e.target.value)}
-                disabled={!selectedStateCode}
-                className={`${selectClass} disabled:opacity-40 disabled:cursor-not-allowed`}
-              >
-                <option value="">Select city</option>
-                {cities.map((c) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
-              </select>
-            </SelectWrapper>
+            <SearchableSelect
+              options={cities.map(c => ({ value: c.name, label: c.name }))}
+              value={data.city}
+              onChange={handleCityChange}
+              placeholder="Select city"
+              disabled={!selectedStateCode}
+            />
           </div>
         </div>
 

@@ -225,7 +225,7 @@ export async function GET(
         try {
           let query = supabase
             .from('startup_profiles')
-            .select('id, brand_name, stage, is_actively_raising')
+            .select('id, brand_name, logo_url, stage, elevator_pitch, is_actively_raising')
             .eq('owner_id', user.id);
           if (!isOwnerViewing) query = query.eq('is_published', true);
           const { data } = await query.order('created_at', { ascending: false }).limit(10);
@@ -267,7 +267,7 @@ export async function GET(
     const projectsList = projectsResult as ProjectBrief[];
     const projectsCount = projectsList.length;
     const portfoliosCount = portfoliosResult as number;
-    type StartupBrief = { id: string; brand_name: string; stage: string | null; is_actively_raising: boolean | null };
+    type StartupBrief = { id: string; brand_name: string; logo_url: string | null; stage: string | null; elevator_pitch: string | null; is_actively_raising: boolean | null };
     const startups = startupsResult as StartupBrief[];
     const startupsCount = startups.length;
     const is_following = followCheckResult as boolean;

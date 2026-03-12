@@ -17,7 +17,7 @@ export async function sendCofounderInviteEmail({
   startupName: string;
   inviterName: string;
 }): Promise<void> {
-  const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ments.app'}/signup`;
+  const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.ments.app'}/signup`;
 
   await transporter.sendMail({
     from: `Ments <${process.env.SMTP_USER}>`,

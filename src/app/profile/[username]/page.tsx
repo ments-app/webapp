@@ -34,7 +34,9 @@ type ExperienceRow = {
 type StartupRow = {
   id: string;
   brand_name: string;
+  logo_url: string | null;
   stage: string | null;
+  elevator_pitch: string | null;
   is_actively_raising: boolean | null;
 };
 
@@ -527,6 +529,51 @@ export default function PublicProfilePage() {
               {activeTab === 'about' && (
                 <div className="space-y-8">
 
+                  {/* Profile Completion — only shown to profile owner, above bio */}
+                  {isOwnProfile && !loading && (() => {
+                    const fields = [
+                      { label: 'Full Name', done: !!data?.user?.full_name },
+                      { label: 'Avatar', done: !!data?.user?.avatar_url },
+                      { label: 'Cover Image', done: !!(data?.user?.banner_image || data?.user?.cover_url) },
+                      { label: 'Tagline', done: !!data?.user?.tagline },
+                      { label: 'Bio', done: !!(data?.user?.about || data?.user?.bio) },
+                      { label: 'City', done: !!data?.user?.current_city },
+                      { label: 'Skills', done: !!(data?.user?.skills && data.user.skills.length > 0) },
+                      { label: 'Experience', done: experiences.length > 0 },
+                      { label: 'Education', done: education.length > 0 },
+                    ];
+                    const completed = fields.filter(f => f.done).length;
+                    const total = fields.length;
+                    const percent = Math.round((completed / total) * 100);
+                    if (percent === 100) return null;
+
+                    const missing = fields.filter(f => !f.done);
+
+                    return (
+                      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-gray-50 border-gray-200/60'}`}>
+                        <div className="flex items-center justify-between mb-2.5">
+                          <span className={`text-xs font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Profile completion
+                          </span>
+                          <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {completed}/{total}
+                          </span>
+                        </div>
+                        <div className={`w-full h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        {missing.length > 0 && (
+                          <p className={`text-[11px] mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Missing: {missing.map(f => f.label).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Bio */}
                   <div>
                     <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3 flex items-center gap-2`}>
@@ -536,43 +583,9 @@ export default function PublicProfilePage() {
                     {loading ? (
                       <p className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>Loading...</p>
                     ) : (
-                      <>
-                        <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {bio || 'No bio yet.'}
-                        </p>
-
-                        {/* Profile Completion — only shown to profile owner */}
-                        {isOwnProfile && (() => {
-                          const fields = [
-                            { label: 'Full Name', done: !!data?.user?.full_name },
-                            { label: 'Avatar', done: !!data?.user?.avatar_url },
-                            { label: 'Cover Image', done: !!(data?.user?.banner_image || data?.user?.cover_url) },
-                            { label: 'Tagline', done: !!data?.user?.tagline },
-                            { label: 'Bio', done: !!(data?.user?.about || data?.user?.bio) },
-                            { label: 'City', done: !!data?.user?.current_city },
-                            { label: 'Skills', done: !!(data?.user?.skills && data.user.skills.length > 0) },
-                            { label: 'Experience', done: experiences.length > 0 },
-                            { label: 'Education', done: education.length > 0 },
-                          ];
-                          const completed = fields.filter(f => f.done).length;
-                          const percent = Math.round((completed / fields.length) * 100);
-
-                          return (
-                            <div className="mt-3 flex items-center gap-2">
-                              <div className={`w-24 h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
-                                <div
-                                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                              <span className={`text-[11px] font-semibold whitespace-nowrap ${percent === 100 ? 'text-emerald-500' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                                }`}>
-                                {percent}% complete
-                              </span>
-                            </div>
-                          );
-                        })()}
-                      </>
+                      <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {bio || 'No bio yet.'}
+                      </p>
                     )}
                   </div>
 
@@ -598,47 +611,55 @@ export default function PublicProfilePage() {
                         )}
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-3">
                         {loading ? (
                           <p className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>Loading...</p>
                         ) : startups.length > 0 ? (
-                          startups.map((startup, index) => (
-                            <Link key={startup.id} href={`/startups/${startup.id}`} className="flex gap-3 group">
-                              {/* Timeline */}
-                              <div className="flex flex-col items-center pt-1">
-                                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                                  <Rocket className="h-4 w-4 text-emerald-500" />
+                          startups.map((startup) => (
+                            <Link
+                              key={startup.id}
+                              href={`/startups/${startup.id}`}
+                              className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all group ${isDarkMode
+                                ? 'border-gray-800 hover:border-gray-700 hover:bg-gray-800/50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {startup.logo_url ? (
+                                <img
+                                  src={startup.logo_url}
+                                  alt={startup.brand_name}
+                                  className="h-11 w-11 rounded-xl object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                                  <Rocket className="h-5 w-5 text-emerald-500" />
                                 </div>
-                                {index < (startups.length - 1) && (
-                                  <div className={`w-px flex-1 mt-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h3 className={`text-sm font-semibold truncate group-hover:underline ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {startup.brand_name}
+                                  </h3>
+                                  {startup.is_actively_raising && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-md font-bold flex-shrink-0 dark:bg-green-500/10 dark:text-green-400">
+                                      Raising
+                                    </span>
+                                  )}
+                                </div>
+                                {startup.elevator_pitch && (
+                                  <p className={`text-xs truncate mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    {startup.elevator_pitch}
+                                  </p>
                                 )}
                               </div>
-
-                              {/* Content */}
-                              <div className="flex-1 pb-6">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <h3 className={`text-sm font-semibold group-hover:underline ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                      {startup.brand_name}
-                                    </h3>
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    {startup.stage && (
-                                      <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                        : 'bg-emerald-50 text-emerald-700'
-                                        }`}>
-                                        {startup.stage}
-                                      </span>
-                                    )}
-                                    {startup.is_actively_raising && (
-                                      <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
-                                        Raising
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
+                              {startup.stage && (
+                                <span className={`text-[11px] px-2.5 py-1 rounded-lg font-medium flex-shrink-0 capitalize ${isDarkMode
+                                  ? 'bg-gray-800 text-gray-400 border border-gray-700'
+                                  : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {startup.stage}
+                                </span>
+                              )}
                             </Link>
                           ))
                         ) : (
