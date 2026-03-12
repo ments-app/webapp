@@ -26,7 +26,6 @@ export async function injectRealtimePosts(
     .eq('deleted', false)
     .is('parent_post_id', null)
     .gt('created_at', cacheComputedAt)
-    .neq('author_id', userId)
     .eq('author.account_status', 'active')
     .order('created_at', { ascending: false })
     .limit(10);

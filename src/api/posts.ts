@@ -357,7 +357,7 @@ export async function createReply(params: {
       body: JSON.stringify({
         postId: parentPostId,
         replyId: data.id,
-        replyContent: content,
+        // replyContent intentionally omitted — server fetches content from DB to prevent spoofing
       }),
     });
   } catch (e) {

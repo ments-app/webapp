@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, createServiceClient } from '@/utils/supabase-server';
 
 // Quick ping to verify route registration
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
@@ -66,18 +66,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      // Fire-and-forget push notification via edge function (best effort)
+      // Write in-app notification directly to DB (primary path — does not rely on edge functions)
       try {
-        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-follow`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-          },
-          body: JSON.stringify({ followerId, followeeId: targetUserId }),
-          // do not await; errors are non-fatal
-        }).catch(() => { });
+        const serviceClient = createServiceClient();
+
+        // Fetch follower's profile for notification metadata
+        const { data: followerProfile } = await serviceClient
+          .from('users')
+          .select('username, full_name, avatar_url')
+          .eq('id', followerId)
+          .maybeSingle();
+
+        await serviceClient.from('inapp_notification').insert({
+          recipient_id: targetUserId,
+          type: 'follow',
+          content: `${followerProfile?.full_name || followerProfile?.username || 'Someone'} started following you`,
+          is_read: false,
+          actor_id: followerId,
+          actor_name: followerProfile?.full_name ?? null,
+          actor_username: followerProfile?.username ?? null,
+          actor_avatar_url: followerProfile?.avatar_url ?? null,
+        });
+      } catch (notifErr) {
+        // Non-fatal — do not block the follow action
+        console.error('[follow] Failed to write inapp_notification:', notifErr);
+      }
+
+      // Fire-and-forget push notification via edge function (best effort — for device push only)
+      try {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (serviceRoleKey) {
+          fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-follow`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${serviceRoleKey}`,
+              apikey: serviceRoleKey,
+            },
+            body: JSON.stringify({ followerId, followeeId: targetUserId }),
+          }).catch(() => { });
+        }
       } catch {
         // ignore
       }
