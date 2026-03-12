@@ -10,6 +10,7 @@ import { createDeal, getDealForStartup, updateDealStage, removeDeal, InvestorDea
 import { supabase } from '@/utils/supabase';
 import { ArrowLeft, Plus, ChevronDown, Trash2, IndianRupee, Wallet, TrendingUp, Loader2, CheckCircle, X } from 'lucide-react';
 import Link from 'next/link';
+import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 
 export default function StartupDetailPage() {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ export default function StartupDetailPage() {
   const [loadingArena, setLoadingArena] = useState(false);
   const [joiningAudience, setJoiningAudience] = useState(false);
   const [virtualFundAmount, setVirtualFundAmount] = useState(1000000);
+  const loginPrompt = useLoginPrompt();
 
   useEffect(() => {
     const load = async () => {
@@ -82,28 +84,36 @@ export default function StartupDetailPage() {
     fetchInvestor();
   }, [user, id]);
 
-  // Fetch arena context when coming from investment arena
+  // Fetch arena context when coming from investment arena (works even without login)
   useEffect(() => {
-    if (!fromArena || !arenaEventId || !arenaStallId || !user) return;
+    if (!fromArena || !arenaEventId || !arenaStallId) return;
     setLoadingArena(true);
     (async () => {
       try {
-        const [audienceRes, leaderRes, eventRes] = await Promise.all([
-          fetch(`/api/events/${encodeURIComponent(arenaEventId)}/audience`),
+        // Always fetch leaderboard and event info (public data)
+        const fetches: Promise<Response>[] = [
           fetch(`/api/events/${encodeURIComponent(arenaEventId)}/leaderboard`),
           fetch(`/api/events/${encodeURIComponent(arenaEventId)}`),
-        ]);
-        const audienceJson = await audienceRes.json();
-        const leaderJson = await leaderRes.json();
-        const eventJson = await eventRes.json();
+        ];
+        // Only fetch audience (user-specific) if logged in
+        if (user) {
+          fetches.push(fetch(`/api/events/${encodeURIComponent(arenaEventId)}/audience`));
+        }
+
+        const responses = await Promise.all(fetches);
+        const leaderJson = await responses[0].json();
+        const eventJson = await responses[1].json();
 
         setArenaRound(leaderJson.arena_round ?? eventJson.data?.arena_round ?? null);
         setVirtualFundAmount(eventJson.data?.virtual_fund_amount ?? 1000000);
-        setIsStallOwner(audienceJson.isStallOwner ?? false);
 
-        if (audienceJson.audience) {
-          setIsAudience(true);
-          setArenaBalance(audienceJson.audience.virtual_balance ?? 0);
+        if (user && responses[2]) {
+          const audienceJson = await responses[2].json();
+          setIsStallOwner(audienceJson.isStallOwner ?? false);
+          if (audienceJson.audience) {
+            setIsAudience(true);
+            setArenaBalance(audienceJson.audience.virtual_balance ?? 0);
+          }
         }
 
         const entry = (leaderJson.leaderboard ?? []).find((l: { id: string }) => l.id === arenaStallId);
@@ -451,34 +461,54 @@ export default function StartupDetailPage() {
           </div>
         )}
         {/* Bottom spacer so content isn't hidden behind sticky bar */}
-        {fromArena && arenaEventId && arenaStallId && user && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
-          <div className="h-28" />
+        {fromArena && arenaEventId && arenaStallId && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
+          <div className="h-40 md:h-28" />
         )}
       </div>
 
       {/* PhonePe-style sticky bottom invest bar */}
-      {fromArena && arenaEventId && arenaStallId && user && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-md safe-bottom">
+      {fromArena && arenaEventId && arenaStallId && !loadingArena && arenaRound === 'investment' && !isStallOwner && (
+        <div className="fixed bottom-[60px] md:bottom-0 left-0 right-0 z-[51] border-t border-border/60 bg-background/95 backdrop-blur-md safe-bottom">
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
-            {/* Balance info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Virtual Balance</p>
-              <p className="text-lg font-bold text-foreground flex items-center gap-0.5">
-                <IndianRupee className="h-4 w-4" />
-                {arenaBalance.toLocaleString('en-IN')}
-              </p>
-            </div>
-            {/* Big Invest button */}
-            <button
-              onClick={() => setShowInvestModal(true)}
-              className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold shadow-lg shadow-emerald-600/30 transition active:scale-[0.97] min-w-[160px]"
-            >
-              <IndianRupee className="h-5 w-5" />
-              Invest Now
-            </button>
+            {user ? (
+              <>
+                {/* Balance info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Virtual Balance</p>
+                  <p className="text-lg font-bold text-foreground flex items-center gap-0.5">
+                    <IndianRupee className="h-4 w-4" />
+                    {arenaBalance.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                {/* Big Invest button */}
+                <button
+                  onClick={() => setShowInvestModal(true)}
+                  className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold shadow-lg shadow-emerald-600/30 transition active:scale-[0.97] min-w-[160px]"
+                >
+                  <IndianRupee className="h-5 w-5" />
+                  Invest Now
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Not logged in — prompt to login */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Login to invest virtual funds</p>
+                  <p className="text-xs text-muted-foreground">Join the arena and get virtual cash!</p>
+                </div>
+                <button
+                  onClick={() => loginPrompt.open('Sign in to Invest', 'Sign in to get virtual cash and invest in startups!')}
+                  className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold shadow-lg shadow-emerald-600/30 transition active:scale-[0.97] min-w-[160px]"
+                >
+                  <IndianRupee className="h-5 w-5" />
+                  Login & Invest
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
+      <LoginPromptModal {...loginPrompt.modalProps} redirectTo={typeof window !== 'undefined' ? window.location.href : undefined} />
     </DashboardLayout>
   );
 }

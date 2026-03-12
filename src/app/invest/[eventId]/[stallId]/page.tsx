@@ -56,7 +56,10 @@ export default function InvestViaQRPage() {
   const [totalFunding, setTotalFunding] = useState(0);
   const [investorCount, setInvestorCount] = useState(0);
 
-  // On mobile, try to open in app; fall back to web if app isn't installed
+  // On mobile, try to open in app via window.location.href.
+  // Modern mobile browsers ignore unrecognized custom schemes gracefully
+  // (page stays intact). If app is installed, it opens and the browser
+  // goes to background. If not, user stays on the web page.
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     if (!eventId || !stallId) return;
@@ -65,23 +68,7 @@ export default function InvestViaQRPage() {
     if (!mobile) return;
 
     const appUrl = `ments://invest/${eventId}/${stallId}`;
-
-    // Use a hidden iframe to attempt the deep link — this won't navigate
-    // the page away, so if the app isn't installed the web page stays intact
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = appUrl;
-    document.body.appendChild(iframe);
-
-    // Clean up the iframe after a short delay
-    const cleanup = setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 2000);
-
-    return () => {
-      clearTimeout(cleanup);
-      if (iframe.parentNode) document.body.removeChild(iframe);
-    };
+    window.location.href = appUrl;
   }, [eventId, stallId]);
 
   // Fetch event + stall info
