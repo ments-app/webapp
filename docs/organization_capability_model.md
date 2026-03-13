@@ -68,7 +68,7 @@ Recommended direction:
 
 ### 1. `organizations`
 
-Represents incubators, accelerators, e-cells, college incubators, facilitators, venture studios, grant bodies, or similar support organizations.
+Represents clubs, incubators, accelerators, e-cells, college incubators, facilitators, venture studios, grant bodies, or similar support organizations.
 
 ```sql
 create table public.organizations (
@@ -80,6 +80,7 @@ create table public.organizations (
       'incubator',
       'accelerator',
       'ecell',
+      'club',
       'college_incubator',
       'facilitator',
       'venture_studio',
@@ -540,4 +541,3 @@ This gives Ments:
 - proper incubator/accelerator/ecell support
 - accepted startups automatically listed on org profiles
 - no forced role switching
-

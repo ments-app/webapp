@@ -69,9 +69,9 @@ export function FacilitatorProfileManager({
           <Building2 className="h-3.5 w-3.5" />
           Public Profile
         </div>
-        <h2 className="mt-4 text-lg font-semibold text-foreground">App-facing facilitator profile</h2>
+        <h2 className="mt-4 text-lg font-semibold text-foreground">App-facing organization profile</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Control how this facilitator appears inside the app. Business verification stays on business.ments.app.
+          Control how this organization appears inside the app. Business verification stays on business.ments.app for facilitator-managed orgs.
         </p>
       </div>
 
@@ -195,7 +195,7 @@ export function FacilitatorProfileManager({
               onChange={(e) => setForm((prev) => ({ ...prev, is_published: e.target.checked }))}
               className="h-4 w-4"
             />
-            Publish this facilitator profile in the app
+            Publish this organization profile in the app
           </label>
         </div>
 

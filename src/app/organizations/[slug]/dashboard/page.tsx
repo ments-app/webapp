@@ -41,6 +41,9 @@ export default function OrganizationDashboardPage() {
     () => (organization?.relations || []).filter((relation) => relation.status === 'approved').length,
     [organization]
   );
+  const canManageProfile = organization?.member_role === 'facilitator' || organization?.member_role === 'owner' || organization?.member_role === 'admin';
+  const canManageRelations =
+    canManageProfile || organization?.member_role === 'reviewer';
 
   return (
     <DashboardLayout>
@@ -49,12 +52,12 @@ export default function OrganizationDashboardPage() {
           <div className="space-y-2">
             <Link href="/organizations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Back to startup facilitators
+              Back to organizations
             </Link>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Startup facilitator dashboard</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Organization dashboard</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Manage how your startup facilitator appears and which startups are publicly associated with it.
+                Manage how your organization appears and which ventures or org projects are publicly associated with it.
               </p>
             </div>
           </div>
@@ -139,22 +142,29 @@ export default function OrganizationDashboardPage() {
                 </div>
               </section>
 
-              <OrganizationRelationManager
-                slug={organization.slug}
-                initialRelations={organization.relations}
-                onRelationsChange={(relations) => setOrganization((prev) => prev ? { ...prev, relations } : prev)}
-              />
+              {canManageRelations && (
+                <OrganizationRelationManager
+                  slug={organization.slug}
+                  orgType={organization.org_type}
+                  initialRelations={organization.relations}
+                  onRelationsChange={(relations) => setOrganization((prev) => prev ? { ...prev, relations } : prev)}
+                />
+              )}
 
-              <FacilitatorProfileManager
-                organization={organization}
-                onUpdate={(next) => setOrganization(next)}
-              />
+              {canManageProfile && (
+                <FacilitatorProfileManager
+                  organization={organization}
+                  onUpdate={(next) => setOrganization(next)}
+                />
+              )}
 
-              <FacilitatorVerificationCard organization={organization} />
+              {organization.org_type !== 'club' && canManageProfile && (
+                <FacilitatorVerificationCard organization={organization} />
+              )}
             </>
           ) : (
             <div className="rounded-3xl border border-border/50 bg-card px-6 py-12 text-center">
-              <p className="text-sm text-muted-foreground">You do not have access to manage this startup facilitator.</p>
+              <p className="text-sm text-muted-foreground">You do not have access to manage this organization.</p>
               <Link href={`/organizations/${slug}`} className="mt-4 inline-flex text-sm font-medium text-primary">
                 View public profile
               </Link>

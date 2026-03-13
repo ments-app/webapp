@@ -27,25 +27,30 @@ const RELATION_TYPES: OrganizationRelationType[] = [
   'mentored',
   'funded',
   'community_member',
+  'club_project',
 ];
 
 export function OrganizationRelationManager({
   slug,
+  orgType,
   initialRelations,
   onRelationsChange,
 }: {
   slug: string;
+  orgType: 'ecell' | 'incubator' | 'accelerator' | 'club' | 'college_cell' | 'other';
   initialRelations: OrganizationStartupRelation[];
   onRelationsChange?: (relations: OrganizationStartupRelation[]) => void;
 }) {
+  const isClub = orgType === 'club';
   const [relations, setRelations] = useState(initialRelations);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState<SearchResult | null>(null);
-  const [relationType, setRelationType] = useState<OrganizationRelationType>('incubated');
+  const [relationType, setRelationType] = useState<OrganizationRelationType>(isClub ? 'club_project' : 'incubated');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const allowedRelationTypes = isClub ? (['club_project'] as OrganizationRelationType[]) : RELATION_TYPES.filter((type) => type !== 'club_project');
 
   const updateRelations = (next: OrganizationStartupRelation[]) => {
     setRelations(next);
@@ -61,6 +66,9 @@ export function OrganizationRelationManager({
         limit: '12',
         search: search.trim(),
       });
+      if (isClub) {
+        params.set('entity_type', 'org_project');
+      }
       const res = await fetch(`/api/startups?${params.toString()}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) {
@@ -115,22 +123,26 @@ export function OrganizationRelationManager({
   return (
     <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Request Startup Associations</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          {isClub ? 'Request Org Project Associations' : 'Request Startup Associations'}
+        </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Startup facilitator admins can only send requests. The startup owner must accept before the startup appears under this facilitator profile.
+          {isClub
+            ? 'Club admins can request org-project associations. The project owner must accept before the project appears under this club profile.'
+            : 'Organization admins can only send requests. The startup owner must accept before the startup appears under this profile.'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_0.9fr_auto] gap-3">
         <div className="space-y-2">
           <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Search startups
+            {isClub ? 'Search org projects' : 'Search startups'}
           </label>
           <div className="flex gap-2">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by startup name"
+              placeholder={isClub ? 'Search by org project name' : 'Search by startup name'}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
             <button
@@ -175,7 +187,7 @@ export function OrganizationRelationManager({
             onChange={(e) => setRelationType(e.target.value as OrganizationRelationType)}
             className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
           >
-            {RELATION_TYPES.map((item) => (
+            {allowedRelationTypes.map((item) => (
               <option key={item} value={item}>{item.replace(/_/g, ' ')}</option>
             ))}
           </select>
@@ -198,12 +210,12 @@ export function OrganizationRelationManager({
 
       <div className="space-y-3">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Requests and linked startups
+          {isClub ? 'Requests and linked org projects' : 'Requests and linked startups'}
         </h4>
         {relations.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            No requests or linked startups yet.
+            {isClub ? 'No requests or linked org projects yet.' : 'No requests or linked startups yet.'}
           </div>
         ) : (
           <div className="space-y-2">
@@ -221,7 +233,7 @@ export function OrganizationRelationManager({
                   </div>
                   {relation.status === 'pending' && (
                     <div className="text-[11px] text-amber-600 mt-1">
-                      Waiting for startup owner approval
+                      {isClub ? 'Waiting for project owner approval' : 'Waiting for startup owner approval'}
                     </div>
                   )}
                 </div>

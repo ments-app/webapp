@@ -105,9 +105,22 @@ function CreatePageContent() {
                   <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
                     New
                   </div>
-                  <h3 className="mt-3 text-lg font-semibold text-foreground">Startup Facilitator</h3>
+                  <h3 className="mt-3 text-lg font-semibold text-foreground">Organization</h3>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Create a profile for an incubator, accelerator, e-cell, college incubator, or similar startup facilitator.
+                    Create a profile for an incubator, accelerator, e-cell, or similar support organization.
+                  </p>
+                </Link>
+
+                <Link
+                  href="/organizations/create?type=club"
+                  className="group rounded-3xl border border-border/50 bg-card p-6 shadow-sm hover:border-primary/25 hover:bg-accent/10 transition-colors"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
+                    <Building2 className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold text-foreground">Club</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Create a club profile and later link org projects to it through the organization dashboard.
                   </p>
                 </Link>
               </div>

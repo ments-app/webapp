@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef, useDeferredValue } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -8,7 +8,7 @@ import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles, Trophy, Layers, Building2, CheckCircle2, Inbox } from 'lucide-react';
+import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles, Trophy, Layers, Building2, CheckCircle2, Inbox, Search } from 'lucide-react';
 
 // ... (types and helpers unchanged)
 import { fetchMyVentures, updateStartup, StartupProfile } from '@/api/startups';
@@ -73,17 +73,23 @@ export default function StartupsPage() {
 }
 
 function StartupsPageContent() {
+  const searchParams = useSearchParams();
+  const requestedEntityType = searchParams.get('type');
+  const defaultEntityType: EntityType = requestedEntityType === 'org_project' ? 'org_project' : 'startup';
+  const initialSearch = searchParams.get('q') ?? '';
   const { user } = useAuth();
   const [startups, setStartups] = useState<StartupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
   const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
   const [filterStage, setFilterStage] = useState<string | null>(null);
-  const [filterEntityType, setFilterEntityType] = useState<EntityType | null>(null);
+  const [filterEntityType, setFilterEntityType] = useState<EntityType | null>(defaultEntityType);
   const [sortMode, setSortMode] = useState<'hot' | 'new'>('hot');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
   const listMenuRef = useRef<HTMLDivElement>(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -96,7 +102,6 @@ function StartupsPageContent() {
   }, []);
 
   // ── Tab system ──
-  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'directory' | 'my' | 'facilitators' | 'dealflow'>('directory');
   const [myVentures, setMyVentures] = useState<StartupProfile[]>([]);
   const [myFacilitators, setMyFacilitators] = useState<OrganizationListItem[]>([]);
@@ -111,6 +116,11 @@ function StartupsPageContent() {
     else if (tab === 'facilitators') setActiveTab('facilitators');
     else if (tab === 'dealflow') setActiveTab('dealflow');
   }, [searchParams]);
+
+  useEffect(() => {
+    setFilterEntityType(defaultEntityType);
+    setSearchQuery(initialSearch);
+  }, [defaultEntityType, initialSearch]);
 
   useEffect(() => {
     if (!user) return;
@@ -144,6 +154,12 @@ function StartupsPageContent() {
 
       if (filterEntityType) query = (query as typeof query).eq('entity_type', filterEntityType);
       if (filterStage) query = (query as typeof query).eq('stage', filterStage);
+      if (deferredSearchQuery.trim()) {
+        const term = deferredSearchQuery.trim();
+        query = (query as typeof query).or(
+          `brand_name.ilike.%${term}%,description.ilike.%${term}%,elevator_pitch.ilike.%${term}%`
+        );
+      }
 
       const { data: rows } = await query.order('created_at', { ascending: false }).limit(60);
       const list: StartupItem[] = (rows || []).map((s: Omit<StartupItem, '_votes'>) => ({ ...s, _votes: 0 }));
@@ -180,7 +196,7 @@ function StartupsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [filterStage, filterEntityType, sortMode, user?.id]);
+  }, [deferredSearchQuery, filterStage, filterEntityType, sortMode, user?.id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -337,14 +353,16 @@ function StartupsPageContent() {
         {/* ── Directory Tab ── */}
         {activeTab === 'directory' && (
           <>
-        <Controls
-          sortMode={sortMode}
-          setSortMode={setSortMode}
-          filterStage={filterStage}
-          setFilterStage={setFilterStage}
-          filterEntityType={filterEntityType}
-          setFilterEntityType={setFilterEntityType}
-        />
+            <Controls
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              filterStage={filterStage}
+              setFilterStage={setFilterStage}
+              filterEntityType={filterEntityType}
+              setFilterEntityType={setFilterEntityType}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
 
         {/* ── Content ── */}
         {loading ? (
@@ -448,7 +466,7 @@ function StartupsPageContent() {
 // ── Controls ──────────────────────────────────────────────────────────────────
 
 function Controls({
-  sortMode, setSortMode, filterStage, setFilterStage, filterEntityType, setFilterEntityType,
+  sortMode, setSortMode, filterStage, setFilterStage, filterEntityType, setFilterEntityType, searchQuery, setSearchQuery,
 }: {
   sortMode: 'hot' | 'new';
   setSortMode: (m: 'hot' | 'new') => void;
@@ -456,6 +474,8 @@ function Controls({
   setFilterStage: (s: string | null) => void;
   filterEntityType: EntityType | null;
   setFilterEntityType: (t: EntityType | null) => void;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
 }) {
   const [stageOpen, setStageOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -478,6 +498,27 @@ function Controls({
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 pb-4 relative z-20">
+      <div className="relative flex-1 min-w-0">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search startups and projects"
+          className="w-full rounded-xl border border-border bg-card pl-10 pr-10 py-2 min-h-[44px] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {/* Category Filter Pills */}
       <div className="flex gap-2">
         {[

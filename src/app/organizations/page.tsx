@@ -9,6 +9,7 @@ import { Building2, Globe, MapPin, Plus, Search, Sparkles } from 'lucide-react';
 
 const ORG_TYPES: { value: '' | OrganizationType; label: string }[] = [
   { value: '', label: 'All' },
+  { value: 'club', label: 'Clubs' },
   { value: 'incubator', label: 'Incubators' },
   { value: 'accelerator', label: 'Accelerators' },
   { value: 'ecell', label: 'E-Cells' },
@@ -118,30 +119,39 @@ export default function OrganizationsPage() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
-                Startup Support
+                Organizations
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Startup Facilitators</h1>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Organizations</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Explore incubators, accelerators, e-cells, and support bodies. Create a public profile for your startup facilitator and showcase accepted startups.
+                Explore clubs, incubators, accelerators, e-cells, and support bodies. Clubs can attach org projects, while support organizations can showcase associated startups.
               </p>
             </div>
-            <Link
-              href="/organizations/create"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              Set Up in Business
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/organizations/create?type=club"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card px-5 py-3 text-sm font-semibold hover:bg-accent/30"
+              >
+                <Plus className="h-4 w-4" />
+                Create Club
+              </Link>
+              <Link
+                href="/organizations/create"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
+              >
+                <Plus className="h-4 w-4" />
+                Set Up Facilitator
+              </Link>
+            </div>
           </div>
         </section>
 
         <section className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_220px]">
           <div className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card px-4 py-3">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <input
+              <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search startup facilitators"
+              placeholder="Search organizations"
               className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -160,7 +170,7 @@ export default function OrganizationsPage() {
           <section className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Managed by you</h2>
-              <p className="text-sm text-muted-foreground">Startup facilitator profiles you can manage through the dedicated dashboard.</p>
+              <p className="text-sm text-muted-foreground">Organization profiles you can manage through the dedicated dashboard.</p>
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {myOrganizations.map((org) => (
@@ -171,9 +181,9 @@ export default function OrganizationsPage() {
         )}
 
         <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Published facilitator profiles</h2>
-            <p className="text-sm text-muted-foreground">Discover public support bodies on the platform.</p>
+            <div>
+            <h2 className="text-lg font-semibold text-foreground">Published organization profiles</h2>
+            <p className="text-sm text-muted-foreground">Discover public clubs and support bodies on the platform.</p>
           </div>
 
           {loading ? (
@@ -185,7 +195,7 @@ export default function OrganizationsPage() {
           ) : organizations.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/70 px-6 py-12 text-center">
               <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">No startup facilitator profiles found for the current filters.</p>
+              <p className="mt-3 text-sm text-muted-foreground">No organization profiles found for the current filters.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

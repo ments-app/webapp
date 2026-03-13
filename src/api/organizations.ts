@@ -4,11 +4,20 @@ export type OrganizationType =
   | 'ecell'
   | 'incubator'
   | 'accelerator'
+  | 'club'
   | 'college_cell'
   | 'other';
 
-export type OrganizationRole = 'facilitator';
-export type OrganizationRelationType = 'supported' | 'incubated' | 'accelerated' | 'partnered' | 'mentored' | 'funded' | 'community_member';
+export type OrganizationRole = 'facilitator' | 'owner' | 'admin' | 'reviewer' | 'editor';
+export type OrganizationRelationType =
+  | 'supported'
+  | 'incubated'
+  | 'accelerated'
+  | 'partnered'
+  | 'mentored'
+  | 'funded'
+  | 'community_member'
+  | 'club_project';
 export type OrganizationRelationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type FacilitatorVerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
@@ -109,6 +118,23 @@ export type UpdateOrganizationProfileInput = {
   is_published?: boolean;
 };
 
+export type CreateClubInput = {
+  organisation_name: string;
+  short_bio?: string;
+  description?: string;
+  website?: string;
+  contact_email?: string;
+  logo_url?: string;
+  banner_url?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  university_name?: string;
+  sectors?: string[];
+  stage_focus?: string[];
+  support_types?: string[];
+};
+
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json();
   if (!res.ok) {
@@ -141,6 +167,18 @@ export async function updateOrganizationProfile(slug: string, input: UpdateOrgan
     body: JSON.stringify(input),
   });
   return parseJson<{ data: OrganizationProfile }>(res);
+}
+
+export async function createClub(input: CreateClubInput) {
+  const res = await fetch('/api/organizations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'club',
+      ...input,
+    }),
+  });
+  return parseJson<{ data: { id: string; slug: string } }>(res);
 }
 
 export async function sendOrganizationRequest(
