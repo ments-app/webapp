@@ -31,7 +31,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const shouldShowSidebar = typeof showSidebar === 'boolean' ? showSidebar : !(pathname?.startsWith('/post'));
+  const shouldShowSidebar = typeof showSidebar === 'boolean' ? showSidebar : true;
 
   // Lightweight unread counts for header badges — 2 min interval (not 30s)
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -152,7 +152,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
 
         {/* Main Post Section */}
         <main className="flex-1 min-w-0 overflow-visible py-4 px-3 sm:py-6 sm:px-4 md:px-6 min-h-[500px]">
-          <div className={fullWidth ? 'w-full' : 'max-w-5xl mx-auto'}>
+          <div className={fullWidth ? 'w-full' : pathname?.startsWith('/post') ? 'max-w-2xl mx-auto' : 'max-w-5xl mx-auto'}>
             <ErrorBoundary>
               {children}
             </ErrorBoundary>

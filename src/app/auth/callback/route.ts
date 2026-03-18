@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       // (same auth user ID, but email was hashed during deletion)
       const { data: userById } = await adminClient
         .from('users')
-        .select('id, username, email, account_status')
+        .select('id, username, email, account_status, is_onboarding_done')
         .eq('id', session.user.id)
         .single();
 
@@ -95,17 +95,28 @@ export async function GET(request: NextRequest) {
             })
             .eq('id', session.user.id);
         } else {
-          // Existing active/deactivated user — update last_seen
+          // Existing active/deactivated user — update last_seen and skip onboarding
           await adminClient
             .from('users')
             .update({ last_seen: new Date().toISOString() })
             .eq('id', session.user.id);
+
+          // User exists in DB — go straight to home, skip onboarding
+          const redirectPath = requestUrl.searchParams.get('redirect');
+          if (redirectPath && redirectPath.startsWith('/')) {
+            return NextResponse.redirect(`${requestUrl.origin}${redirectPath}`);
+          }
+          return NextResponse.redirect(requestUrl.origin);
         }
+
+        // Deleted user re-registration — send to onboarding
+        return NextResponse.redirect(`${requestUrl.origin}/onboarding`);
       } else {
-        // Truly new user — also check by email to catch edge cases
+        // Truly new user — check by email to catch edge cases before onboarding
+        // The actual user row will be created during the onboarding username step.
         const { data: userByEmail } = await adminClient
           .from('users')
-          .select('id, account_status')
+          .select('id, account_status, is_onboarding_done')
           .eq('email', session.user.email)
           .single();
 
@@ -121,64 +132,17 @@ export async function GET(request: NextRequest) {
             .from('users')
             .update({ id: session.user.id, last_seen: new Date().toISOString() })
             .eq('id', userByEmail.id);
+          // User exists in DB — go straight to home
           return NextResponse.redirect(requestUrl.origin);
         }
 
-        // Create new user record
-        if (session.user.email) {
-          const emailParts = session.user.email.split('@');
-          const baseUsername = emailParts[0];
-
-          let username = baseUsername;
-          let counter = 1;
-          let isUnique = false;
-          const MAX_ATTEMPTS = 20;
-
-          while (!isUnique && counter <= MAX_ATTEMPTS) {
-            const { data: usernameCheck } = await adminClient
-              .from('users')
-              .select('username')
-              .eq('username', username)
-              .single();
-
-            if (!usernameCheck) {
-              isUnique = true;
-            } else {
-              username = `${baseUsername}${counter}`;
-              counter++;
-            }
-          }
-
-          if (!isUnique) {
-            username = `${baseUsername}_${Date.now().toString(36).slice(-5)}`;
-          }
-
-          const { error: insertError } = await adminClient
-            .from('users')
-            .insert({
-              id: session.user.id,
-              email: session.user.email,
-              username: username.toLowerCase(),
-              full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-              avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
-              user_type: 'normal_user',
-              is_verified: false,
-              is_onboarding_done: false,
-              created_at: new Date().toISOString(),
-              last_seen: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error('Error creating user:', insertError);
-          }
-        }
+        // New user — no DB row, send to onboarding
+        return NextResponse.redirect(`${requestUrl.origin}/onboarding`);
       }
     }
   }
 
-  // Redirect to the page the user was on before signing in (if provided)
+  // Fallback — no session, redirect to home
   const redirectPath = requestUrl.searchParams.get('redirect');
   if (redirectPath && redirectPath.startsWith('/')) {
     return NextResponse.redirect(`${requestUrl.origin}${redirectPath}`);

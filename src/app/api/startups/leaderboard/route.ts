@@ -70,8 +70,9 @@ export async function GET() {
       ...(owned || []).map((s) => normalize(s as Record<string, unknown>)),
       ...(coFounded || [])
         .map((f) => f.startup)
+        .flat()
         .filter(Boolean)
-        .filter((s) => !ownedIds.has(s!.id))
+        .filter((s) => !ownedIds.has((s as Record<string, unknown>).id as string))
         .map((s) => ({ ...normalize(s as unknown as Record<string, unknown>), role: 'co-founder' })),
     ];
 

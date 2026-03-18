@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserData } from '@/hooks/useUserData';
 import { useRouter } from 'next/navigation';
 import { Compass, Rocket, TrendingUp, Users, ArrowRight, Sparkles, Check } from 'lucide-react';
 
@@ -58,6 +59,7 @@ const INTERESTS: InterestOption[] = [
 
 export default function OnboardingPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { userData, loading: userDataLoading } = useUserData();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<Interest>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +74,13 @@ export default function OnboardingPage() {
       router.replace('/');
     }
   }, [authLoading, user, router]);
+
+  // Redirect if onboarding is already complete
+  useEffect(() => {
+    if (!userDataLoading && userData?.is_onboarding_done) {
+      router.replace('/');
+    }
+  }, [userDataLoading, userData, router]);
 
   const toggleInterest = (id: Interest) => {
     setSelected(prev => {

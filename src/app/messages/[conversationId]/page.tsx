@@ -133,16 +133,22 @@ export default function ConversationPage() {
     setLoading(true);
     setError(null);
 
-    Promise.all([
-      fetch(`/api/messages?conversationId=${String(conversationId)}`).then(res => {
+    // Fetch messages (required) and reactions (optional) separately
+    // so a reactions failure doesn't block the chat from loading
+    const messagesPromise = fetch(`/api/messages?conversationId=${String(conversationId)}`)
+      .then(res => {
         if (!res.ok) throw new Error('Failed to fetch messages');
         return res.json();
-      }),
-      fetch(`/api/messages/reactions?conversationId=${String(conversationId)}`).then(res => {
-        if (!res.ok) throw new Error('Failed to fetch reactions');
+      });
+
+    const reactionsPromise = fetch(`/api/messages/reactions?conversationId=${String(conversationId)}`)
+      .then(res => {
+        if (!res.ok) return [];
         return res.json();
-      }),
-    ])
+      })
+      .catch(() => []);
+
+    Promise.all([messagesPromise, reactionsPromise])
       .then(([messagesResponse, reacts]) => {
         setMessages(messagesResponse.messages || []);
         setReactions(reacts || []);

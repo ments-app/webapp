@@ -103,8 +103,8 @@ const HomePage = () => {
     setIsVisible(true);
   }, []);
 
-  // Redirect to onboarding if not completed
-  const needsOnboarding = !!(user && !userDataLoading && userData && !userData.is_onboarding_done);
+  // Redirect to onboarding if not completed (or no DB row yet for new signups)
+  const needsOnboarding = !!(user && !userDataLoading && (!userData || !userData.is_onboarding_done));
 
   useEffect(() => {
     if (needsOnboarding) {

@@ -9,7 +9,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown,
   Calendar, CheckCircle, Loader2, LogOut, Bookmark, BookmarkCheck, Star,
-  Trophy, Wallet, TrendingUp, Store, IndianRupee, X,
+  Trophy, Wallet, TrendingUp, Store, IndianRupee,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';

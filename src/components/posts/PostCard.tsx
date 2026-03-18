@@ -1038,7 +1038,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       <div className="flex items-start gap-3 sm:gap-4 mb-3">
         {/* Profile Picture */}
         <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
-          <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
+          <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/30 dark:ring-border/40 group-hover:ring-primary/30 transition-all duration-300">
             {post.author?.avatar_url && !uiState.imageError ? (
               <div className="relative w-full h-full">
                 <Image
@@ -1117,7 +1117,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
   return (
     <article
-      className="group relative bg-card border border-border/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/40 dark:hover:bg-card/80 dark:hover:border-border/60"
+      className="group relative bg-card border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer dark:bg-card dark:border-border/30 dark:hover:border-border/60 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset]"
       style={{
         boxShadow: 'var(--shadow-elevation-medium)',
         transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease',
@@ -1131,8 +1131,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter') handleCardClick(); }}
     >
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      {/* Hover gradient overlay */}
+      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-primary/[0.03] via-transparent to-transparent dark:from-primary/[0.04] dark:via-transparent" />
 
       <div className="relative z-10">
         {/* Header */}
@@ -1376,7 +1376,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         )}
 
         {/* Interaction buttons */}
-        <footer className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border">
+        <footer className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border/50 dark:border-border/30">
           <Button
             variant="ghost"
             size="sm"
@@ -1429,8 +1429,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         </footer>
       </div>
 
-      {/* Hover effects */}
-      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Top-edge highlight for depth in dark mode */}
+      <div className="absolute inset-x-0 top-0 h-px rounded-t-2xl sm:rounded-t-3xl opacity-0 dark:opacity-100 pointer-events-none bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
 
       {/* Lightbox */}
       {uiState.lightboxOpen && post.media && (

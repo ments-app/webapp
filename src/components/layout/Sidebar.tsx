@@ -242,7 +242,7 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
                   {userProfile?.full_name || user.user_metadata?.full_name || 'User'}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {user.email}
+                  {userProfile?.username ? `@${userProfile.username}` : user.email}
                 </p>
               </div>
               <div className="text-muted-foreground">

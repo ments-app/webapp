@@ -13,6 +13,28 @@ const INTEREST_TO_PRIMARY: Record<Interest, string> = {
   hiring: 'exploring',
 };
 
+/**
+ * Sanitize an email prefix into a valid username.
+ * Rules: 3-20 chars, starts with lowercase letter, only [a-z0-9_], no consecutive underscores.
+ */
+function sanitizeUsername(email: string): string {
+  let base = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+  // Must start with a letter — strip leading non-letter chars
+  base = base.replace(/^[^a-z]+/, '');
+
+  // Remove consecutive underscores
+  base = base.replace(/_+/g, '_');
+
+  // Ensure minimum length
+  if (base.length < 3) {
+    base = 'user_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  // Trim to max length
+  return base.slice(0, 20);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authClient = await createAuthClient();
@@ -47,39 +69,69 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Try with new columns first, fall back to base columns if PostgREST
-    // schema cache hasn't picked up the migration yet
-    const { error: updateError } = await admin
+    // Check if user row already exists
+    const { data: existingUser } = await admin
       .from('users')
-      .update({
-        user_type: 'normal_user',
-        primary_interest: primaryInterest,
-        is_onboarding_done: true,
-      })
-      .eq('id', user.id);
+      .select('id')
+      .eq('id', user.id)
+      .single();
 
-    if (updateError && (updateError.code === 'PGRST204' || updateError.message?.includes('does not exist') || updateError.message?.includes('schema cache'))) {
-      // Schema cache stale or columns not visible — fall back to base columns only
-      const { error: fallbackError } = await admin
+    if (existingUser) {
+      // Row exists — update interests only, don't mark onboarding done yet (username step still pending)
+      const { error: updateError } = await admin
         .from('users')
         .update({
           user_type: 'normal_user',
-          is_onboarding_done: true,
+          primary_interest: primaryInterest,
         })
         .eq('id', user.id);
 
-      if (fallbackError) {
-        console.error('Error updating user onboarding (fallback):', fallbackError);
-        return NextResponse.json({ error: `Failed to update user: ${fallbackError.message}` }, { status: 500 });
+      if (updateError && (updateError.code === 'PGRST204' || updateError.message?.includes('does not exist') || updateError.message?.includes('schema cache'))) {
+        const { error: fallbackError } = await admin
+          .from('users')
+          .update({
+            user_type: 'normal_user',
+          })
+          .eq('id', user.id);
+
+        if (fallbackError) {
+          console.error('Error updating user onboarding (fallback):', fallbackError);
+          return NextResponse.json({ error: `Failed to update user: ${fallbackError.message}` }, { status: 500 });
+        }
+      } else if (updateError) {
+        console.error('Error updating user onboarding:', updateError);
+        return NextResponse.json({ error: `Failed to update user: ${updateError.message} (code: ${updateError.code})` }, { status: 500 });
       }
-    } else if (updateError) {
-      console.error('Error updating user onboarding:', updateError);
-      return NextResponse.json({ error: `Failed to update user: ${updateError.message} (code: ${updateError.code})` }, { status: 500 });
+    } else {
+      // No row yet (new signup) — create with a sanitized email-derived username
+      const username = sanitizeUsername(user.email || 'user');
+
+      const { error: insertError } = await admin
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email,
+          username,
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+          user_type: 'normal_user',
+          primary_interest: primaryInterest,
+          account_status: 'active',
+          is_verified: false,
+          is_onboarding_done: false,
+          created_at: new Date().toISOString(),
+          last_seen: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error('Error creating user during onboarding:', insertError);
+        return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
+      }
     }
 
     return NextResponse.json({
       success: true,
-      redirect: '/',
+      redirect: '/onboarding/username',
     });
   } catch (error) {
     console.error('Error in onboarding API:', error);
