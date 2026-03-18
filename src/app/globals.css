@@ -392,6 +392,22 @@ body::before {
   opacity: 0.015;
 }
 
+/* ── Splash screen logo: theme-aware ─────────────── */
+/* Default (before JS): use system preference */
+.splash-logo-dark { display: none; }
+.splash-logo-light { display: block; }
+
+@media (prefers-color-scheme: dark) {
+  .splash-logo-dark { display: block; }
+  .splash-logo-light { display: none; }
+}
+
+/* Override with app theme once ThemeProvider runs */
+.dark-mode .splash-logo-dark { display: block; }
+.dark-mode .splash-logo-light { display: none; }
+.light-mode .splash-logo-dark { display: none; }
+.light-mode .splash-logo-light { display: block; }
+
 @layer base {
   * {
     @apply border-[hsl(var(--border))];

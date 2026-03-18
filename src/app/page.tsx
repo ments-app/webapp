@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
-import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PersonalizedFeed } from '@/components/feed/PersonalizedFeed';
 import { CreatePostInput } from '@/components/posts/CreatePostInput';
@@ -93,50 +92,38 @@ function AuthenticatedHome() {
   );
 }
 
+function SplashScreen() {
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+      <div className="animate-pulse">
+        <img src="/logo/black_logo.svg" alt="Ments" className="splash-logo-light w-14 h-14" />
+        <img src="/logo/white.svg" alt="Ments" className="splash-logo-dark w-14 h-14" />
+      </div>
+    </div>
+  );
+}
+
 const HomePage = () => {
   const [isVisible, setIsVisible] = useState(false);
   const { user, isLoading, signInWithGoogle } = useAuth();
-  const { userData, loading: userDataLoading } = useUserData();
-  const router = useRouter();
+  const { loading: userDataLoading } = useUserData();
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
-
-  // Redirect to onboarding if not completed (or no DB row yet for new signups)
-  const needsOnboarding = !!(user && !userDataLoading && (!userData || !userData.is_onboarding_done));
-
-  useEffect(() => {
-    if (needsOnboarding) {
-      router.replace('/onboarding');
-    }
-  }, [needsOnboarding, router]);
 
   const handleGoogleSignIn = async () => {
     console.log('Google sign-in clicked');
     await signInWithGoogle();
   };
 
-  // Show loading state while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-4 border-primary/70 border-t-transparent animate-spin shadow-lg" aria-label="Loading" />
-      </div>
-    );
+  // Show branded splash while checking authentication or loading user data
+  if (isLoading || (user && userDataLoading)) {
+    return <SplashScreen />;
   }
 
-  // If user is logged in, check onboarding status
+  // User is logged in — middleware already ensures onboarding is complete
   if (user) {
-    // Wait for user data to load or redirecting to onboarding
-    if (userDataLoading || needsOnboarding) {
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full border-4 border-primary/70 border-t-transparent animate-spin shadow-lg" aria-label="Loading" />
-        </div>
-      );
-    }
-
     return <AuthenticatedHome />;
   }
 
