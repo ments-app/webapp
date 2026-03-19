@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MoreVertical, Reply, Copy, Trash2, Edit, Smile, Check } from 'lucide-react';
+import { MoreVertical, Reply, Copy, Trash2, Smile, Check } from 'lucide-react';
 import Image from 'next/image';
+import SharedPostPreview, { extractPostId } from './SharedPostPreview';
 
 interface Message {
   id: string;
@@ -10,6 +11,7 @@ interface Message {
   sender_id: string;
   created_at: string;
   reply_to_id?: string;
+  is_read?: boolean;
 }
 
 interface GroupedReaction {
@@ -55,7 +57,6 @@ export default function MessageBubble({
   onReact,
   onRemoveReaction,
   onReply,
-  onEdit,
   onDelete,
   userId,
   isDeleting,
@@ -107,11 +108,6 @@ export default function MessageBubble({
 
   const handleReply = () => {
     onReply?.(message);
-    setShowActions(false);
-  };
-
-  const handleEdit = () => {
-    onEdit?.(message);
     setShowActions(false);
   };
 
@@ -301,10 +297,18 @@ export default function MessageBubble({
             : `bg-muted/70 text-foreground ${isLastInGroup ? 'rounded-bl-md' : ''}`
           }`}
         >
-          {/* Message text */}
-          <div className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words">
-            {message.content}
-          </div>
+          {/* Message content — shared post preview or plain text */}
+          {(() => {
+            const sharedPostId = extractPostId(message.content);
+            if (sharedPostId) {
+              return <SharedPostPreview postId={sharedPostId} isOwn={isOwn} />;
+            }
+            return (
+              <div className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words">
+                {message.content}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Reaction badges — Instagram style, overlapping bottom edge */}
@@ -382,37 +386,38 @@ export default function MessageBubble({
               transform: actionsPos.openUp ? 'translateY(-100%)' : 'none',
             }}
           >
-            {/* Quick reactions inside more menu too (for mobile) */}
-            <div className="flex items-center justify-center gap-0.5 px-2 py-2 border-b border-border/50">
-              {QUICK_REACTIONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={(e) => handleQuickReact(emoji, e)}
-                  className={`p-1.5 rounded-full hover:scale-125 transition-all duration-150 ${
-                    myReaction === emoji ? 'bg-primary/20 scale-110' : 'hover:bg-accent/60'
-                  }`}
-                >
-                  <span className="text-lg leading-none">{emoji}</span>
-                </button>
-              ))}
-            </div>
             <div className="py-1">
-              {onReply && (
-                <button onClick={handleReply} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/50 text-popover-foreground text-sm">
-                  <Reply className="h-4 w-4 opacity-50" />
-                  <span>Reply</span>
-                </button>
-              )}
               <button onClick={handleCopy} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/50 text-popover-foreground text-sm">
                 <Copy className="h-4 w-4 opacity-50" />
                 <span>Copy</span>
               </button>
-              {isOwn && onEdit && (
-                <button onClick={handleEdit} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/50 text-popover-foreground text-sm">
-                  <Edit className="h-4 w-4 opacity-50" />
-                  <span>Edit</span>
-                </button>
-              )}
+              {/* Message info — sent / viewed status */}
+              <div className="px-4 py-2 flex items-center gap-3 text-sm text-muted-foreground">
+                {isOwn ? (
+                  message.is_read ? (
+                    <>
+                      <div className="flex items-center text-primary">
+                        <Check className="h-4 w-4" />
+                        <Check className="h-4 w-4 -ml-2.5" />
+                      </div>
+                      <span>Seen</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 opacity-50" />
+                      <span>Sent</span>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 opacity-50" />
+                    <span>Received</span>
+                  </>
+                )}
+                <span className="ml-auto text-xs text-muted-foreground/60">
+                  {new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </span>
+              </div>
               {isOwn && onDelete && (
                 <>
                   <div className="h-px my-0.5 mx-3 bg-border/50" />

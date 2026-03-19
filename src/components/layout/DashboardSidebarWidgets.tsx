@@ -127,7 +127,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
     <div ref={containerRef} className="sticky space-y-4" style={{ top: `${stickyTop}px` }}>
       {/* Communities / Environments Widget */}
       {environments.length > 0 && (
-        <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
+        <div className="rounded-2xl border border-border/50 bg-card p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users className="w-[18px] h-[18px] text-muted-foreground" />
@@ -156,7 +156,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       )}
 
       {/* Recent Activity Widget — Real notifications */}
-      <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
+      <div className="rounded-2xl border border-border/50 bg-card p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Bell className="w-[18px] h-[18px] text-muted-foreground" />
@@ -193,7 +193,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       </div>
 
       {/* People to Connect Widget */}
-      <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
+      <div className="rounded-2xl border border-border/50 bg-card p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Users className="w-[18px] h-[18px] text-muted-foreground" />

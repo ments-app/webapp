@@ -99,11 +99,10 @@ export async function middleware(req: NextRequest) {
   );
 
   try {
-    // Use getSession() for middleware — it validates the JWT locally without a network
-    // call, which is critical since middleware runs on EVERY request. Sensitive operations
-    // in API routes still use getUser() for full server-side verification.
-    const { data: { session }, error } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
+    // Use getUser() — it verifies the JWT with the Supabase Auth server, preventing
+    // use of tampered tokens from cookies. getSession() reads from storage without
+    // verification and triggers a security warning.
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error && !error.message?.includes('Auth session missing')) {
       console.error('Middleware auth error:', error.message);

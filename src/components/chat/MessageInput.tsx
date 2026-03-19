@@ -149,7 +149,7 @@ export function MessageInput({
     if (!pendingReply) return null;
 
     return (
-      <div className="flex items-center justify-between p-3 bg-gray-800 border-b border-gray-700">
+      <div className="flex items-center justify-between p-3 bg-muted border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-1 h-10 bg-green-500 rounded-full"></div>
           <div className="flex-1">
@@ -181,14 +181,14 @@ export function MessageInput({
     if (!isUploading) return null;
 
     return (
-      <div className="p-3 bg-gray-800 border-b border-gray-700">
+      <div className="p-3 bg-muted border-b border-border">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <div className="flex items-center justify-between text-sm text-gray-300 mb-1">
               <span>Uploading...</span>
               <span>{uploadProgress}%</span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
+            <div className="w-full bg-muted rounded-full h-2">
               <div
                 className="bg-green-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}
@@ -204,14 +204,14 @@ export function MessageInput({
     if (!typingMessage) return null;
 
     return (
-      <div className="px-4 py-2 text-sm text-gray-400 bg-gray-900">
+      <div className="px-4 py-2 text-sm text-gray-400 bg-background">
         {typingMessage}
       </div>
     );
   };
 
   return (
-    <div className={cn("bg-gray-900 border-t border-gray-700", className)}>
+    <div className={cn("bg-background border-t border-border", className)}>
       {renderReplyPreview()}
       {renderUploadProgress()}
       {renderTypingIndicator()}
@@ -232,28 +232,28 @@ export function MessageInput({
             </button>
 
             {/* Media type selector dropdown */}
-            <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-lg shadow-lg border border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+            <div className="absolute bottom-full left-0 mb-2 bg-muted rounded-lg shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
               <button
                 onClick={() => openFileSelector('image/*')}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-t-lg"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-accent rounded-t-lg"
               >
                 <span>📷</span> Image
               </button>
               <button
                 onClick={() => openFileSelector('video/*')}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-accent"
               >
                 <span>🎥</span> Video
               </button>
               <button
                 onClick={() => openFileSelector('audio/*')}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-accent"
               >
                 <span>🎵</span> Audio
               </button>
               <button
                 onClick={() => openFileSelector()}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-b-lg"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-accent rounded-b-lg"
               >
                 <span>📎</span> File
               </button>
@@ -271,7 +271,7 @@ export function MessageInput({
               disabled={disabled || isUploading}
               className={cn(
                 "w-full resize-none rounded-2xl px-4 py-3 pr-12",
-                "bg-gray-800 border border-gray-600 text-white placeholder-gray-400",
+                "bg-muted border border-border text-white placeholder-gray-400",
                 "focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "min-h-[48px] max-h-[120px]"
@@ -291,7 +291,7 @@ export function MessageInput({
               inputValue.trim() && !disabled && !isUploading ? (
                 "bg-green-600 hover:bg-green-500 text-white transform hover:scale-105"
               ) : (
-                "bg-gray-700 text-gray-400 cursor-not-allowed"
+                "bg-muted text-gray-400 cursor-not-allowed"
               )
             )}
             title="Send message"

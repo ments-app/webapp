@@ -21,6 +21,7 @@ interface Message {
   sender_id: string;
   created_at: string;
   reply_to_id?: string;
+  is_read?: boolean;
 }
 
 interface Reaction {
@@ -232,6 +233,13 @@ export default function ConversationPage() {
     return url;
   }
 
+  // Handle real-time read status updates
+  const handleMessageRead = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => m.id === messageId ? { ...m, is_read: true } : m)
+    );
+  }, []);
+
   // Real-time updates for messages
   useRealtimeMessages(
     conversationId ? String(conversationId) : null,
@@ -244,7 +252,8 @@ export default function ConversationPage() {
       if (msg.sender_id !== userId && document.visibilityState === 'visible') {
         markAsRead();
       }
-    }
+    },
+    handleMessageRead
   );
 
   // Reaction handlers
@@ -860,10 +869,12 @@ export default function ConversationPage() {
                           onToggleSelect={handleToggleSelect}
                         />
 
-                        {/* Seen indicator below last own message — Instagram style */}
+                        {/* Delivery status below last own message */}
                         {isVeryLast && isOwn && (
                           <div className="flex justify-end mt-0.5 pr-2">
-                            <span className="text-[11px] text-muted-foreground/50">Seen</span>
+                            <span className="text-[11px] text-muted-foreground/50">
+                              {message.is_read ? 'Seen' : 'Sent'}
+                            </span>
                           </div>
                         )}
                       </React.Fragment>
@@ -943,7 +954,7 @@ export default function ConversationPage() {
             </div>
           </div>
         ) : (
-          <div className="flex-shrink-0 border-t px-3 py-2 md:px-4 min-w-0 bg-background border-border/30">
+          <div className="flex-shrink-0 border-t px-3 py-2 md:px-4 min-w-0 bg-background border-border/10">
             <ChatInput
               conversationId={String(conversationId)}
               userId={userId!}

@@ -103,7 +103,7 @@ export function MentionDropdown({ searchTerm, onSelectUser, position, isVisible 
   return createPortal(
     <div
       ref={dropdownRef}
-      className="fixed z-[9999] bg-background dark:bg-gray-900 border border-border dark:border-gray-700 rounded-lg shadow-2xl py-1 max-h-80 overflow-y-auto min-w-[250px] max-w-[calc(100vw-2rem)] sm:max-w-[350px]"
+      className="fixed z-[9999] bg-background border border-border rounded-lg shadow-2xl py-1 max-h-80 overflow-y-auto min-w-[250px] max-w-[calc(100vw-2rem)] sm:max-w-[350px]"
       style={{
         top: `${position.top}px`,
         left: `${Math.min(position.left, typeof window !== 'undefined' ? window.innerWidth - 360 : position.left)}px`,

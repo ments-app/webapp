@@ -15,6 +15,7 @@ import { Trash2, Edit } from 'lucide-react';
 import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 import { toast } from 'sonner';
 import { resolveEnvironmentPicture } from '@/lib/environmentAssets';
+import SharePostSheet from './SharePostSheet';
 
 type PostCardProps = {
   post: Post;
@@ -671,6 +672,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     reportSubmitting: false,
     reportSuccess: false,
   });
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportDetails, setReportDetails] = useState('');
   const replies = post.replies || 0; // No need for state since it doesn't change
@@ -802,19 +804,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onShare?.();
-    const url = `${window.location.origin}/post/${post.id}`;
-    if (navigator.share) {
-      navigator.share({
-        title: `Post by ${post.author?.username || 'Anonymous'}`,
-        text: content,
-        url
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(url)
-        .then(() => console.log('Link copied to clipboard'))
-        .catch(console.error);
-    }
-  }, [post.id, post.author?.username, content, onShare]);
+    setShareSheetOpen(true);
+  }, [onShare]);
 
   const handlePollVote = useCallback(async (optionId: string) => {
     // Ref guard fires synchronously — catches rapid clicks before setState can update
@@ -1143,7 +1134,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {post.environment && (
               <button
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 dark:bg-[#1C1F26] border border-border/60 dark:border-[#2A2E38] text-muted-foreground hover:bg-muted dark:hover:bg-[#222733] hover:text-foreground transition-colors max-w-[140px]"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors max-w-[140px]"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (post.environment?.id) {
@@ -1216,18 +1207,6 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                         <div className="h-px bg-border/60 my-1" />
                       </>
                     )}
-                    <button
-                      className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
-                      role="menuitem"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleShare(e);
-                        setUiState(prev => ({ ...prev, isMenuOpen: false }));
-                      }}
-                    >
-                      <Share className="h-4 w-4 opacity-80" />
-                      <span>Share post</span>
-                    </button>
                     {!isAuthor && user && (
                       <>
                         <div className="h-px bg-border/60 my-1" />
@@ -1630,6 +1609,13 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         document.body
       )}
       <LoginPromptModal {...loginPrompt.modalProps} />
+      <SharePostSheet
+        isOpen={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        postId={post.id}
+        postContent={content}
+        postAuthorUsername={post.author?.username || 'Anonymous'}
+      />
     </article>
   );
 });

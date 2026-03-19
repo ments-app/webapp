@@ -79,7 +79,7 @@ export default function ChatInput({
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
     }
   }, [content]);
 
@@ -229,9 +229,6 @@ export default function ChatInput({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const characterCount = content.length;
-  const maxCharacters = 2000;
-  const isNearLimit = characterCount > maxCharacters * 0.8;
 
   return (
     <div className="relative min-w-0">
@@ -260,7 +257,7 @@ export default function ChatInput({
       )}
 
       <form onSubmit={handleSend} className="relative">
-        <div className="flex items-end gap-1 px-3 py-2 rounded-full border transition-all duration-200 min-w-0 bg-transparent border-border/60 focus-within:border-muted-foreground/40">
+        <div className="flex items-end gap-1 px-3 py-2 rounded-2xl min-w-0">
           {/* Emoji Button — far left */}
           <button
             ref={emojiButtonRef}
@@ -290,26 +287,16 @@ export default function ChatInput({
               placeholder="Message..."
               disabled={loading}
               rows={1}
-              maxLength={maxCharacters}
-              className="w-full resize-none border-none outline-none bg-transparent text-foreground placeholder:text-muted-foreground/60 text-sm leading-5 max-h-28 min-w-0 py-1"
+              className="w-full resize-none border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent text-foreground placeholder:text-muted-foreground/60 text-sm leading-5 max-h-32 min-w-0 py-1 overflow-y-auto"
               style={{ minHeight: '20px' }}
             />
-
-            {/* Character Count */}
-            {isNearLimit && (
-              <div className={`absolute -top-6 right-0 text-xs transition-colors ${
-                characterCount > maxCharacters ? 'text-destructive' : 'text-muted-foreground'
-              }`}>
-                {characterCount}/{maxCharacters}
-              </div>
-            )}
           </div>
 
           {/* Right side: when empty show Mic, Image, Heart; when typing show Send */}
           {content.trim() ? (
             <button
               type="submit"
-              disabled={loading || !content.trim() || characterCount > maxCharacters}
+              disabled={loading || !content.trim()}
               className="p-1.5 rounded-full transition-all text-primary hover:text-primary/80 disabled:opacity-40 font-semibold text-sm"
             >
               {loading ? (

@@ -302,45 +302,45 @@
 }
 
 .dark-mode {
-  /* Premium cool-tinted dark — subtle blue undertone like X/Discord */
-  --background: 220 8% 3.5%;      /* deeper black with cool tint */
-  --foreground: 220 5% 90%;       /* slightly brighter text for contrast */
-  /* Card — clear elevation from background */
-  --card: 220 6% 9%;              /* distinct card surface */
-  --card-foreground: 220 5% 90%;
-  --popover: 220 6% 10%;          /* popover slightly lighter than card */
-  --popover-foreground: 220 5% 90%;
-  /* Primary keeps its brand green */
+  /* Pitch-black AMOLED dark with emerald brand accents */
+  --background: 0 0% 0%;            /* pure black */
+  --foreground: 150 4% 92%;         /* warm white with faint green tint */
+  /* Card — subtle elevation off true black */
+  --card: 150 3% 6%;                /* near-black with hint of emerald */
+  --card-foreground: 150 4% 92%;
+  --popover: 150 3% 7%;
+  --popover-foreground: 150 4% 92%;
+  /* Primary — brand emerald, slightly boosted for dark contrast */
   --primary: 142.1 70.6% 45.3%;
   --primary-foreground: 144.9 80.4% 10%;
-  /* Cool-tinted grays for secondary surfaces */
-  --secondary: 220 5% 13%;
-  --secondary-foreground: 220 5% 92%;
-  --muted: 220 5% 11%;
-  --muted-foreground: 220 4% 52%;  /* slightly brighter mid-gray */
-  --accent: 220 5% 13%;
-  --accent-foreground: 220 5% 92%;
+  /* Surfaces carry a subtle emerald undertone */
+  --secondary: 150 4% 9%;
+  --secondary-foreground: 150 4% 92%;
+  --muted: 150 3% 8%;
+  --muted-foreground: 150 3% 55%;   /* WCAG AA: ≥4.5:1 on black & card */
+  --accent: 150 4% 10%;
+  --accent-foreground: 150 4% 92%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 85.7% 97.3%;
-  /* Cool-tinted borders — visible but not harsh */
-  --border: 220 5% 16%;
-  --input: 220 5% 14%;
+  /* Borders — faint emerald-tinted edges */
+  --border: 150 4% 12%;
+  --input: 150 3% 10%;
   --ring: 142.4 71.8% 29.2%;
 
-  /* Dark mode shadows — deeper, more dramatic */
+  /* Dark mode shadows — deep on pure black */
   --shadow-color: 0 0% 0%;
   --shadow-elevation-low:
-    0 1px 2px hsl(var(--shadow-color) / 0.3),
-    0 1px 3px hsl(var(--shadow-color) / 0.15);
+    0 1px 2px hsl(var(--shadow-color) / 0.4),
+    0 1px 3px hsl(var(--shadow-color) / 0.2);
   --shadow-elevation-medium:
-    0 1px 2px hsl(var(--shadow-color) / 0.24),
-    0 2px 4px hsl(var(--shadow-color) / 0.2),
-    0 4px 8px hsl(var(--shadow-color) / 0.16);
+    0 1px 2px hsl(var(--shadow-color) / 0.3),
+    0 2px 4px hsl(var(--shadow-color) / 0.25),
+    0 4px 8px hsl(var(--shadow-color) / 0.2);
   --shadow-elevation-high:
-    0 1px 2px hsl(var(--shadow-color) / 0.2),
-    0 4px 8px hsl(var(--shadow-color) / 0.18),
-    0 8px 16px hsl(var(--shadow-color) / 0.14),
-    0 16px 32px hsl(var(--shadow-color) / 0.1);
+    0 1px 2px hsl(var(--shadow-color) / 0.25),
+    0 4px 8px hsl(var(--shadow-color) / 0.22),
+    0 8px 16px hsl(var(--shadow-color) / 0.18),
+    0 16px 32px hsl(var(--shadow-color) / 0.14);
 }
 
 /* Color scheme variations */

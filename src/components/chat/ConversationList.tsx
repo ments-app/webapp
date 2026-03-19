@@ -68,7 +68,7 @@ export function ConversationList({
     ];
 
     return (
-      <div className="flex items-center gap-1 p-2 bg-gray-800 rounded-lg">
+      <div className="flex items-center gap-1 p-2 bg-muted rounded-lg">
         {filters.map(filter => (
           <button
             key={filter.key}
@@ -79,7 +79,7 @@ export function ConversationList({
               activeFilter === filter.key ? (
                 "bg-primary text-white"
               ) : (
-                "text-gray-400 hover:text-white hover:bg-gray-700"
+                "text-gray-400 hover:text-white hover:bg-muted"
               )
             )}
           >
@@ -125,7 +125,7 @@ export function ConversationList({
                 activeFilter === category.id ? (
                   "bg-primary text-white"
                 ) : (
-                  "text-gray-300 hover:bg-gray-800"
+                  "text-muted-foreground hover:bg-muted"
                 )
               )}
             >
@@ -160,14 +160,14 @@ export function ConversationList({
         onClick={() => { clearUnreadCount(conversation.conversation_id); onSelectConversation(conversation); }}
         className={cn(
           "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all",
-          "hover:bg-gray-800",
+          "hover:bg-muted",
           isSelected ? "bg-primary/20 border border-green-600/30" : "",
-          hasUnread ? "bg-gray-800/50" : ""
+          hasUnread ? "bg-muted/50" : ""
         )}
       >
         {/* Avatar */}
         <div className="relative flex-shrink-0">
-          <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
             {conversation.other_avatar_url ? (
               <Image
                 src={conversation.other_avatar_url}
@@ -237,10 +237,10 @@ export function ConversationList({
         <div className="animate-pulse space-y-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gray-700 rounded-full"></div>
+              <div className="w-12 h-12 bg-muted rounded-full"></div>
               <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                <div className="h-4 bg-muted rounded w-3/4"></div>
+                <div className="h-3 bg-muted rounded w-1/2"></div>
               </div>
             </div>
           ))}
@@ -263,7 +263,7 @@ export function ConversationList({
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Messages</h2>
           {onCreateConversation && (
@@ -286,7 +286,7 @@ export function ConversationList({
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 pl-10 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full px-4 py-2 pl-10 bg-muted border border-border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
           <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -299,7 +299,7 @@ export function ConversationList({
 
       {/* Categories */}
       {renderCategoryFilter() && (
-        <div className="p-4 border-b border-gray-700">
+        <div className="p-4 border-b border-border">
           {renderCategoryFilter()}
         </div>
       )}

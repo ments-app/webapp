@@ -6,7 +6,7 @@ import { compressImage } from '@/utils/imageCompression';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 import Image from 'next/image';
-import { Loader2, Camera, ArrowLeft, User, AtSign, MessageSquare, FileText, Zap, X, Search, ChevronDown, ChevronUp, MapPin, BadgeCheck, ShieldCheck, Link2, Github, Globe, Youtube, Linkedin, Plus, ArrowUp, ArrowDown, Pencil, Trash2, Rocket, FolderOpen } from 'lucide-react';
+import { Loader2, Camera, ArrowLeft, User, AtSign, MessageSquare, FileText, Zap, X, Search, ChevronDown, ChevronUp, MapPin, ShieldCheck, Link2, Github, Globe, Youtube, Linkedin, Plus, ArrowUp, ArrowDown, Pencil, Trash2, Rocket, FolderOpen } from 'lucide-react';
 import { DribbbleIcon, BehanceIcon, FigmaIcon, SubstackIcon, InstagramIcon } from '@/components/ui/SocialIcons';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { ImageCropModal } from '@/components/ui/ImageCropModal';
@@ -984,7 +984,7 @@ export default function EditProfileForm() {
           </div>
           {isVerified ? (
             <div className="flex items-center gap-2 text-sm text-emerald-500">
-              <BadgeCheck className="h-5 w-5" />
+              <Image src="/icons/verify_badge.svg" alt="Verified" width={20} height={20} className="h-5 w-5" />
               <span className="font-medium">Your profile is verified</span>
             </div>
           ) : (

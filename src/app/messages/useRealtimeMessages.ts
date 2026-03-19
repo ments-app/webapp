@@ -7,6 +7,7 @@ interface Message {
   sender_id: string;
   created_at: string;
   reply_to_id?: string;
+  is_read?: boolean;
 }
 
 function toMessage(value: unknown): Message | null {
@@ -24,6 +25,7 @@ function toMessage(value: unknown): Message | null {
       sender_id: unknown;
       created_at: unknown;
       reply_to_id?: unknown;
+      is_read?: unknown;
     };
     if (
       typeof v.id === 'string' &&
@@ -37,6 +39,7 @@ function toMessage(value: unknown): Message | null {
         sender_id: v.sender_id,
         created_at: v.created_at,
         reply_to_id: typeof v.reply_to_id === 'string' ? v.reply_to_id : undefined,
+        is_read: typeof v.is_read === 'boolean' ? v.is_read : undefined,
       };
     }
   }
@@ -44,9 +47,11 @@ function toMessage(value: unknown): Message | null {
 }
 
 // Calls onNewMessage(msg) whenever a new message is inserted in the conversation
+// Calls onMessageRead(ids) when messages are marked as read by the other user
 export function useRealtimeMessages(
   conversationId: string | null,
-  onNewMessage: (msg: Message) => void
+  onNewMessage: (msg: Message) => void,
+  onMessageRead?: (messageId: string) => void
 ) {
   useEffect(() => {
     if (!conversationId) return;
@@ -68,9 +73,24 @@ export function useRealtimeMessages(
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
+          if (payload.new?.is_read === true && onMessageRead) {
+            onMessageRead(payload.new.id);
+          }
+        }
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, onNewMessage]);
+  }, [conversationId, onNewMessage, onMessageRead]);
 }

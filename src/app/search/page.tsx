@@ -16,7 +16,6 @@ import {
   Zap,
   Clock,
   DollarSign,
-  BadgeCheck,
   ArrowRight,
   X,
   Heart,
@@ -331,7 +330,7 @@ export default function SearchPage() {
                                 <span className="font-semibold text-sm text-foreground truncate">
                                   {u.full_name || u.username}
                                 </span>
-                                {u.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />}
+                                {u.is_verified && <Image src="/icons/verify_badge.svg" alt="Verified" width={14} height={14} className="h-3.5 w-3.5 shrink-0" />}
                               </div>
                               <p className="text-xs text-primary/80 truncate">@{u.username}</p>
                               {u.tagline && (
@@ -578,7 +577,7 @@ export default function SearchPage() {
                         <span className="font-semibold text-foreground truncate">
                           {highlightMatch(u.full_name || u.username, q)}
                         </span>
-                        {u.is_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
+                        {u.is_verified && <Image src="/icons/verify_badge.svg" alt="Verified" width={16} height={16} className="h-4 w-4 shrink-0" />}
                         {u.user_type === 'mentor' && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0">
                             Mentor
