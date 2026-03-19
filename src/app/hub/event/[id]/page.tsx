@@ -9,7 +9,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown,
   Calendar, CheckCircle, Loader2, LogOut, Bookmark, BookmarkCheck, Star,
-  Trophy, Wallet, TrendingUp, Store, IndianRupee, X,
+  Trophy, Wallet, TrendingUp, Store, IndianRupee, X, Download,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
@@ -44,6 +44,7 @@ type EventDetail = {
   is_featured?: boolean;
   organizer_name?: string | null;
   category?: string | null;
+  brochure_url?: string | null;
   // Arena fields
   arena_enabled?: boolean;
   entry_type?: 'startup' | 'project' | null;
@@ -384,6 +385,13 @@ export default function EventDetailsPage() {
 
   const handleJoin = async () => {
     if (!user || !event) return;
+
+    // If event has a registration URL, redirect there instead of internal registration
+    if (event.event_url) {
+      window.open(event.event_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     setJoining(true);
     setJoinError(null);
     try {
@@ -574,15 +582,15 @@ export default function EventDetailsPage() {
 
               {/* Action buttons */}
               <div className="flex items-center gap-2 flex-wrap">
-                {event.event_url && (
+                {event.brochure_url && (
                   <a
-                    href={event.event_url}
+                    href={event.brochure_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground font-semibold px-5 py-3 transition active:scale-95 hover:bg-accent/60"
                   >
-                    Visit Link
-                    <ExternalLink className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
+                    Download Brochure
                   </a>
                 )}
                 {!isPast && (
@@ -619,6 +627,11 @@ export default function EventDetailsPage() {
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Registering...
+                          </>
+                        ) : event.event_url ? (
+                          <>
+                            Register for Event
+                            <ExternalLink className="h-4 w-4" />
                           </>
                         ) : (
                           'Register for Event'
