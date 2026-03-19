@@ -157,7 +157,7 @@ export function ChatPage({
     if (!selectedConversation) return null;
 
     return (
-      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
+      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
         {/* Mobile back button */}
         <button
           onClick={() => setShowMobileList(true)}
@@ -170,7 +170,7 @@ export function ChatPage({
 
         {/* User info */}
         <div className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
             {selectedConversation.other_avatar_url ? (
               <Image
                 src={selectedConversation.other_avatar_url}
@@ -319,10 +319,10 @@ export function ChatPage({
   };
 
   return (
-    <div className={cn("h-screen bg-gray-900 flex", className)}>
+    <div className={cn("h-screen bg-background flex", className)}>
       {/* Conversation list - mobile responsive */}
       <div className={cn(
-        "bg-gray-900 border-r border-gray-700 transition-all duration-300",
+        "bg-background border-r border-border transition-all duration-300",
         "md:w-80 md:flex-shrink-0",
         showMobileList ? "w-full" : "w-0 hidden md:block"
       )}>
@@ -336,7 +336,7 @@ export function ChatPage({
 
       {/* Chat area - mobile responsive */}
       <div className={cn(
-        "flex flex-col bg-gray-800 flex-1 transition-all duration-300",
+        "flex flex-col bg-card flex-1 transition-all duration-300",
         !showMobileList ? "w-full" : "w-0 hidden md:flex"
       )}>
         {renderHeader()}

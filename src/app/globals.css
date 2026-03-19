@@ -302,45 +302,45 @@
 }
 
 .dark-mode {
-  /* Premium cool-tinted dark — subtle blue undertone like X/Discord */
-  --background: 220 6% 4%;        /* near-black with cool tint */
-  --foreground: 220 5% 88%;       /* toned-down white — less glare */
-  /* Card — subtle elevation via lightness + cool tint */
-  --card: 220 5% 8.5%;            /* dark gray card */
-  --card-foreground: 220 5% 88%;
-  --popover: 220 5% 7%;           /* popover surface */
-  --popover-foreground: 220 5% 88%;
-  /* Primary keeps its brand green */
+  /* Pitch-black AMOLED dark with emerald brand accents */
+  --background: 0 0% 0%;            /* pure black */
+  --foreground: 150 4% 92%;         /* warm white with faint green tint */
+  /* Card — subtle elevation off true black */
+  --card: 150 3% 6%;                /* near-black with hint of emerald */
+  --card-foreground: 150 4% 92%;
+  --popover: 150 3% 7%;
+  --popover-foreground: 150 4% 92%;
+  /* Primary — brand emerald, slightly boosted for dark contrast */
   --primary: 142.1 70.6% 45.3%;
   --primary-foreground: 144.9 80.4% 10%;
-  /* Cool-tinted grays for secondary surfaces */
-  --secondary: 220 4% 13%;
-  --secondary-foreground: 220 5% 90%;
-  --muted: 220 4% 11%;
-  --muted-foreground: 220 3% 48%;  /* softer mid-gray */
-  --accent: 220 4% 13%;
-  --accent-foreground: 220 5% 90%;
+  /* Surfaces carry a subtle emerald undertone */
+  --secondary: 150 4% 9%;
+  --secondary-foreground: 150 4% 92%;
+  --muted: 150 3% 8%;
+  --muted-foreground: 150 3% 55%;   /* WCAG AA: ≥4.5:1 on black & card */
+  --accent: 150 4% 10%;
+  --accent-foreground: 150 4% 92%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 85.7% 97.3%;
-  /* Cool-tinted borders */
-  --border: 220 4% 15%;
-  --input: 220 4% 13%;
+  /* Borders — faint emerald-tinted edges */
+  --border: 150 4% 12%;
+  --input: 150 3% 10%;
   --ring: 142.4 71.8% 29.2%;
 
-  /* Dark mode shadows — neutral */
+  /* Dark mode shadows — deep on pure black */
   --shadow-color: 0 0% 0%;
   --shadow-elevation-low:
-    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.2),
-    0.4px 0.8px 1px hsl(var(--shadow-color) / 0.2);
+    0 1px 2px hsl(var(--shadow-color) / 0.4),
+    0 1px 3px hsl(var(--shadow-color) / 0.2);
   --shadow-elevation-medium:
-    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.16),
-    0.8px 1.6px 2px hsl(var(--shadow-color) / 0.16),
-    2px 4px 5px hsl(var(--shadow-color) / 0.16);
+    0 1px 2px hsl(var(--shadow-color) / 0.3),
+    0 2px 4px hsl(var(--shadow-color) / 0.25),
+    0 4px 8px hsl(var(--shadow-color) / 0.2);
   --shadow-elevation-high:
-    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.12),
-    1.5px 2.9px 3.7px hsl(var(--shadow-color) / 0.12),
-    4px 8px 10px hsl(var(--shadow-color) / 0.12),
-    8px 16px 20px hsl(var(--shadow-color) / 0.12);
+    0 1px 2px hsl(var(--shadow-color) / 0.25),
+    0 4px 8px hsl(var(--shadow-color) / 0.22),
+    0 8px 16px hsl(var(--shadow-color) / 0.18),
+    0 16px 32px hsl(var(--shadow-color) / 0.14);
 }
 
 /* Color scheme variations */
@@ -389,8 +389,24 @@ body::before {
 }
 
 .dark-mode body::before {
-  opacity: 0.02;
+  opacity: 0.015;
 }
+
+/* ── Splash screen logo: theme-aware ─────────────── */
+/* Default (before JS): use system preference */
+.splash-logo-dark { display: none; }
+.splash-logo-light { display: block; }
+
+@media (prefers-color-scheme: dark) {
+  .splash-logo-dark { display: block; }
+  .splash-logo-light { display: none; }
+}
+
+/* Override with app theme once ThemeProvider runs */
+.dark-mode .splash-logo-dark { display: block; }
+.dark-mode .splash-logo-light { display: none; }
+.light-mode .splash-logo-dark { display: none; }
+.light-mode .splash-logo-light { display: block; }
 
 @layer base {
   * {
@@ -424,7 +440,7 @@ body::before {
 /* Custom styles for ments-inspired design */
 @layer components {
   .post-card {
-    @apply backdrop-blur-xl bg-card/80 border border-border/60 rounded-2xl p-5 min-w-0;
+    @apply bg-card border border-border/50 rounded-2xl p-5 min-w-0;
     box-shadow: var(--shadow-elevation-medium);
     transition: transform 0.3s var(--ease-out-expo),
                 box-shadow 0.3s var(--ease-out-expo),
@@ -434,7 +450,20 @@ body::before {
   .post-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-elevation-high);
-    @apply bg-card/95 border-border;
+    @apply bg-card border-border/80;
+  }
+
+  /* Dark mode post card refinements */
+  .dark-mode .post-card {
+    @apply border-border/30;
+    box-shadow: var(--shadow-elevation-medium),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
+  }
+  .dark-mode .post-card:hover {
+    @apply border-border/50;
+    box-shadow: var(--shadow-elevation-high),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+                0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
   .tag-badge {
@@ -481,11 +510,7 @@ body::before {
 
   /* Premium card base — for any card component */
   .premium-card {
-    background: linear-gradient(
-      145deg,
-      hsl(var(--card)) 0%,
-      hsl(var(--card) / 0.85) 100%
-    );
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
     box-shadow: var(--shadow-elevation-medium);
     transition: transform 0.3s var(--ease-out-expo),
@@ -496,6 +521,16 @@ body::before {
     transform: translateY(-2px);
     box-shadow: var(--shadow-elevation-high);
     border-color: hsl(var(--border) / 0.8);
+  }
+  .dark-mode .premium-card {
+    border-color: hsl(var(--border) / 0.3);
+    box-shadow: var(--shadow-elevation-medium),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
+  }
+  .dark-mode .premium-card:hover {
+    border-color: hsl(var(--border) / 0.5);
+    box-shadow: var(--shadow-elevation-high),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
 
   /* Hover lift utility */

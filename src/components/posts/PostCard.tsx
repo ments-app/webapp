@@ -15,6 +15,7 @@ import { Trash2, Edit } from 'lucide-react';
 import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 import { toast } from 'sonner';
 import { resolveEnvironmentPicture } from '@/lib/environmentAssets';
+import SharePostSheet from './SharePostSheet';
 
 type PostCardProps = {
   post: Post;
@@ -671,6 +672,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     reportSubmitting: false,
     reportSuccess: false,
   });
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportDetails, setReportDetails] = useState('');
   const replies = post.replies || 0; // No need for state since it doesn't change
@@ -802,19 +804,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onShare?.();
-    const url = `${window.location.origin}/post/${post.id}`;
-    if (navigator.share) {
-      navigator.share({
-        title: `Post by ${post.author?.username || 'Anonymous'}`,
-        text: content,
-        url
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(url)
-        .then(() => console.log('Link copied to clipboard'))
-        .catch(console.error);
-    }
-  }, [post.id, post.author?.username, content, onShare]);
+    setShareSheetOpen(true);
+  }, [onShare]);
 
   const handlePollVote = useCallback(async (optionId: string) => {
     // Ref guard fires synchronously — catches rapid clicks before setState can update
@@ -1038,7 +1029,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       <div className="flex items-start gap-3 sm:gap-4 mb-3">
         {/* Profile Picture */}
         <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
-          <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
+          <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/30 dark:ring-border/40 group-hover:ring-primary/30 transition-all duration-300">
             {post.author?.avatar_url && !uiState.imageError ? (
               <div className="relative w-full h-full">
                 <Image
@@ -1117,7 +1108,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
   return (
     <article
-      className="group relative bg-card border border-border/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/40 dark:hover:bg-card/80 dark:hover:border-border/60"
+      className="group relative bg-card border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer dark:bg-card dark:border-border/30 dark:hover:border-border/60 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset]"
       style={{
         boxShadow: 'var(--shadow-elevation-medium)',
         transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease',
@@ -1131,8 +1122,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter') handleCardClick(); }}
     >
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      {/* Hover gradient overlay */}
+      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-primary/[0.03] via-transparent to-transparent dark:from-primary/[0.04] dark:via-transparent" />
 
       <div className="relative z-10">
         {/* Header */}
@@ -1143,7 +1134,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {post.environment && (
               <button
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 dark:bg-[#1C1F26] border border-border/60 dark:border-[#2A2E38] text-muted-foreground hover:bg-muted dark:hover:bg-[#222733] hover:text-foreground transition-colors max-w-[140px]"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors max-w-[140px]"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (post.environment?.id) {
@@ -1216,18 +1207,6 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                         <div className="h-px bg-border/60 my-1" />
                       </>
                     )}
-                    <button
-                      className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
-                      role="menuitem"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleShare(e);
-                        setUiState(prev => ({ ...prev, isMenuOpen: false }));
-                      }}
-                    >
-                      <Share className="h-4 w-4 opacity-80" />
-                      <span>Share post</span>
-                    </button>
                     {!isAuthor && user && (
                       <>
                         <div className="h-px bg-border/60 my-1" />
@@ -1376,7 +1355,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         )}
 
         {/* Interaction buttons */}
-        <footer className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border">
+        <footer className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border/50 dark:border-border/30">
           <Button
             variant="ghost"
             size="sm"
@@ -1429,8 +1408,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         </footer>
       </div>
 
-      {/* Hover effects */}
-      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Top-edge highlight for depth in dark mode */}
+      <div className="absolute inset-x-0 top-0 h-px rounded-t-2xl sm:rounded-t-3xl opacity-0 dark:opacity-100 pointer-events-none bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
 
       {/* Lightbox */}
       {uiState.lightboxOpen && post.media && (
@@ -1630,6 +1609,13 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         document.body
       )}
       <LoginPromptModal {...loginPrompt.modalProps} />
+      <SharePostSheet
+        isOpen={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        postId={post.id}
+        postContent={content}
+        postAuthorUsername={post.author?.username || 'Anonymous'}
+      />
     </article>
   );
 });

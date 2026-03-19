@@ -29,9 +29,8 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
       initializedRef.current = true;
 
       try {
-        // Set up auth state listener — use session.user directly instead of
-        // calling getUser() (which makes a ~200-500ms network call) on every event.
-        // The session JWT is already validated locally by Supabase client.
+        // Auth state listener — provides session on INITIAL_SESSION event and
+        // subsequent auth changes (sign in, sign out, token refresh).
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (_event: AuthChangeEvent, session: Session | null) => {
             if (!mounted) return;
@@ -43,19 +42,20 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
 
         // If we already have a session from the server, skip client refetch entirely
         if (!initialSession) {
-          // Single call: getSession() validates JWT locally (fast, no network call).
-          // Only use getUser() for write operations that need server verification.
-          const { data: { session }, error } = await supabase.auth.getSession();
-
-          if (error) {
-            console.error('Error getting session:', error);
-            setIsLoading(false);
-            return () => subscription.unsubscribe();
-          }
+          // Use getUser() to verify the session with the Supabase Auth server.
+          // This is slower than getSession() but ensures the JWT is authentic
+          // and not tampered with in cookies/storage.
+          const { data: { user }, error } = await supabase.auth.getUser();
 
           if (mounted) {
-            setSession(session);
-            setUser(session?.user ?? null);
+            if (error || !user) {
+              // Server rejected the session — clear everything
+              setSession(null);
+              setUser(null);
+            } else {
+              // Server verified — session already set by onAuthStateChange
+              setUser(user);
+            }
             setIsLoading(false);
           }
         } else {

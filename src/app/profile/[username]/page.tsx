@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap, Target, TrendingUp, Github, Globe, Youtube, Linkedin, ExternalLink, FileText } from 'lucide-react';
+import { Loader2, User, Diamond, Rocket, Building2, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap, Target, TrendingUp, Github, Globe, Youtube, Linkedin, ExternalLink, FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { UserActivityFeed } from '@/components/posts/UserActivityFeed';
 import { toProxyUrl } from '@/utils/imageUtils';
+import Image from 'next/image';
 import { DribbbleIcon, BehanceIcon, FigmaIcon, SubstackIcon, InstagramIcon } from '@/components/ui/SocialIcons';
+import FollowersPopup from '@/components/profile/FollowersPopup';
 
 type PositionRow = {
   id: string;
@@ -124,6 +126,8 @@ export default function PublicProfilePage() {
   const [messagePending, setMessagePending] = useState(false);
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'replies' | 'bookmarks'>('about');
+  const [followersPopupOpen, setFollowersPopupOpen] = useState(false);
+  const [followersPopupTab, setFollowersPopupTab] = useState<'followers' | 'following'>('followers');
   const [imgError, setImgError] = useState<{ avatar?: boolean; cover?: boolean }>({});
 
   const avatarUrl = useMemo(() => {
@@ -394,7 +398,7 @@ export default function PublicProfilePage() {
                 <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2 leading-tight`}>
                   <span className="truncate">{fullName}</span>
                   {data?.user?.is_verified && (
-                    <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
+                    <Image src="/icons/verify_badge.svg" alt="Verified" width={20} height={20} className="h-5 w-5 flex-shrink-0" />
                   )}
                 </h1>
                 <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
@@ -452,24 +456,30 @@ export default function PublicProfilePage() {
               {/* Edit / Follow / Message + Follower stats — same row */}
               <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-3 sm:gap-5">
-                  <Link
-                    href={`/profile/${encodeURIComponent(username)}/followers`}
+                  <button
+                    onClick={() => {
+                      setFollowersPopupTab('followers');
+                      setFollowersPopupOpen(true);
+                    }}
                     className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
                   >
                     <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {loading ? '—' : data?.counts?.followers ?? 0}
                     </span>
                     <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Followers</span>
-                  </Link>
-                  <Link
-                    href={`/profile/${encodeURIComponent(username)}/following`}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFollowersPopupTab('following');
+                      setFollowersPopupOpen(true);
+                    }}
                     className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
                   >
                     <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {loading ? '—' : data?.counts?.following ?? 0}
                     </span>
                     <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</span>
-                  </Link>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -742,10 +752,7 @@ export default function PublicProfilePage() {
                             <Link
                               key={project.id}
                               href={`/profile/${encodeURIComponent(username)}/projects/${project.id}`}
-                              className={`group rounded-xl border overflow-hidden transition-all hover:shadow-md ${isDarkMode
-                                ? 'border-gray-800 hover:border-emerald-500/40 bg-card/50'
-                                : 'border-gray-200 hover:border-emerald-300 bg-card/50'
-                                }`}
+                              className="group rounded-xl border border-border overflow-hidden transition-all hover:shadow-md hover:border-primary/40 bg-card"
                             >
                               {/* Cover image */}
                               <div className={`relative h-28 w-full ${isDarkMode ? 'bg-emerald-500/5' : 'bg-emerald-50/50'}`}>
@@ -1130,6 +1137,16 @@ export default function PublicProfilePage() {
 
         </div>
       </div>
+
+      <FollowersPopup
+        isOpen={followersPopupOpen}
+        onClose={() => setFollowersPopupOpen(false)}
+        username={username}
+        viewerId={viewerId}
+        initialTab={followersPopupTab}
+        followersCount={data?.counts?.followers ?? 0}
+        followingCount={data?.counts?.following ?? 0}
+      />
     </DashboardLayout>
   );
 }

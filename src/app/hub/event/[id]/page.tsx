@@ -9,7 +9,11 @@ import Link from 'next/link';
 import {
   ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown,
   Calendar, CheckCircle, Loader2, LogOut, Bookmark, BookmarkCheck, Star,
+<<<<<<< HEAD
   Trophy, Wallet, TrendingUp, Store, IndianRupee, X, Download,
+=======
+  Trophy, Wallet, TrendingUp, Store, IndianRupee,
+>>>>>>> 051f58ddc73a3b66574ac4c56b3e6c67912df382
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';

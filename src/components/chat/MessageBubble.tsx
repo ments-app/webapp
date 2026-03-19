@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import type { Message } from '@/types/messaging';
 import { cn } from '@/utils/cn';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
+import SharedPostPreview, { extractPostId } from '@/components/messages/SharedPostPreview';
 
 interface MessageBubbleProps {
   message: Message;
@@ -151,12 +152,17 @@ export function MessageBubble({
           </div>
         );
 
-      default:
+      default: {
+        const sharedPostId = extractPostId(message.content);
+        if (sharedPostId) {
+          return <SharedPostPreview postId={sharedPostId} isOwn={isMe} />;
+        }
         return (
           <div className="text-sm whitespace-pre-wrap break-words">
             {message.content}
           </div>
         );
+      }
     }
   };
 
@@ -164,7 +170,7 @@ export function MessageBubble({
     if (!showAvatar || isMe) return null;
 
     return (
-      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
         {message.sender?.avatar_url ? (
           <Image
             src={message.sender.avatar_url}
@@ -214,18 +220,18 @@ export function MessageBubble({
         isMe ? (
           "bg-green-600 text-white rounded-br-md"
         ) : (
-          "bg-gray-800 text-gray-100 rounded-bl-md"
+          "bg-card text-gray-100 rounded-bl-md"
         )
       )}>
         {/* Message Actions Menu */}
         <div className={cn(
-          "absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 bg-gray-900 rounded-full px-2 py-1 text-xs",
+          "absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 bg-background rounded-full px-2 py-1 text-xs",
           isMe ? "-left-10 md:-left-20" : "-right-10 md:-right-20"
         )}>
           {onReply && (
             <button
               onClick={() => onReply(message)}
-              className="p-1 hover:bg-gray-700 rounded-full transition-colors"
+              className="p-1 hover:bg-muted rounded-full transition-colors"
               title="Reply"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,7 +243,7 @@ export function MessageBubble({
           {isMe && onEdit && (
             <button
               onClick={() => onEdit(message)}
-              className="p-1 hover:bg-gray-700 rounded-full transition-colors"
+              className="p-1 hover:bg-muted rounded-full transition-colors"
               title="Edit"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -59,7 +59,7 @@ export function ChatRequestApproval({
     )}>
       <div className="flex items-start gap-4">
         {/* Avatar */}
-        <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
           {conversation.other_avatar_url ? (
             <Image
               src={conversation.other_avatar_url}

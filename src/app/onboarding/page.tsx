@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserData } from '@/hooks/useUserData';
 import { useRouter } from 'next/navigation';
 import { Compass, Rocket, TrendingUp, Users, ArrowRight, Sparkles, Check } from 'lucide-react';
 
@@ -58,6 +59,7 @@ const INTERESTS: InterestOption[] = [
 
 export default function OnboardingPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { userData, loading: userDataLoading } = useUserData();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<Interest>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +74,13 @@ export default function OnboardingPage() {
       router.replace('/');
     }
   }, [authLoading, user, router]);
+
+  // Redirect if onboarding is already complete
+  useEffect(() => {
+    if (!userDataLoading && userData?.is_onboarding_done) {
+      router.replace('/');
+    }
+  }, [userDataLoading, userData, router]);
 
   const toggleInterest = (id: Interest) => {
     setSelected(prev => {
@@ -112,14 +121,14 @@ export default function OnboardingPage() {
 
   if (authLoading || !user) {
     return (
-      <div className="h-screen bg-[#09090b] flex items-center justify-center">
+      <div className="h-screen bg-background flex items-center justify-center">
         <div className="w-10 h-10 rounded-full border-2 border-emerald-500/70 border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="h-screen h-[100dvh] bg-[#09090b] relative overflow-hidden font-[family-name:var(--font-manrope)]">
+    <div className="h-screen h-[100dvh] bg-background relative overflow-hidden font-[family-name:var(--font-manrope)]">
       {/* Background effects */}
       <div className="absolute inset-0 pointer-events-none hidden sm:block">
         <div className="absolute top-0 left-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl" />

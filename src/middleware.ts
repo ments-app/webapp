@@ -99,11 +99,10 @@ export async function middleware(req: NextRequest) {
   );
 
   try {
-    // Use getSession() for middleware — it validates the JWT locally without a network
-    // call, which is critical since middleware runs on EVERY request. Sensitive operations
-    // in API routes still use getUser() for full server-side verification.
-    const { data: { session }, error } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
+    // Use getUser() — it verifies the JWT with the Supabase Auth server, preventing
+    // use of tampered tokens from cookies. getSession() reads from storage without
+    // verification and triggers a security warning.
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error && !error.message?.includes('Auth session missing')) {
       console.error('Middleware auth error:', error.message);
@@ -128,28 +127,37 @@ export async function middleware(req: NextRequest) {
       req.headers.set('x-user-id', user.id);
       rebuildResponse();
 
-      // ── Account Status Guard ──────────────────────────────
-      // Only check account status on key entry-point pages (not every navigation)
-      // to avoid a DB round-trip on every single request.
-      const STATUS_CHECK_PATHS = ['/hub', '/messages', '/settings', '/startups', '/search'];
-      const needsStatusCheck = STATUS_CHECK_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+      // ── User Existence & Onboarding Guard ─────────────────
+      // Check if authenticated user exists in DB and has completed onboarding.
+      // Skip for onboarding pages, auth callback, and API routes to avoid loops.
+      const isOnboardingPage = pathname === '/onboarding' || pathname.startsWith('/onboarding/');
+      const isAuthCallback = pathname.startsWith('/auth/');
+      const isApiRoute = pathname.startsWith('/api/');
 
-      if (needsStatusCheck) {
+      if (!isOnboardingPage && !isAuthCallback && !isApiRoute) {
         try {
           const { data: profile } = await supabase
             .from('users')
-            .select('account_status')
+            .select('account_status, is_onboarding_done')
             .eq('id', user.id)
             .single();
 
-          if (profile && profile.account_status === 'deactivated') {
+          if (!profile || !profile.is_onboarding_done) {
+            // User doesn't exist in DB or hasn't completed onboarding → redirect to onboarding
+            const onboardingUrl = req.nextUrl.clone();
+            onboardingUrl.pathname = '/onboarding';
+            onboardingUrl.search = '';
+            return NextResponse.redirect(onboardingUrl);
+          }
+
+          if (profile.account_status === 'deactivated') {
             const redirectUrl = req.nextUrl.clone();
             redirectUrl.pathname = '/reactivate';
             redirectUrl.search = '';
             return NextResponse.redirect(redirectUrl);
           }
 
-          if (profile && (profile.account_status === 'deleted' || profile.account_status === 'suspended')) {
+          if (profile.account_status === 'deleted' || profile.account_status === 'suspended') {
             await supabase.auth.signOut();
           }
         } catch {
