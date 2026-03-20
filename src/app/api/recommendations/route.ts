@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, getAuthenticatedUser } from '@/utils/supabase-server';
 import { cacheGet, cacheSet } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
@@ -12,13 +12,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userLimit = Math.min(Math.max(parseInt(searchParams.get('limit') || '8', 10) || 8, 1), 50);
 
-    // Use x-user-id header for reads — avoids getUser() network call
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
+    const supabase = await createAuthClient();
+    const { user } = await getAuthenticatedUser(supabase);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const supabase = await createAuthClient();
+    const userId = user.id;
 
     // Check cache (per-user because recommendations are personalized)
     const cacheKey = `${CACHE_PREFIX}:${userId}:limit=${userLimit}`;

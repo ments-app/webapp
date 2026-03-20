@@ -23,7 +23,7 @@ export function ChatRequestApproval({
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null);
 
   // Don't show if conversation is not pending or user is not the recipient
-  const isRecipient = conversation.other_user_id !== currentUserId; // If we're not the other user, we're the recipient
+  const isRecipient = conversation.user2_id === currentUserId;
   const isPending = conversation.status === 'pending';
 
   if (!isPending || !isRecipient) {
@@ -194,7 +194,7 @@ export function PendingRequestStatus({
   const [canceling, setCanceling] = useState(false);
 
   // Don't show if conversation is not pending or user is not the sender
-  const isSender = conversation.other_user_id === currentUserId; // If we're the other user, we're the sender
+  const isSender = conversation.user1_id === currentUserId;
   const isPending = conversation.status === 'pending';
 
   if (!isPending || !isSender) {

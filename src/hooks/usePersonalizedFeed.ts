@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { Post } from '@/api/posts';
+import { supabase } from '@/utils/supabase';
 
 interface PersonalizedFeedState {
   posts: Post[];
@@ -16,7 +17,7 @@ interface PersonalizedFeedState {
 }
 
 export function usePersonalizedFeed() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [state, setState] = useState<PersonalizedFeedState>({
     posts: [],
     isLoading: true,
@@ -33,8 +34,8 @@ export function usePersonalizedFeed() {
   const loadingRef = useRef(false);
   const mountedRef = useRef(true);
 
-  const fetchFeed = useCallback(async (isLoadMore = false) => {
-    if (!user) return;
+  const fetchFeed = useCallback(async (isLoadMore = false, allowRetry = true) => {
+    if (!user || isAuthLoading) return;
     if (loadingRef.current) return;
     loadingRef.current = true;
 
@@ -56,13 +57,31 @@ export function usePersonalizedFeed() {
       }
 
       const res = await fetch(`/api/feed?${params}`, {
-        headers: { 'x-user-id': user.id },
+        credentials: 'same-origin',
       });
 
       if (!mountedRef.current) return;
 
       if (!res.ok) {
-        throw new Error(`Feed request failed: ${res.status}`);
+        let apiError = '';
+        try {
+          const errorData = await res.json();
+          apiError = typeof errorData?.error === 'string' ? errorData.error : '';
+        } catch {
+          // Ignore non-JSON error bodies
+        }
+
+        if (res.status === 401 && allowRetry) {
+          const { data, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && data.session && mountedRef.current) {
+            loadingRef.current = false;
+            await fetchFeed(isLoadMore, false);
+            return;
+          }
+        }
+
+        const message = apiError || `Feed request failed: ${res.status}`;
+        throw new Error(message);
       }
 
       const data = await res.json();
@@ -108,23 +127,23 @@ export function usePersonalizedFeed() {
     } finally {
       loadingRef.current = false;
     }
-  }, [user]);
+  }, [user, isAuthLoading]);
 
   // Initial load
   useEffect(() => {
     mountedRef.current = true;
-    if (user) {
+    if (!isAuthLoading && user) {
       cursorRef.current = null;
       offsetRef.current = 0;
       loadingRef.current = false;
       fetchFeed(false);
-    } else {
+    } else if (!isAuthLoading) {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
     return () => {
       mountedRef.current = false;
     };
-  }, [user, fetchFeed]);
+  }, [user, isAuthLoading, fetchFeed]);
 
   const loadMore = useCallback(() => {
     if (!loadingRef.current && state.hasMore) {

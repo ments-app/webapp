@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, getAuthenticatedUser } from '@/utils/supabase-server';
 
 // GET /api/notifications?userId=...&page=...&limit=...&unreadOnly=...&type=...
 export async function GET(request: NextRequest) {
   try {
-    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
-    const headerUserId = request.headers.get('x-user-id');
-    if (!headerUserId) {
+    const { searchParams } = new URL(request.url);
+    const authClient = await createAuthClient();
+    const { user } = await getAuthenticatedUser(authClient);
+    if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== headerUserId) {
+    if (requestedUserId && requestedUserId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const userId = headerUserId;
-
-    const authClient = await createAuthClient();
+    const userId = user.id;
 
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
@@ -25,24 +23,24 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
 
     const offset = (page - 1) * limit;
-    const perTableLimit = limit + 1;
+    const fetchWindow = offset + limit + 1;
 
     const supabase = authClient;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type NotifRow = Record<string, any>;
 
-    // Fetch from both tables in parallel with DB-level pagination
+    // Fetch enough rows from both sources to build the combined page correctly.
     const [legacyResult, inappResult] = await Promise.all([
       (async () => {
         try {
           let q = supabase
             .from('notifications')
-            .select('id, user_id, type, message, read, created_at, data', { count: 'exact' })
+            .select('id, user_id, type, entity_id, created_at, read, actor_id, actor_username, actor_avatar_url, content, reference_id, reference_type', { count: 'exact' })
             .eq('user_id', userId);
           if (unreadOnly) q = q.eq('read', false);
           if (type) q = q.eq('type', type);
-          q = q.order('created_at', { ascending: false }).range(offset, offset + perTableLimit - 1);
+          q = q.order('created_at', { ascending: false }).range(0, fetchWindow - 1);
           const { data, count, error } = await q;
           return { data: data || [], count: count || 0, error };
         } catch {
@@ -57,7 +55,7 @@ export async function GET(request: NextRequest) {
             .eq('recipient_id', userId);
           if (unreadOnly) q = q.eq('is_read', false);
           if (type) q = q.eq('type', type);
-          q = q.order('created_at', { ascending: false }).range(offset, offset + perTableLimit - 1);
+          q = q.order('created_at', { ascending: false }).range(0, fetchWindow - 1);
           const { data, count, error } = await q;
           return { data: data || [], count: count || 0, error };
         } catch {
@@ -87,7 +85,7 @@ export async function GET(request: NextRequest) {
     // Merge and sort
     const merged = [...legacyList, ...inappList]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, limit);
+      .slice(offset, offset + limit);
 
     // Extract unique actor IDs
     const actorIds = new Set<string>();
@@ -124,13 +122,13 @@ export async function GET(request: NextRequest) {
       return {
         id: n.id,
         type: n.type,
-        content: n.message || d.message || d.content || null,
+        content: n.message || n.content || d.message || d.content || null,
         created_at: n.created_at,
         actor_id: actorId,
         actor_name: actor?.full_name || n.actor_name || d.actor_name || d.sender_name || null,
         actor_username: actor?.username || n.actor_username || d.actor_username || d.sender_username || null,
         actor_avatar_url: actor?.avatar_url || n.actor_avatar_url || d.actor_avatar_url || d.sender_avatar_url || null,
-        post_id: d.post_id || d.postId || null,
+        post_id: n.post_id || d.post_id || d.postId || (n.reference_type === 'post' ? n.reference_id : null) || null,
         notification_source: n.notification_source,
         is_read: n.is_read,
         data: n.type === 'cofounder_request' ? d : undefined,
@@ -213,18 +211,18 @@ export async function PATCH(request: NextRequest) {
 // HEAD — unread count (used for badge in the nav)
 export async function HEAD(request: NextRequest) {
   try {
-    const headerUserId = request.headers.get('x-user-id');
-    if (!headerUserId) {
+    const { searchParams } = new URL(request.url);
+    const authClient = await createAuthClient();
+    const { user } = await getAuthenticatedUser(authClient);
+    if (!user) {
       return new NextResponse(null, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== headerUserId) {
+    if (requestedUserId && requestedUserId !== user.id) {
       return new NextResponse(null, { status: 403 });
     }
-
-    const supabase = await createAuthClient();
+    const supabase = authClient;
 
     const [legacyCount, inappCount] = await Promise.all([
       (async () => {
@@ -232,7 +230,7 @@ export async function HEAD(request: NextRequest) {
           const r = await supabase
             .from('notifications')
             .select('id', { count: 'exact', head: true })
-            .eq('user_id', headerUserId)
+            .eq('user_id', user.id)
             .eq('read', false);
           return r.count || 0;
         } catch { return 0; }
@@ -242,7 +240,7 @@ export async function HEAD(request: NextRequest) {
           const r = await supabase
             .from('inapp_notification')
             .select('id', { count: 'exact', head: true })
-            .eq('recipient_id', headerUserId)
+            .eq('recipient_id', user.id)
             .eq('is_read', false);
           return r.count || 0;
         } catch { return 0; }

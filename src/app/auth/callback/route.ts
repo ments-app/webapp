@@ -2,6 +2,28 @@ import { createAuthClient } from '@/utils/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
+function getSafeRedirectPath(requestUrl: URL): string | null {
+  const redirectPath = requestUrl.searchParams.get('redirect');
+  return redirectPath && redirectPath.startsWith('/') ? redirectPath : null;
+}
+
+function redirectToResolvedPath(requestUrl: URL, fallbackPath = '/'): NextResponse {
+  const targetPath = getSafeRedirectPath(requestUrl) || fallbackPath;
+  return NextResponse.redirect(`${requestUrl.origin}${targetPath}`);
+}
+
+async function handleProfileBootstrapFailure(requestUrl: URL, supabase: Awaited<ReturnType<typeof createAuthClient>>) {
+  try {
+    await supabase.auth.signOut();
+  } catch (signOutError) {
+    console.error('Error signing out after profile bootstrap failure:', signOutError);
+  }
+
+  const failureUrl = new URL('/', requestUrl.origin);
+  failureUrl.searchParams.set('error', 'profile_setup_failed');
+  return NextResponse.redirect(failureUrl);
+}
+
 
 
 export async function GET(request: NextRequest) {
@@ -79,7 +101,7 @@ export async function GET(request: NextRequest) {
             username = `${baseUsername}_${Date.now().toString(36).slice(-5)}`;
           }
 
-          await adminClient
+          const { error: resetError } = await adminClient
             .from('users')
             .update({
               email: session.user.email,
@@ -94,6 +116,11 @@ export async function GET(request: NextRequest) {
               last_seen: new Date().toISOString(),
             })
             .eq('id', session.user.id);
+
+          if (resetError) {
+            console.error('Error restoring deleted user:', resetError);
+            return handleProfileBootstrapFailure(requestUrl, supabase);
+          }
         } else {
           // Existing active/deactivated user — update last_seen
           await adminClient
@@ -117,11 +144,17 @@ export async function GET(request: NextRequest) {
             .eq('id', userByEmail.id);
         } else if (userByEmail) {
           // Existing user with same email but different auth ID — update ID
-          await adminClient
+          const { error: relinkError } = await adminClient
             .from('users')
             .update({ id: session.user.id, last_seen: new Date().toISOString() })
             .eq('id', userByEmail.id);
-          return NextResponse.redirect(requestUrl.origin);
+
+          if (relinkError) {
+            console.error('Error relinking existing user:', relinkError);
+            return handleProfileBootstrapFailure(requestUrl, supabase);
+          }
+
+          return redirectToResolvedPath(requestUrl);
         }
 
         // Create new user record
@@ -172,6 +205,7 @@ export async function GET(request: NextRequest) {
 
           if (insertError) {
             console.error('Error creating user:', insertError);
+            return handleProfileBootstrapFailure(requestUrl, supabase);
           }
         }
       }
@@ -179,10 +213,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Redirect to the page the user was on before signing in (if provided)
-  const redirectPath = requestUrl.searchParams.get('redirect');
-  if (redirectPath && redirectPath.startsWith('/')) {
-    return NextResponse.redirect(`${requestUrl.origin}${redirectPath}`);
-  }
-
-  return NextResponse.redirect(requestUrl.origin);
+  return redirectToResolvedPath(requestUrl);
 }

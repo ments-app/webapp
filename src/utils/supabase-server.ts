@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 /**
@@ -32,6 +32,26 @@ export async function createAuthClient() {
       },
     }
   );
+}
+
+export type AuthenticatedSupabaseClient = Awaited<ReturnType<typeof createAuthClient>>;
+
+/**
+ * Resolve the authenticated user from the current Supabase session without
+ * changing the underlying auth/cookie flow.
+ */
+export async function getAuthenticatedUser(authClient?: AuthenticatedSupabaseClient): Promise<{
+  supabase: AuthenticatedSupabaseClient;
+  user: User | null;
+}> {
+  const supabase = authClient ?? await createAuthClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return { supabase, user: null };
+  }
+
+  return { supabase, user };
 }
 
 /**

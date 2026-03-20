@@ -166,6 +166,7 @@ CREATE TABLE public.competitions (
   startup_id uuid,
   visibility text NOT NULL DEFAULT 'public'::text,
   target_facilitator_ids ARRAY,
+  approval_status text NOT NULL DEFAULT 'approved'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
   CONSTRAINT competitions_pkey PRIMARY KEY (id),
   CONSTRAINT competitions_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
   CONSTRAINT competitions_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id)
@@ -297,6 +298,8 @@ CREATE TABLE public.events (
   arena_enabled boolean DEFAULT false,
   virtual_fund_amount bigint DEFAULT 1000000,
   arena_round text CHECK (arena_round = ANY (ARRAY['registration'::text, 'investment'::text, 'completed'::text])),
+  max_investment_per_startup integer DEFAULT 100000,
+  approval_status text NOT NULL DEFAULT 'approved'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
   CONSTRAINT events_pkey PRIMARY KEY (id),
   CONSTRAINT events_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
   CONSTRAINT events_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
@@ -309,11 +312,22 @@ CREATE TABLE public.experiences (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT experiences_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.facilitator_organization_migration_audit (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL,
+  organization_slug text,
+  matched_facilitator_id uuid,
+  match_source text,
+  status text NOT NULL,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT facilitator_organization_migration_audit_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.facilitator_profiles (
   id uuid NOT NULL,
   organisation_name text NOT NULL,
   organisation_address text NOT NULL,
-  organisation_type text NOT NULL CHECK (organisation_type = ANY (ARRAY['ecell'::text, 'incubator'::text, 'accelerator'::text, 'college_cell'::text, 'other'::text])),
+  organisation_type text NOT NULL CHECK (organisation_type = ANY (ARRAY['ecell'::text, 'incubator'::text, 'accelerator'::text, 'college_cell'::text, 'club'::text, 'other'::text])),
   official_email text NOT NULL,
   poc_name text NOT NULL,
   contact_number text NOT NULL,
@@ -325,6 +339,20 @@ CREATE TABLE public.facilitator_profiles (
   rejected_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  slug text,
+  short_bio text,
+  public_description text,
+  logo_url text,
+  banner_url text,
+  city text,
+  state text,
+  country text,
+  university_name text,
+  sectors ARRAY NOT NULL DEFAULT '{}'::text[],
+  stage_focus ARRAY NOT NULL DEFAULT '{}'::text[],
+  support_types ARRAY NOT NULL DEFAULT '{}'::text[],
+  is_published boolean NOT NULL DEFAULT false,
+  public_updated_at timestamp with time zone,
   CONSTRAINT facilitator_profiles_pkey PRIMARY KEY (id),
   CONSTRAINT facilitator_profiles_id_fkey FOREIGN KEY (id) REFERENCES public.admin_profiles(id),
   CONSTRAINT facilitator_profiles_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.admin_profiles(id)
@@ -456,6 +484,7 @@ CREATE TABLE public.gigs (
   startup_id uuid,
   visibility text NOT NULL DEFAULT 'public'::text CHECK (visibility = ANY (ARRAY['public'::text, 'email_restricted'::text, 'facilitator_only'::text])),
   target_facilitator_ids ARRAY,
+  approval_status text NOT NULL DEFAULT 'approved'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
   CONSTRAINT gigs_pkey PRIMARY KEY (id),
   CONSTRAINT gigs_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
   CONSTRAINT gigs_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id)
@@ -561,6 +590,8 @@ CREATE TABLE public.jobs (
   startup_id uuid,
   visibility text NOT NULL DEFAULT 'public'::text CHECK (visibility = ANY (ARRAY['public'::text, 'facilitator_only'::text])),
   target_facilitator_ids ARRAY,
+  approval_status text NOT NULL DEFAULT 'approved'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
+  is_unpaid boolean NOT NULL DEFAULT false,
   CONSTRAINT jobs_pkey PRIMARY KEY (id),
   CONSTRAINT jobs_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
   CONSTRAINT jobs_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id)
@@ -685,7 +716,7 @@ CREATE TABLE public.organization_startup_relations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
   startup_id uuid NOT NULL,
-  relation_type text NOT NULL CHECK (relation_type = ANY (ARRAY['incubated'::text, 'accelerated'::text, 'partnered'::text, 'mentored'::text, 'funded'::text, 'community_member'::text])),
+  relation_type text NOT NULL CHECK (relation_type = ANY (ARRAY['incubated'::text, 'accelerated'::text, 'partnered'::text, 'mentored'::text, 'funded'::text, 'community_member'::text, 'club_project'::text])),
   status text NOT NULL CHECK (status = ANY (ARRAY['requested'::text, 'accepted'::text, 'active'::text, 'alumni'::text, 'rejected'::text, 'withdrawn'::text])),
   start_date date,
   end_date date,
@@ -705,7 +736,7 @@ CREATE TABLE public.organizations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   slug text NOT NULL UNIQUE,
   name text NOT NULL,
-  org_type text NOT NULL CHECK (org_type = ANY (ARRAY['incubator'::text, 'accelerator'::text, 'ecell'::text, 'college_incubator'::text, 'facilitator'::text, 'venture_studio'::text, 'grant_body'::text, 'community'::text, 'other'::text])),
+  org_type text NOT NULL CHECK (org_type = ANY (ARRAY['incubator'::text, 'accelerator'::text, 'ecell'::text, 'college_incubator'::text, 'facilitator'::text, 'venture_studio'::text, 'grant_body'::text, 'community'::text, 'club'::text, 'other'::text])),
   short_bio text,
   description text,
   website text,
@@ -1042,6 +1073,7 @@ CREATE TABLE public.startup_facilitator_assignments (
   reviewed_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  relation_type text NOT NULL DEFAULT 'supported'::text CHECK (relation_type = ANY (ARRAY['supported'::text, 'incubated'::text, 'accelerated'::text, 'partnered'::text, 'mentored'::text, 'funded'::text, 'community_member'::text, 'club_project'::text])),
   CONSTRAINT startup_facilitator_assignments_pkey PRIMARY KEY (id),
   CONSTRAINT startup_facilitator_assignments_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id),
   CONSTRAINT startup_facilitator_assignments_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
@@ -1152,6 +1184,8 @@ CREATE TABLE public.startup_profiles (
   entity_type text NOT NULL DEFAULT 'startup'::text CHECK (entity_type = ANY (ARRAY['org_project'::text, 'startup'::text])),
   parent_org_id uuid,
   pitch_video_url text,
+  problem_statement text,
+  solution_statement text,
   CONSTRAINT startup_profiles_pkey PRIMARY KEY (id),
   CONSTRAINT startup_profiles_parent_org_id_fkey FOREIGN KEY (parent_org_id) REFERENCES public.users(id)
 );
@@ -1313,6 +1347,9 @@ CREATE TABLE public.users (
   social_links jsonb,
   show_projects boolean NOT NULL DEFAULT true,
   show_startups boolean NOT NULL DEFAULT true,
+  is_suspended boolean NOT NULL DEFAULT false,
+  suspended_at timestamp with time zone,
+  suspended_reason text,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.verification_codes (

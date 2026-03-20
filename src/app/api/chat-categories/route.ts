@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, getAuthenticatedUser } from '@/utils/supabase-server';
 import type {
   ChatCategory,
   CreateCategoryRequest,
@@ -7,15 +7,14 @@ import type {
 } from '@/types/messaging';
 
 // GET /api/chat-categories - Get categories with unread counts
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
-    const userId = req.headers.get('x-user-id');
-    if (!userId) {
+    const supabase = await createAuthClient();
+    const { user } = await getAuthenticatedUser(supabase);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const supabase = await createAuthClient();
+    const userId = user.id;
 
     // Get categories
     const { data: categories, error } = await supabase

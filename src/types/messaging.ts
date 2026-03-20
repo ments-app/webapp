@@ -57,6 +57,8 @@ export interface EnrichedConversation {
   updated_at: string
   unread_count: number
   status: 'pending' | 'approved' | 'rejected'
+  user1_id?: string
+  user2_id?: string
   // Category information
   categories?: ChatCategory[]
 }

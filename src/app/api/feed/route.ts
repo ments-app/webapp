@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, getAuthenticatedUser } from '@/utils/supabase-server';
 import { generatePersonalizedFeed } from '@/lib/feed/pipeline';
 import { FEED_PAGE_SIZE } from '@/lib/feed/constants';
 import { normalizePostPoll } from '@/api/posts';
@@ -8,12 +8,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    // Use x-user-id header for fast auth check, createAuthClient for RLS queries
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
+    const supabase = await createAuthClient();
+    const { user } = await getAuthenticatedUser(supabase);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createAuthClient();
+    const userId = user.id;
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor') || undefined;
@@ -186,7 +186,8 @@ async function serveChronological(
 
   // Exclude already-shown ranked posts
   if (excludePostIds.length > 0) {
-    query = query.not('id', 'in', `(${excludePostIds.join(',')})`);
+    const escapedIds = excludePostIds.map((id) => `"${id.replace(/"/g, '\\"')}"`);
+    query = query.not('id', 'in', `(${escapedIds.join(',')})`);
   }
 
   const { data: chronoPosts, error: chronoError } = await query

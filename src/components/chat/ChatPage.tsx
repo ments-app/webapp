@@ -150,8 +150,7 @@ export function ChatPage({
     setShowMobileList(true);
   }, [updateConversationStatus]);
 
-  const canSendMessages = selectedConversation?.status === 'approved' || 
-    (selectedConversation?.status === 'pending' && selectedConversation?.other_user_id !== userId);
+  const canSendMessages = selectedConversation?.status === 'approved';
 
   const renderHeader = () => {
     if (!selectedConversation) return null;
@@ -309,8 +308,10 @@ export function ChatPage({
           onCancelReply={handleCancelReply}
           disabled={!canSendMessages}
           placeholder={
-            selectedConversation.status === 'pending' && selectedConversation.other_user_id === userId
-              ? "Accept the message request to reply"
+            selectedConversation.status === 'pending'
+              ? (selectedConversation.user2_id === userId
+                ? "Accept the message request to reply"
+                : "Waiting for them to accept your request")
               : "Type a message..."
           }
         />

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, getAuthenticatedUser } from '@/utils/supabase-server';
 import type {
   CreateConversationRequest,
   CreateConversationResponse
@@ -8,30 +8,37 @@ import type {
 // GET: List all conversations for a user with optimized query
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const limit = parseInt(searchParams.get('limit') || '20');
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 100);
+  const statusFilter = searchParams.get('status');
+  const hasUnreadOnly = searchParams.get('hasUnread') === 'true';
+  const categoryId = searchParams.get('categoryId');
 
   try {
-    // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
-    const headerUserId = req.headers.get('x-user-id');
-    if (!headerUserId) {
+    const supabase = await createAuthClient();
+    const { user } = await getAuthenticatedUser(supabase);
+    if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     const requestedUserId = searchParams.get('userId');
-    if (requestedUserId && requestedUserId !== headerUserId) {
+    if (requestedUserId && requestedUserId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const userId = headerUserId;
-
-    const supabase = await createAuthClient();
+    const userId = user.id;
 
     // Get basic conversation data first (include cleared_at timestamps)
-    const { data: conversationData, error } = await supabase
+    let conversationsQuery = supabase
       .from('conversations')
       .select('id, user1_id, user2_id, last_message, updated_at, status, created_at, user1_cleared_at, user2_cleared_at')
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-      .order('updated_at', { ascending: false })
-      .limit(limit);
+      .order('updated_at', { ascending: false });
+
+    if (statusFilter) {
+      conversationsQuery = conversationsQuery.eq('status', statusFilter);
+    }
+
+    const fetchLimit = (hasUnreadOnly || categoryId) ? Math.max(limit * 5, 100) : limit;
+    const { data: conversationData, error } = await conversationsQuery.limit(fetchLimit);
 
     if (error) {
       console.error('Database error:', error);
@@ -42,9 +49,38 @@ export async function GET(req: NextRequest) {
       return NextResponse.json([]);
     }
 
+    let filteredConversationData = conversationData;
+
+    if (categoryId) {
+      const { data: category } = await supabase
+        .from('chat_categories')
+        .select('id')
+        .eq('id', categoryId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!category) {
+        return NextResponse.json([]);
+      }
+
+      const { data: categoryMappings, error: categoryError } = await supabase
+        .from('conversation_categories')
+        .select('conversation_id')
+        .eq('category_id', categoryId);
+
+      if (categoryError) throw categoryError;
+
+      const allowedConversationIds = new Set((categoryMappings || []).map((mapping: { conversation_id: string }) => mapping.conversation_id));
+      filteredConversationData = filteredConversationData.filter((conv: { id: string }) => allowedConversationIds.has(conv.id));
+    }
+
+    if (filteredConversationData.length === 0) {
+      return NextResponse.json([]);
+    }
+
     // Get all unique user IDs from conversations
     const userIds = new Set<string>();
-    conversationData.forEach((conv: { user1_id: string; user2_id: string }) => {
+    filteredConversationData.forEach((conv: { user1_id: string; user2_id: string }) => {
       userIds.add(conv.user1_id);
       userIds.add(conv.user2_id);
     });
@@ -66,13 +102,13 @@ export async function GET(req: NextRequest) {
     // Build a map of cleared_at per conversation for the current user
     const clearedAtMap = new Map<string, string | null>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    conversationData.forEach((conv: any) => {
+    filteredConversationData.forEach((conv: any) => {
       const clearedAt = conv.user1_id === userId ? conv.user1_cleared_at : conv.user2_cleared_at;
       clearedAtMap.set(conv.id, clearedAt || null);
     });
 
     // Batch fetch unread counts for all conversations (respecting cleared_at)
-    const conversationIds = conversationData.map((c: { id: string }) => c.id);
+    const conversationIds = filteredConversationData.map((c: { id: string }) => c.id);
     const unreadByConv = new Map<string, number>();
     if (conversationIds.length > 0) {
       const { data: unreadMessages } = await supabase
@@ -92,7 +128,7 @@ export async function GET(req: NextRequest) {
 
     // Transform to match expected format
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const conversations = conversationData.map((conv: any) => {
+    const conversations = filteredConversationData.map((conv: any) => {
       const isUser1 = conv.user1_id === userId;
       const otherUserId = isUser1 ? conv.user2_id : conv.user1_id;
       const otherUser = userMap.get(otherUserId) || {};
@@ -128,7 +164,11 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json(conversations);
+    const visibleConversations = hasUnreadOnly
+      ? conversations.filter((conversation) => conversation.unread_count > 0)
+      : conversations;
+
+    return NextResponse.json(visibleConversations.slice(0, limit));
   } catch (error) {
     console.error('Error fetching conversations:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });

@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, getAuthenticatedUser } from '@/utils/supabase-server';
 import type { AssignCategoryRequest } from '@/types/messaging';
 
 // GET /api/conversation-categories?conversationId=...
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
-  // Use x-user-id header (set by middleware) for reads — avoids getUser() network call
-  const userId = req.headers.get('x-user-id');
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const supabase = await createAuthClient();
-  const user = { id: userId };
-
   const conversationId = searchParams.get('conversationId');
 
   try {
+    const supabase = await createAuthClient();
+    const { user } = await getAuthenticatedUser(supabase);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     if (conversationId) {
+      const { data: conversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('id, user1_id, user2_id')
+        .eq('id', conversationId)
+        .single();
+
+      if (conversationError || !conversation || (conversation.user1_id !== user.id && conversation.user2_id !== user.id)) {
+        return NextResponse.json({ error: 'Conversation not found or access denied' }, { status: 403 });
+      }
+
       // Original behavior: Get categories for a specific conversation
       const { data, error } = await supabase
         .from('conversation_categories')
