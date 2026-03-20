@@ -2,7 +2,8 @@
 
 import type { OrganizationProfile } from '@/api/organizations';
 import { getManageFacilitatorBusinessUrl } from '@/api/organizations';
-import { BadgeCheck, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 
 function statusTone(status: OrganizationProfile['verification_status']) {
   switch (status) {
@@ -51,7 +52,7 @@ export function FacilitatorVerificationCard({
           <p className="mt-1 text-sm text-muted-foreground">{statusCopy(organization)}</p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide ${statusTone(organization.verification_status)}`}>
-          {organization.verification_status === 'approved' ? <BadgeCheck className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {organization.verification_status === 'approved' ? <Image src="/icons/verify_badge.svg" alt="Verified" width={14} height={14} className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
           {organization.verification_status.replace(/_/g, ' ')}
         </div>
       </div>

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
-import { ArrowLeft, Share2, Trophy, Users, Clock, ChevronDown, CheckCircle, Loader2, X, FolderOpen, Plus, LogOut, Bookmark, BookmarkCheck, Star, CalendarRange, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Share2, Trophy, Users, Clock, ChevronDown, CheckCircle, Loader2, X, FolderOpen, Plus, LogOut, Bookmark, BookmarkCheck, Star, CalendarRange, HelpCircle, Download, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
@@ -32,6 +32,7 @@ type Competition = {
   team_size_min?: number;
   team_size_max?: number;
   eligibility_criteria?: string | null;
+  brochure_url?: string | null;
 };
 
 type CompetitionRound = {
@@ -464,6 +465,17 @@ export default function CompetitionDetailsPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {comp?.brochure_url && (
+              <a
+                href={comp.brochure_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground font-semibold px-5 py-3 transition active:scale-95 hover:bg-accent/60"
+              >
+                <Download className="h-4 w-4" />
+                Download Brochure
+              </a>
+            )}
             {!ended && (
               <>
                 {joined ? (
@@ -498,6 +510,11 @@ export default function CompetitionDetailsPage() {
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Joining...
+                      </>
+                    ) : comp?.is_external && comp?.external_url ? (
+                      <>
+                        Register
+                        <ExternalLink className="h-4 w-4" />
                       </>
                     ) : (
                       'Join Competition'

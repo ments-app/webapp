@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 import {
   Upload, X, Check, ChevronDown, ChevronUp,
@@ -65,6 +66,7 @@ function stepTextClass(isDone: boolean, isActive: boolean): string {
 }
 
 export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
+  const { session } = useAuth();
   const [step, setStep] = useState<Step>('idle');
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -87,14 +89,14 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
     setSelectedFields(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const getAuthToken = async (): Promise<string> => {
-    // Verify user first, then get session for token
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error('Not authenticated');
+  const getAuthToken = useCallback(async (): Promise<string> => {
+    // Verify the user with the Supabase Auth server
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) throw new Error('Not authenticated');
+    // Use the session from AuthContext (set via onAuthStateChange, no getSession() warning)
+    if (!session?.access_token) throw new Error('Session expired');
     return session.access_token;
-  };
+  }, [session?.access_token]);
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -148,7 +150,7 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
       setStep('error');
     }
-  }, []);
+  }, [getAuthToken]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

@@ -746,26 +746,21 @@ export async function uploadPitchVideo(file: File): Promise<{ url: string; error
 
 export async function uploadStartupImage(file: File, type: 'logo' | 'banner'): Promise<{ url: string; error?: string }> {
   try {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) throw new Error('User not authenticated');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
 
-    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const filePath = `startup-images/${userId}/${type}/${fileName}`;
+    const res = await fetch('/api/startups/upload', {
+      method: 'POST',
+      body: formData,
+    });
 
-    const { error: storageError } = await supabase.storage
-      .from('media')
-      .upload(filePath, file, {
-        contentType: file.type,
-        upsert: true,
-      });
+    const json = await res.json();
+    if (!res.ok) {
+      return { url: '', error: json.error || `Failed to upload ${type}` };
+    }
 
-    if (storageError) throw storageError;
-
-    const { data: publicUrlData } = supabase.storage
-      .from('media')
-      .getPublicUrl(filePath);
-
-    return { url: publicUrlData.publicUrl };
+    return { url: json.url };
   } catch (error) {
     console.error(`Error uploading startup ${type}:`, error);
     return { url: '', error: error instanceof Error ? error.message : `Failed to upload ${type}` };

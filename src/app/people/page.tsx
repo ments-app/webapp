@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/context/AuthContext';
-import { Users, Search, BadgeCheck, UserPlus, Loader2 } from 'lucide-react';
+import { Users, Search, UserPlus, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { toProxyUrl } from '@/utils/imageUtils';
@@ -158,7 +158,7 @@ export default function PeoplePage() {
                   <Link href={`/profile/${encodeURIComponent(person.username)}`} className="mb-1">
                     <h3 className="font-semibold text-foreground flex items-center gap-1 justify-center">
                       {person.full_name || person.username}
-                      {person.is_verified && <BadgeCheck className="w-4 h-4 text-primary flex-shrink-0" />}
+                      {person.is_verified && <Image src="/icons/verify_badge.svg" alt="Verified" width={16} height={16} className="w-4 h-4 flex-shrink-0" />}
                     </h3>
                   </Link>
                   <p className="text-xs text-muted-foreground mb-1">@{person.username}</p>

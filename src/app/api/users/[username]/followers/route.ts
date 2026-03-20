@@ -39,19 +39,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       return NextResponse.json({ data: [] });
     }
 
-    // Fetch follower profiles
+    // Fetch follower profiles with extra info
     const { data: users, error: usersErr } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, is_verified')
+      .select('id, username, full_name, avatar_url, is_verified, about, tagline, current_city, user_type')
       .in('id', followerIds)
       .eq('account_status', 'active')
       .order('full_name', { ascending: true });
 
     if (usersErr) return NextResponse.json({ error: usersErr.message }, { status: 500 });
+    if (!users || users.length === 0) return NextResponse.json({ data: [] });
+
+    // Get follower counts for each user
+    const { data: followerRels } = await supabase
+      .from('user_follows')
+      .select('followee_id')
+      .in('followee_id', users.map((u: { id: string }) => u.id));
+
+    const followerCountMap: Record<string, number> = {};
+    (followerRels || []).forEach((r: { followee_id: string }) => {
+      followerCountMap[r.followee_id] = (followerCountMap[r.followee_id] || 0) + 1;
+    });
 
     // If there's a viewer, get their follow status for each follower
     let followStatusMap: Record<string, boolean> = {};
-    if (viewerId && users && users.length > 0) {
+    if (viewerId) {
       const { data: viewerFollows, error: followErr } = await supabase
         .from('user_follows')
         .select('followee_id')
@@ -66,13 +78,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       }
     }
 
-    // Add follow status to each user
-    const usersWithFollowStatus = (users || []).map((user: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => ({
+    const enriched = users.map((user: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean; about: string | null; tagline: string | null; current_city: string | null; user_type: string | null }) => ({
       ...user,
-      is_following: followStatusMap[user.id] || false
+      followers_count: followerCountMap[user.id] || 0,
+      is_following: followStatusMap[user.id] || false,
     }));
 
-    return NextResponse.json({ data: usersWithFollowStatus });
+    return NextResponse.json({ data: enriched });
   } catch (e) {
     console.error('[followers API] error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

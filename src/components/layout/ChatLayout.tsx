@@ -117,9 +117,9 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
 
   return (
     <ConversationsProvider>
-      <div className="flex h-screen bg-gradient-to-br from-background via-background to-muted/20 overflow-hidden">
+      <div className="flex h-screen bg-background overflow-hidden">
         {/* Left Sidebar - Icon Only (hidden on mobile when in conversation) */}
-        <div className="hidden md:flex flex-col w-16 bg-card/50 backdrop-blur-sm border-r border-border/50 relative z-20">
+        <div className="hidden md:flex flex-col w-16 bg-card border-r border-border/50 relative z-20">
         {/* Logo */}
         <div className="flex items-center justify-center h-16 border-b border-border/50">
           <Link href="/" className="transition-transform hover:scale-110 active:scale-95">
@@ -211,7 +211,7 @@ export function ChatLayout({ children, conversationsList, showConversations = tr
 
       {/* Middle Panel - Conversations List (full width on mobile) */}
       {showConversations && (
-        <div className={`w-full md:w-80 bg-card/50 backdrop-blur-sm md:border-r border-border/50 flex flex-col relative z-10 ${pathname?.includes('/messages/') && !pathname?.endsWith('/messages') ? 'hidden md:flex' : ''}`}>
+        <div className={`w-full md:w-80 bg-card md:border-r border-border/50 flex flex-col relative z-10 ${pathname?.includes('/messages/') && !pathname?.endsWith('/messages') ? 'hidden md:flex' : ''}`}>
           {conversationsList}
         </div>
       )}

@@ -145,7 +145,15 @@ export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {})
               <span className="text-2xl">&#128173;</span>
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">Your feed is quiet</h3>
-            <p className="text-muted-foreground">Follow people or join communities to see posts here.</p>
+            <p className="text-muted-foreground mb-5">Follow people or join communities to see posts here.</p>
+            <div className="flex items-center justify-center gap-3">
+              <a href="/people" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                Find people to follow
+              </a>
+              <a href="/search" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-foreground text-sm font-medium hover:bg-accent transition-colors">
+                Explore
+              </a>
+            </div>
           </div>
         </div>
       </div>

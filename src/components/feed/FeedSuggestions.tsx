@@ -2,7 +2,8 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { UserPlus, BadgeCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface SuggestedUser {
@@ -122,7 +123,7 @@ export function FeedSuggestions({ users, isLoading, onFollow }: FeedSuggestionsP
                       <p className="text-base font-medium text-foreground truncate flex items-center justify-center gap-1">
                         {user.full_name}
                         {user.is_verified && (
-                          <BadgeCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                          <Image src="/icons/verify_badge.svg" alt="Verified" width={14} height={14} className="w-3.5 h-3.5 flex-shrink-0" />
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">

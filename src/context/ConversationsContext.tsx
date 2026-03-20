@@ -15,7 +15,7 @@ interface Conversation {
   updated_at: string;
   unread_count: number;
   status: string;
-  category_ids?: string[]; // Add category IDs array
+  category_ids?: string[];
 }
 
 interface Category {
@@ -27,6 +27,7 @@ interface Category {
 interface ConversationsContextType {
   conversations: Conversation[];
   categories: Category[];
+  conversationCategories: Record<string, string[]>;
   loading: boolean;
   activeTab: string;
   searchQuery: string;
@@ -35,6 +36,11 @@ interface ConversationsContextType {
   refetchConversations: () => Promise<void>;
   filteredConversations: Conversation[];
   clearUnreadCount: (conversationId: string) => void;
+  addCategory: (category: Category) => void;
+  updateCategoryInContext: (id: string, updates: Partial<Category>) => void;
+  removeCategoryFromContext: (id: string) => void;
+  assignConversation: (conversationId: string, categoryId: string) => void;
+  unassignConversation: (conversationId: string, categoryId: string) => void;
 }
 
 const ConversationsContext = createContext<ConversationsContextType | null>(null);
@@ -48,8 +54,6 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Single consolidated fetch function — replaces 3 separate functions
-  // to avoid 3 separate API calls per page load per user
   const fetchAllData = useCallback(async () => {
     if (!user?.id) return;
 
@@ -99,18 +103,15 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   // Filter conversations by search query and active category
   const filteredConversations = conversations.filter(conv => {
-    // Search filter
     const matchesSearch =
       conv.other_full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.other_username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.last_message?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Category filter
     let matchesCategory = true;
     if (activeTab === 'all') {
       matchesCategory = true;
     } else {
-      // Check if this conversation belongs to the selected category
       const conversationCategoryIds = conversationCategories[conv.conversation_id] || [];
       matchesCategory = conversationCategoryIds.includes(activeTab);
     }
@@ -131,9 +132,58 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
+  // Category state management (local state updates, API calls done by caller)
+  const addCategory = useCallback((category: Category) => {
+    setCategories(prev => [...prev, category]);
+  }, []);
+
+  const updateCategoryInContext = useCallback((id: string, updates: Partial<Category>) => {
+    setCategories(prev => prev.map(cat =>
+      cat.id === id ? { ...cat, ...updates } : cat
+    ));
+  }, []);
+
+  const removeCategoryFromContext = useCallback((id: string) => {
+    setCategories(prev => prev.filter(cat => cat.id !== id));
+    // Reset active tab if the deleted category was selected
+    setActiveTab(prev => prev === id ? 'all' : prev);
+    // Clean up conversation mappings
+    setConversationCategories(prev => {
+      const updated = { ...prev };
+      for (const convId of Object.keys(updated)) {
+        updated[convId] = updated[convId].filter(catId => catId !== id);
+        if (updated[convId].length === 0) delete updated[convId];
+      }
+      return updated;
+    });
+  }, []);
+
+  const assignConversation = useCallback((conversationId: string, categoryId: string) => {
+    setConversationCategories(prev => {
+      const current = prev[conversationId] || [];
+      if (current.includes(categoryId)) return prev;
+      return { ...prev, [conversationId]: [...current, categoryId] };
+    });
+  }, []);
+
+  const unassignConversation = useCallback((conversationId: string, categoryId: string) => {
+    setConversationCategories(prev => {
+      const current = prev[conversationId] || [];
+      const updated = current.filter(id => id !== categoryId);
+      const newState = { ...prev };
+      if (updated.length === 0) {
+        delete newState[conversationId];
+      } else {
+        newState[conversationId] = updated;
+      }
+      return newState;
+    });
+  }, []);
+
   const value: ConversationsContextType = {
     conversations,
     categories,
+    conversationCategories,
     loading,
     activeTab,
     searchQuery,
@@ -142,6 +192,11 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     refetchConversations,
     filteredConversations,
     clearUnreadCount,
+    addCategory,
+    updateCategoryInContext,
+    removeCategoryFromContext,
+    assignConversation,
+    unassignConversation,
   };
 
   return (
