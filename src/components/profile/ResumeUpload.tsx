@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserData } from '@/hooks/useUserData';
 import { supabase } from '@/utils/supabase';
 import {
   Upload, X, Check, ChevronDown, ChevronUp,
@@ -47,6 +48,13 @@ interface ParsedResume {
   }[];
 }
 
+type SavedResumeVariant = {
+  id: string;
+  label: string;
+  file_url: string;
+  is_default: boolean;
+};
+
 type Step = 'idle' | 'uploading' | 'parsing' | 'preview' | 'applying' | 'done' | 'error';
 
 interface ResumeUploadProps {
@@ -67,10 +75,13 @@ function stepTextClass(isDone: boolean, isActive: boolean): string {
 
 export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
   const { session } = useAuth();
+  const { userData } = useUserData();
   const [step, setStep] = useState<Step>('idle');
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedResume | null>(null);
+  const [savedResumes, setSavedResumes] = useState<SavedResumeVariant[]>([]);
+  const [loadingSavedResumes, setLoadingSavedResumes] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     profile: true, skills: true, experience: false, education: false, links: false, projects: false,
   });
@@ -97,6 +108,25 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
     if (!session?.access_token) throw new Error('Session expired');
     return session.access_token;
   }, [session?.access_token]);
+
+  const loadSavedResumes = useCallback(async () => {
+    if (!userData?.username) return;
+    try {
+      setLoadingSavedResumes(true);
+      const res = await fetch(`/api/users/${encodeURIComponent(userData.username)}/application-materials`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to load saved resumes');
+      setSavedResumes(Array.isArray(json?.data?.resume_variants) ? json.data.resume_variants : []);
+    } catch {
+      setSavedResumes([]);
+    } finally {
+      setLoadingSavedResumes(false);
+    }
+  }, [userData?.username]);
+
+  useEffect(() => {
+    void loadSavedResumes();
+  }, [loadSavedResumes]);
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -128,6 +158,7 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
         const err = await uploadRes.json();
         throw new Error(err.error || 'Upload failed');
       }
+      await loadSavedResumes();
 
       // Step 2: Parse with AI (server-side pdf-parse + Groq)
       setStep('parsing');
@@ -137,6 +168,36 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: parseForm,
+      });
+      if (!parseRes.ok) {
+        const err = await parseRes.json();
+        throw new Error(err.error || 'Parsing failed');
+      }
+
+      const { data } = await parseRes.json();
+      setParsed(data);
+      setStep('preview');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+      setStep('error');
+    }
+  }, [getAuthToken, loadSavedResumes]);
+
+  const handleSavedResume = useCallback(async (resume: SavedResumeVariant) => {
+    setFileName(resume.label);
+    setError(null);
+    setParsed(null);
+
+    try {
+      setStep('parsing');
+      const token = await getAuthToken();
+      const parseRes = await fetch('/api/resume/parse', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ resume_url: resume.file_url }),
       });
       if (!parseRes.ok) {
         const err = await parseRes.json();
@@ -237,6 +298,37 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
   if (step === 'idle' || step === 'error') {
     return (
       <div className="space-y-3">
+        {savedResumes.length > 0 && (
+          <div className="rounded-xl border border-border bg-card/50 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-semibold">Use a saved resume</p>
+                <p className="text-xs text-muted-foreground">
+                  Parse one of your stored resume versions instead of uploading again.
+                </p>
+              </div>
+              {loadingSavedResumes && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {savedResumes.map((resume) => (
+                <button
+                  key={resume.id}
+                  type="button"
+                  onClick={() => void handleSavedResume(resume)}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background/50 px-3 py-1.5 text-xs font-medium text-foreground hover:border-emerald-500/30 hover:bg-emerald-500/10"
+                >
+                  <span>{resume.label}</span>
+                  {resume.is_default && (
+                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400">
+                      Default
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <button
           type="button"
           onDrop={handleDrop}
@@ -250,7 +342,7 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
           <div className="text-center">
             <p className="text-sm font-semibold">Upload your Resume / CV</p>
             <p className="text-[11px] text-muted-foreground/60 mt-1">
-              PDF format, max 10MB — AI will extract profile details, social links, and side projects
+              PDF format, max 10MB — this also syncs your default saved resume for apply kits
             </p>
           </div>
         </button>

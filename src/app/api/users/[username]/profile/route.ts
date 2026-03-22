@@ -160,6 +160,7 @@ export async function GET(
       startupsResult,
       followCheckResult,
       educationResult,
+      publicKitsResult,
     ] = await Promise.all([
       // Followers count
       (async () => {
@@ -258,6 +259,20 @@ export async function GET(
           return r.data || [];
         } catch { return []; }
       })(),
+      // Public kits (profile lenses powered by apply kits)
+      (async () => {
+        try {
+          const r = await supabase
+            .from('apply_kits')
+            .select('id, name, summary, highlight_project_ids, selected_link_keys, include_profile_links, show_on_profile, is_primary, updated_at')
+            .eq('user_id', user.id)
+            .eq('show_on_profile', true)
+            .order('is_primary', { ascending: false })
+            .order('updated_at', { ascending: false })
+            .limit(5);
+          return r.data || [];
+        } catch { return []; }
+      })(),
     ]);
 
     const followers = followersResult as number;
@@ -273,6 +288,45 @@ export async function GET(
     const is_following = followCheckResult as boolean;
     type EducationBrief = { id: string; institution_name: string; institution_domain: string | null; degree: string | null; field_of_study: string | null; start_date: string | null; end_date: string | null; description: string | null; sort_order: number | null };
     const education = educationResult as EducationBrief[];
+    type PublicKit = {
+      id: string;
+      name: string;
+      summary: string | null;
+      highlight_project_ids: string[] | null;
+      selected_link_keys: string[] | null;
+      include_profile_links: boolean | null;
+      show_on_profile: boolean | null;
+      is_primary: boolean | null;
+      updated_at: string | null;
+    };
+    const publicKits = publicKitsResult as PublicKit[];
+
+    const publicKitProjectIds = Array.from(new Set(
+      publicKits.flatMap((kit) => Array.isArray(kit.highlight_project_ids) ? kit.highlight_project_ids : [])
+    ));
+
+    type KitProject = { id: string; title: string | null; tagline: string | null; cover_url: string | null; logo_url: string | null };
+    let kitProjects: KitProject[] = [];
+    if (publicKitProjectIds.length > 0) {
+      try {
+        const { data: kitProjectRows } = await supabase
+          .from('projects')
+          .select('id, title, tagline, cover_url, logo_url')
+          .eq('owner_id', user.id)
+          .in('id', publicKitProjectIds);
+        kitProjects = (kitProjectRows as KitProject[] | null) || [];
+      } catch {
+        kitProjects = [];
+      }
+    }
+
+    const kitProjectMap = new Map(kitProjects.map((project) => [project.id, project]));
+    const publicKitsWithProjects = publicKits.map((kit) => ({
+      ...kit,
+      featured_projects: (Array.isArray(kit.highlight_project_ids) ? kit.highlight_project_ids : [])
+        .map((projectId) => kitProjectMap.get(projectId))
+        .filter(Boolean),
+    }));
 
     return NextResponse.json({
       data: {
@@ -288,6 +342,7 @@ export async function GET(
         education,
         startups,
         projects: projectsList,
+        public_kits: publicKitsWithProjects,
         viewer: {
           is_following,
         },

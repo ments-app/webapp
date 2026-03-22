@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAuthClient } from '@/utils/supabase-server';
 import { calculateProfileCompletion } from '@/utils/profileCompletion';
+import {
+  getProfileMaterialLinks,
+  sanitizeProjectIds,
+  sanitizeSelectedLinkKeys,
+} from '@/lib/application-materials';
 import Groq from 'groq-sdk';
 
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY! });
@@ -18,7 +23,21 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { job_id, gig_id } = body as { job_id?: string; gig_id?: string };
+    const {
+      job_id,
+      gig_id,
+      apply_kit_id,
+      resume_variant_id,
+      highlight_project_ids,
+      selected_link_keys,
+    } = body as {
+      job_id?: string;
+      gig_id?: string;
+      apply_kit_id?: string | null;
+      resume_variant_id?: string | null;
+      highlight_project_ids?: unknown;
+      selected_link_keys?: unknown;
+    };
 
     if (!job_id && !gig_id) {
       return NextResponse.json({ error: 'job_id or gig_id required' }, { status: 400 });
@@ -79,9 +98,53 @@ export async function POST(req: NextRequest) {
     // Fetch user profile
     const { data: userRow } = await admin
       .from('users')
-      .select('id, username, full_name, avatar_url, tagline, current_city, about, email, skills')
+      .select('id, username, full_name, avatar_url, tagline, current_city, about, email, skills, linkedin, social_links')
       .eq('id', user.id)
       .single();
+
+    let selectedResumeVariant: {
+      id: string;
+      label: string;
+      file_url: string;
+      is_default: boolean;
+    } | null = null;
+    let selectedApplyKit: {
+      id: string;
+      name: string;
+    } | null = null;
+
+    if (resume_variant_id) {
+      const { data, error } = await admin
+        .from('resume_variants')
+        .select('id, label, file_url, is_default')
+        .eq('id', resume_variant_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error || !data) {
+        return NextResponse.json({ error: 'Selected resume version was not found' }, { status: 400 });
+      }
+
+      selectedResumeVariant = data;
+    }
+
+    if (apply_kit_id) {
+      const { data, error } = await admin
+        .from('apply_kits')
+        .select('id, name')
+        .eq('id', apply_kit_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error || !data) {
+        return NextResponse.json({ error: 'Selected apply kit was not found' }, { status: 400 });
+      }
+
+      selectedApplyKit = data;
+    }
+
+    const highlightedProjectIds = sanitizeProjectIds(highlight_project_ids, 3);
+    const selectedLinkKeys = sanitizeSelectedLinkKeys(selected_link_keys);
 
     // Fetch work experiences
     const { data: experiences } = await admin
@@ -98,10 +161,39 @@ export async function POST(req: NextRequest) {
       .eq('owner_id', user.id)
       .limit(10);
 
+    let highlightedProjects: Array<Record<string, unknown>> = [];
+    if (highlightedProjectIds.length > 0) {
+      const { data } = await admin
+        .from('projects')
+        .select('id, title, tagline, description, tech_stack, logo_url')
+        .eq('owner_id', user.id)
+        .in('id', highlightedProjectIds);
+
+      const byId = new Map((data || []).map((project) => [project.id as string, project]));
+      highlightedProjects = highlightedProjectIds
+        .map((id) => byId.get(id))
+        .filter(Boolean) as Array<Record<string, unknown>>;
+
+      if (highlightedProjects.length !== highlightedProjectIds.length) {
+        return NextResponse.json({ error: 'One or more highlighted projects are invalid' }, { status: 400 });
+      }
+    }
+
+    const selectedLinks = getProfileMaterialLinks(
+      userRow?.linkedin as string | null | undefined,
+      userRow?.social_links as Record<string, string> | null | undefined,
+    ).filter((item) => selectedLinkKeys.includes(item.key));
+
     const profileSnapshot = {
       user: userRow,
       experiences: experiences || [],
       projects: projects || [],
+      materials: {
+        apply_kit: selectedApplyKit,
+        selected_resume: selectedResumeVariant,
+        highlighted_projects: highlightedProjects,
+        selected_links: selectedLinks,
+      },
     };
 
     // Format profile for AI
@@ -115,12 +207,23 @@ export async function POST(req: NextRequest) {
       `  - ${p.title}: ${(p.description as string || '').slice(0, 150)}${p.tech_stack ? ` [${(p.tech_stack as string[]).join(', ')}]` : ''}`
     ).join('\n');
 
+    const highlightedProjText = highlightedProjects.map((p) =>
+      `  - ${p.title}: ${((p.description as string) || (p.tagline as string) || 'N/A').slice(0, 150)}${p.tech_stack ? ` [${(p.tech_stack as string[]).join(', ')}]` : ''}`
+    ).join('\n');
+
+    const selectedLinksText = selectedLinks.map((link) => `  - ${link.label}: ${link.url}`).join('\n');
+
     const userSkills = Array.isArray(userRow?.skills) ? (userRow.skills as string[]) : [];
     const candidateProfile = `Name: ${userRow?.full_name || 'Unknown'}
 Tagline: ${userRow?.tagline || 'N/A'}
 About: ${userRow?.about || 'N/A'}
 City: ${userRow?.current_city || 'N/A'}
 Skills: ${userSkills.length > 0 ? userSkills.join(', ') : 'None listed'}
+Selected Resume Version: ${selectedResumeVariant?.label || 'Profile only'}
+Selected Links:
+${selectedLinksText || '  None selected'}
+Highlighted Projects:
+${highlightedProjText || '  None selected'}
 Work Experience:
 ${expText || '  None listed'}
 Projects:

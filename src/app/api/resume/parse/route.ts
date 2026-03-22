@@ -118,7 +118,10 @@ function sanitizeResult(parsed: Record<string, unknown>): ParsedResume {
 
 async function extractTextFromFile(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
+  return extractTextFromBuffer(buffer);
+}
 
+async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
   // Use pdf2json - pure Node.js PDF parser, no canvas/DOMMatrix deps
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const PDFParser = require('pdf2json');
@@ -141,6 +144,15 @@ async function extractTextFromFile(file: File): Promise<string> {
 
     parser.parseBuffer(buffer);
   });
+}
+
+async function extractTextFromUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error('Failed to fetch saved resume');
+  }
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return extractTextFromBuffer(buffer);
 }
 
 async function parseWithGroq(resumeText: string): Promise<ParsedResume> {
@@ -261,9 +273,16 @@ export async function POST(req: NextRequest) {
       if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
       if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Max 10MB' }, { status: 400 });
       resumeText = await extractTextFromFile(file);
+    } else if (contentType.includes('application/json')) {
+      const body = await req.json().catch(() => ({}));
+      const resumeUrl = typeof body.resume_url === 'string' ? body.resume_url.trim() : '';
+      if (!resumeUrl) {
+        return NextResponse.json({ error: 'resume_url is required' }, { status: 400 });
+      }
+      resumeText = await extractTextFromUrl(resumeUrl);
     } else {
-      const body = await req.json();
-      resumeText = body.resume_text;
+      const body = await req.json().catch(() => ({}));
+      resumeText = typeof body.resume_text === 'string' ? body.resume_text : '';
     }
 
     if (!resumeText || resumeText.length < 50) {

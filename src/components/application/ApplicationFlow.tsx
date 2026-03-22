@@ -42,9 +42,15 @@ interface ApplicationFlowProps {
   type: 'job' | 'gig';
   listingId: string;
   listingTitle: string;
+  startOptions?: {
+    applyKitId?: string | null;
+    resumeVariantId?: string | null;
+    highlightProjectIds?: string[];
+    selectedLinkKeys?: string[];
+  };
 }
 
-export default function ApplicationFlow({ type, listingId, listingTitle }: ApplicationFlowProps) {
+export default function ApplicationFlow({ type, listingId, listingTitle, startOptions }: ApplicationFlowProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('loading');
@@ -167,7 +173,13 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
         const res = await fetch('/api/applications/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ [refKey]: listingId }),
+          body: JSON.stringify({
+            [refKey]: listingId,
+            apply_kit_id: startOptions?.applyKitId || null,
+            resume_variant_id: startOptions?.resumeVariantId || null,
+            highlight_project_ids: startOptions?.highlightProjectIds || [],
+            selected_link_keys: startOptions?.selectedLinkKeys || [],
+          }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'We couldn\u2019t start the application');
@@ -205,7 +217,7 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
       }
     })();
     return () => { cancelled = true; };
-  }, [type, listingId]);
+  }, [type, listingId, startOptions?.applyKitId, startOptions?.resumeVariantId, startOptions?.highlightProjectIds, startOptions?.selectedLinkKeys]);
 
   // Auto-focus answer box
   useEffect(() => {

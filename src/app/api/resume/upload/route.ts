@@ -67,6 +67,49 @@ export async function POST(req: NextRequest) {
       console.error('Error saving resume URL:', updateError);
     }
 
+    try {
+      const { data: existingDefault, error: lookupError } = await supabase
+        .from('resume_variants')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_default', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!lookupError) {
+        if (existingDefault?.id) {
+          const { error: syncError } = await supabase
+            .from('resume_variants')
+            .update({
+              file_url: publicUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingDefault.id)
+            .eq('user_id', user.id);
+
+          if (syncError) {
+            console.error('Error syncing default resume variant:', syncError);
+          }
+        } else {
+          const { error: createVariantError } = await supabase
+            .from('resume_variants')
+            .insert({
+              user_id: user.id,
+              label: 'Profile Resume',
+              file_url: publicUrl,
+              is_default: true,
+            });
+
+          if (createVariantError) {
+            console.error('Error creating default resume variant:', createVariantError);
+          }
+        }
+      }
+    } catch (resumeVariantError) {
+      console.error('Resume variant sync skipped:', resumeVariantError);
+    }
+
     return NextResponse.json({ url: publicUrl });
   } catch (error) {
     console.error('Resume upload error:', error);

@@ -167,6 +167,7 @@ CREATE TABLE public.competitions (
   visibility text NOT NULL DEFAULT 'public'::text,
   target_facilitator_ids ARRAY,
   approval_status text NOT NULL DEFAULT 'approved'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
+  brochure_url text,
   CONSTRAINT competitions_pkey PRIMARY KEY (id),
   CONSTRAINT competitions_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
   CONSTRAINT competitions_startup_id_fkey FOREIGN KEY (startup_id) REFERENCES public.startup_profiles(id)
@@ -300,6 +301,7 @@ CREATE TABLE public.events (
   arena_round text CHECK (arena_round = ANY (ARRAY['registration'::text, 'investment'::text, 'completed'::text])),
   max_investment_per_startup integer DEFAULT 100000,
   approval_status text NOT NULL DEFAULT 'approved'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
+  brochure_url text,
   CONSTRAINT events_pkey PRIMARY KEY (id),
   CONSTRAINT events_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
   CONSTRAINT events_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES public.admin_profiles(id),
@@ -311,6 +313,22 @@ CREATE TABLE public.experiences (
   description text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT experiences_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.facilitator_explore_startups (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  facilitator_id uuid NOT NULL,
+  startup_name text NOT NULL,
+  email text,
+  mobile text,
+  website text,
+  contact_person text,
+  address text,
+  sector text,
+  uploaded_to_superadmin boolean NOT NULL DEFAULT false,
+  uploaded_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT facilitator_explore_startups_pkey PRIMARY KEY (id),
+  CONSTRAINT facilitator_explore_startups_facilitator_id_fkey FOREIGN KEY (facilitator_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.facilitator_organization_migration_audit (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -631,6 +649,40 @@ CREATE TABLE public.licenses_certificates (
   credential_url text,
   CONSTRAINT licenses_certificates_pkey PRIMARY KEY (id),
   CONSTRAINT licenses_certificates_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.mail_box_emails (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  box_id uuid NOT NULL,
+  email text NOT NULL,
+  label text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT mail_box_emails_pkey PRIMARY KEY (id),
+  CONSTRAINT mail_box_emails_box_id_fkey FOREIGN KEY (box_id) REFERENCES public.mail_boxes(id)
+);
+CREATE TABLE public.mail_boxes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL,
+  owner_role text NOT NULL CHECK (owner_role = ANY (ARRAY['facilitator'::text, 'startup'::text])),
+  name text NOT NULL,
+  description text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT mail_boxes_pkey PRIMARY KEY (id),
+  CONSTRAINT mail_boxes_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.mail_campaigns (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  sender_id uuid NOT NULL,
+  sender_role text NOT NULL CHECK (sender_role = ANY (ARRAY['facilitator'::text, 'startup'::text])),
+  subject text NOT NULL,
+  html_body text NOT NULL,
+  box_ids ARRAY NOT NULL,
+  recipient_count integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'sent'::text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'partial'::text])),
+  sent_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT mail_campaigns_pkey PRIMARY KEY (id),
+  CONSTRAINT mail_campaigns_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.mentor_categories (
   mentor_id uuid NOT NULL,

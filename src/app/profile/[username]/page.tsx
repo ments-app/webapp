@@ -13,6 +13,7 @@ import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import { DribbbleIcon, BehanceIcon, FigmaIcon, SubstackIcon, InstagramIcon } from '@/components/ui/SocialIcons';
 import FollowersPopup from '@/components/profile/FollowersPopup';
+import { getProfileMaterialLinks } from '@/lib/application-materials';
 
 type PositionRow = {
   id: string;
@@ -64,6 +65,24 @@ type ProjectRow = {
   created_at: string | null;
 };
 
+type PublicKitProjectRow = {
+  id: string;
+  title: string | null;
+  tagline: string | null;
+  cover_url: string | null;
+  logo_url: string | null;
+};
+
+type PublicKitRow = {
+  id: string;
+  name: string;
+  summary?: string | null;
+  selected_link_keys?: string[] | null;
+  include_profile_links?: boolean | null;
+  is_primary?: boolean | null;
+  featured_projects?: PublicKitProjectRow[];
+};
+
 type ProfileData = {
   user: {
     id: string;
@@ -97,6 +116,7 @@ type ProfileData = {
   education: EducationRow[];
   startups: StartupRow[];
   projects?: ProjectRow[];
+  public_kits?: PublicKitRow[];
   viewer: { is_following: boolean };
 } | null;
 
@@ -126,6 +146,8 @@ export default function PublicProfilePage() {
   const [messagePending, setMessagePending] = useState(false);
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'replies' | 'bookmarks'>('about');
+  const [activePublicKitId, setActivePublicKitId] = useState<string | null>(null);
+  const [portfolioOpen, setPortfolioOpen] = useState(false);
   const [followersPopupOpen, setFollowersPopupOpen] = useState(false);
   const [followersPopupTab, setFollowersPopupTab] = useState<'followers' | 'following'>('followers');
   const [imgError, setImgError] = useState<{ avatar?: boolean; cover?: boolean }>({});
@@ -309,7 +331,55 @@ export default function PublicProfilePage() {
   const education = useMemo(() => data?.education ?? [], [data?.education]);
   const startups = useMemo(() => data?.startups ?? [], [data?.startups]);
   const projects = useMemo(() => data?.projects ?? [], [data?.projects]);
+  const publicKits = useMemo(() => data?.public_kits ?? [], [data?.public_kits]);
   const isOwnProfile = viewerId && data?.user?.id && viewerId === data.user.id;
+  const hasPortfolioAccess = publicKits.length > 0 || !!isOwnProfile;
+
+  const profileMaterialLinks = useMemo(() => (
+    getProfileMaterialLinks(
+      data?.user?.linkedin || null,
+      data?.user?.social_links || null,
+    )
+  ), [data?.user?.linkedin, data?.user?.social_links]);
+
+  useEffect(() => {
+    if (publicKits.length === 0) {
+      setActivePublicKitId(null);
+      return;
+    }
+
+    setActivePublicKitId((prev) => {
+      if (prev && publicKits.some((kit) => kit.id === prev)) {
+        return prev;
+      }
+      return publicKits[0].id;
+    });
+  }, [publicKits]);
+
+  const activePublicKit = useMemo(() => {
+    if (publicKits.length === 0) return null;
+    return publicKits.find((kit) => kit.id === activePublicKitId) || publicKits[0];
+  }, [activePublicKitId, publicKits]);
+
+  const activePublicKitLinks = useMemo(() => {
+    if (!activePublicKit?.include_profile_links) return [];
+    const selectedKeys = Array.isArray(activePublicKit.selected_link_keys)
+      ? activePublicKit.selected_link_keys
+      : [];
+    if (selectedKeys.length === 0) return profileMaterialLinks;
+    const selectedSet = new Set(selectedKeys);
+    return profileMaterialLinks.filter((link) => selectedSet.has(link.key));
+  }, [activePublicKit, profileMaterialLinks]);
+
+  const activeFeaturedProjectIds = useMemo(() => (
+    (activePublicKit?.featured_projects || []).map((project) => project.id)
+  ), [activePublicKit]);
+
+  const generalProjects = useMemo(() => {
+    if (!portfolioOpen || activeFeaturedProjectIds.length === 0) return projects;
+    const featuredIds = new Set(activeFeaturedProjectIds);
+    return projects.filter((project) => !featuredIds.has(project.id));
+  }, [activeFeaturedProjectIds, portfolioOpen, projects]);
 
   const diffInMonths = (start: Date, end: Date) => {
     return Math.max(
@@ -505,10 +575,189 @@ export default function PublicProfilePage() {
                       </Button>
                     </>
                   ) : null}
+                  {hasPortfolioAccess && (
+                    <Button
+                      onClick={() => setPortfolioOpen((prev) => !prev)}
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full border-border/60"
+                    >
+                      <Diamond className="mr-1.5 h-3.5 w-3.5" />
+                      {portfolioOpen
+                        ? 'Hide Portfolio'
+                        : publicKits.length > 0
+                          ? `Portfolio${publicKits.length > 1 ? ` (${publicKits.length})` : ''}`
+                          : 'Set Up Portfolio'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {(portfolioOpen && hasPortfolioAccess) && (
+            <div className={`mb-6 rounded-2xl border p-4 sm:p-5 ${
+              isDarkMode ? 'border-gray-800 bg-card/60' : 'border-gray-200 bg-card/90'
+            }`}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+                    <Diamond className="h-4 w-4 text-emerald-500" />
+                    Portfolio
+                  </h2>
+                  <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Switch between curated work views without leaving the profile.
+                  </p>
+                </div>
+                {isOwnProfile && (
+                  <Link
+                    href={`/profile/${encodeURIComponent(username)}/materials`}
+                    className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'}`}
+                  >
+                    Manage
+                  </Link>
+                )}
+              </div>
+
+              {publicKits.length > 1 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {publicKits.map((kit) => (
+                    <button
+                      key={kit.id}
+                      type="button"
+                      onClick={() => setActivePublicKitId(kit.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        activePublicKit?.id === kit.id
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                          : 'bg-background border-border text-muted-foreground hover:border-emerald-500/30 hover:text-foreground'
+                      }`}
+                    >
+                      {kit.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activePublicKit ? (
+                <div className={`rounded-2xl border p-4 sm:p-5 ${
+                  isDarkMode ? 'border-gray-800 bg-gray-900/30' : 'border-gray-200 bg-gray-50/80'
+                }`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {activePublicKit.name}
+                        </h3>
+                        {activePublicKit.is_primary && (
+                          <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                      <p className={`mt-2 text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {activePublicKit.summary || 'This focus is backed by selected links and featured work.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {activePublicKitLinks.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {activePublicKitLinks.map((link) => (
+                        <a
+                          key={link.key}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            isDarkMode
+                              ? 'border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/10'
+                              : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                          }`}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {link.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {activePublicKit.featured_projects && activePublicKit.featured_projects.length > 0 && (
+                    <div className="mt-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          Featured work for this view
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {activePublicKit.featured_projects.map((project) => (
+                          <Link
+                            key={project.id}
+                            href={`/profile/${encodeURIComponent(username)}/projects/${project.id}`}
+                            className="group rounded-xl border border-border overflow-hidden transition-all hover:shadow-md hover:border-primary/40 bg-card"
+                          >
+                            <div className={`relative h-24 w-full ${isDarkMode ? 'bg-emerald-500/5' : 'bg-emerald-50/50'}`}>
+                              {project.cover_url ? (
+                                <img
+                                  src={toProxyUrl(project.cover_url, { width: 400, quality: 75 })}
+                                  alt={project.title || 'Project'}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : project.logo_url ? (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <img
+                                    src={toProxyUrl(project.logo_url, { width: 96, quality: 80 })}
+                                    alt={project.title || 'Project'}
+                                    className="h-10 w-10 object-contain"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Rocket className="h-7 w-7 text-emerald-500/40" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <h4 className={`text-sm font-semibold truncate group-hover:underline ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {project.title || 'Untitled'}
+                              </h4>
+                              {project.tagline && (
+                                <p className={`text-xs mt-0.5 line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  {project.tagline}
+                                </p>
+                              )}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={`rounded-2xl border p-4 sm:p-5 ${
+                  isDarkMode ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-emerald-200 bg-emerald-50/80'
+                }`}>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Create a public role kit to turn this into a lightweight portfolio view with role switches like Developer, CA, or Designer.
+                  </p>
+                  {isOwnProfile && (
+                    <div className="mt-3">
+                      <Link
+                        href={`/profile/${encodeURIComponent(username)}/materials`}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                          isDarkMode
+                            ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                            : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Create Portfolio View
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm mb-6">
@@ -705,12 +954,12 @@ export default function PublicProfilePage() {
                   )}
 
                   {/* Projects — inline cards */}
-                  {(isOwnProfile || data?.user?.show_projects !== false) && (projects.length > 0 || isOwnProfile) && (
+                  {(isOwnProfile || data?.user?.show_projects !== false) && (generalProjects.length > 0 || isOwnProfile) && (
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
                           <Diamond className="h-4 w-4 text-emerald-500" />
-                          Projects
+                          {activeFeaturedProjectIds.length > 0 ? 'More Projects' : 'Projects'}
                         </h2>
                         <div className="flex items-center gap-2">
                           {projects.length > 3 && (
@@ -746,9 +995,9 @@ export default function PublicProfilePage() {
                             </div>
                           ))}
                         </div>
-                      ) : projects.length > 0 ? (
+                      ) : generalProjects.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {projects.slice(0, 4).map((project) => (
+                          {generalProjects.slice(0, 4).map((project) => (
                             <Link
                               key={project.id}
                               href={`/profile/${encodeURIComponent(username)}/projects/${project.id}`}
@@ -797,6 +1046,10 @@ export default function PublicProfilePage() {
                             </Link>
                           ))}
                         </div>
+                      ) : activeFeaturedProjectIds.length > 0 ? (
+                        <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          All current projects are already featured above.
+                        </p>
                       ) : (
                         <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No projects yet.</p>
                       )}

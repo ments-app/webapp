@@ -975,6 +975,35 @@ export default function EditProfileForm() {
         </div>
       </div>
 
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <FolderOpen className="h-4 w-4" />
+            <span className="text-sm font-medium">Application Materials</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Manage role-specific resume versions and saved role kits without cluttering your main profile.
+          </p>
+        </div>
+        <div className="p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground max-w-xl">
+            Use role kits to pair a resume with highlighted projects and the links you want to carry into applications or show on your public profile.
+          </div>
+          {(initial?.username || username) ? (
+            <Link
+              href={`/profile/${encodeURIComponent(initial?.username || username)}/materials`}
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-sm font-medium transition-colors"
+            >
+              Manage Materials
+            </Link>
+          ) : (
+            <Button disabled className="rounded-xl">
+              Save a username first
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Verify Profile Card */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="px-6 py-4">
