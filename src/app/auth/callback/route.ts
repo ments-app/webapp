@@ -1,48 +1,54 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { getOrigin } from '@/utils/get-origin';
 
 function getSafeRedirectPath(requestUrl: URL): string | null {
   const redirectPath = requestUrl.searchParams.get('redirect');
   return redirectPath && redirectPath.startsWith('/') ? redirectPath : null;
 }
 
-function redirectToResolvedPath(requestUrl: URL, fallbackPath = '/'): NextResponse {
+function redirectToResolvedPath(origin: string, requestUrl: URL, fallbackPath = '/'): NextResponse {
   const targetPath = getSafeRedirectPath(requestUrl) || fallbackPath;
-  return NextResponse.redirect(`${requestUrl.origin}${targetPath}`);
+  return NextResponse.redirect(`${origin}${targetPath}`);
 }
 
-async function handleProfileBootstrapFailure(requestUrl: URL, supabase: Awaited<ReturnType<typeof createAuthClient>>) {
+async function handleProfileBootstrapFailure(origin: string, supabase: Awaited<ReturnType<typeof createAuthClient>>) {
   try {
     await supabase.auth.signOut();
   } catch (signOutError) {
     console.error('Error signing out after profile bootstrap failure:', signOutError);
   }
 
-  const failureUrl = new URL('/', requestUrl.origin);
+  const failureUrl = new URL('/', origin);
   failureUrl.searchParams.set('error', 'profile_setup_failed');
   return NextResponse.redirect(failureUrl);
 }
 
 
-
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const type = requestUrl.searchParams.get('type');
   const error = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
 
+  // Use proxy-aware origin instead of requestUrl.origin
+  const origin = getOrigin(request);
+
   console.log('[AUTH CALLBACK] Hit callback route');
-  console.log('[AUTH CALLBACK] Code present:', !!code, '| Error:', error, '| Desc:', errorDescription);
+  console.log('[AUTH CALLBACK] Request URL:', request.url);
+  console.log('[AUTH CALLBACK] Resolved origin:', origin);
+  console.log('[AUTH CALLBACK] Code present:', !!code, '| Error:', error);
+  console.log('[AUTH CALLBACK] x-forwarded-host:', request.headers.get('x-forwarded-host'));
 
   // Handle errors returned by Supabase (e.g. failed external code exchange)
   if (error) {
     console.error('[AUTH CALLBACK] Supabase returned error:', error, errorDescription);
-    return NextResponse.redirect(`${requestUrl.origin}/?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`);
+    return NextResponse.redirect(`${origin}/?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`);
   }
 
   if (code) {
-    // Next.js 16: cookies() is async, must await before passing
     const supabase = await createAuthClient();
 
     // Exchange code for session
@@ -52,19 +58,23 @@ export async function GET(request: NextRequest) {
 
     if (sessionError) {
       console.error('Error exchanging code for session:', sessionError);
-      return NextResponse.redirect(`${requestUrl.origin}/?error=auth_failed`);
+      const reason = sessionError.message.includes('code verifier') ? 'session_expired' : 'auth_failed';
+      return NextResponse.redirect(`${origin}/?error=${reason}`);
+    }
+
+    // Password recovery flow → redirect to reset password page
+    if (type === 'recovery') {
+      return NextResponse.redirect(`${origin}/reset-password`);
     }
 
     if (session?.user) {
-      // Use service role client to bypass RLS — deleted users are hidden by RLS policies,
-      // which causes the callback to think the user is new and attempt a duplicate INSERT.
+      // Use service role client to bypass RLS — deleted users are hidden by RLS policies
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       const adminClient = serviceKey
         ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
         : supabase;
 
       // Check by ID first — handles re-registration after soft-delete
-      // (same auth user ID, but email was hashed during deletion)
       const { data: userById } = await adminClient
         .from('users')
         .select('id, username, email, account_status, is_onboarding_done')
@@ -119,7 +129,7 @@ export async function GET(request: NextRequest) {
 
           if (resetError) {
             console.error('Error restoring deleted user:', resetError);
-            return handleProfileBootstrapFailure(requestUrl, supabase);
+            return handleProfileBootstrapFailure(origin, supabase);
           }
         } else {
           // Existing active/deactivated user — update last_seen and respect onboarding state
@@ -129,17 +139,16 @@ export async function GET(request: NextRequest) {
             .eq('id', session.user.id);
 
           if (userById.is_onboarding_done) {
-            return redirectToResolvedPath(requestUrl);
+            return redirectToResolvedPath(origin, requestUrl);
           }
 
-          return NextResponse.redirect(`${requestUrl.origin}/onboarding`);
+          return NextResponse.redirect(`${origin}/onboarding`);
         }
 
         // Deleted user re-registration — send to onboarding
-        return NextResponse.redirect(`${requestUrl.origin}/onboarding`);
+        return NextResponse.redirect(`${origin}/onboarding`);
       } else {
-        // Truly new user — check by email to catch edge cases before onboarding
-        // The actual user row will be created during the onboarding username step.
+        // Truly new user — check by email to catch edge cases
         const { data: userByEmail } = await adminClient
           .from('users')
           .select('id, account_status, is_onboarding_done')
@@ -147,7 +156,6 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (userByEmail && userByEmail.account_status === 'deleted') {
-          // Old deleted row with same email but different auth ID — clean it up
           await adminClient
             .from('users')
             .delete()
@@ -161,23 +169,23 @@ export async function GET(request: NextRequest) {
 
           if (relinkError) {
             console.error('Error relinking existing user:', relinkError);
-            return handleProfileBootstrapFailure(requestUrl, supabase);
+            return handleProfileBootstrapFailure(origin, supabase);
           }
 
           if (userByEmail.is_onboarding_done) {
-            return redirectToResolvedPath(requestUrl);
+            return redirectToResolvedPath(origin, requestUrl);
           }
 
-          return NextResponse.redirect(`${requestUrl.origin}/onboarding`);
+          return NextResponse.redirect(`${origin}/onboarding`);
         }
 
         // New user — no DB row, send to onboarding.
         // The onboarding endpoints are responsible for creating the profile safely.
-        return NextResponse.redirect(`${requestUrl.origin}/onboarding`);
+        return NextResponse.redirect(`${origin}/onboarding`);
       }
     }
   }
 
   // Redirect to the page the user was on before signing in (if provided)
-  return redirectToResolvedPath(requestUrl);
+  return redirectToResolvedPath(origin, requestUrl);
 }

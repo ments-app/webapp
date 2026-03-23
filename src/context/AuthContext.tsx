@@ -10,6 +10,9 @@ type AuthContextType = {
   session: Session | null;
   isLoading: boolean;
   signInWithGoogle: (redirectTo?: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpWithPassword: (email: string, password: string, fullName: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -106,6 +109,53 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
     }
   };
 
+  const signInWithPassword = async (email: string, password: string): Promise<{ error: string | null }> => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setIsLoading(false);
+        return { error: error.message };
+      }
+      return { error: null };
+    } catch (error) {
+      setIsLoading(false);
+      return { error: 'An unexpected error occurred.' };
+    }
+  };
+
+  const signUpWithPassword = async (email: string, password: string, fullName: string): Promise<{ error: string | null; needsConfirmation: boolean }> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName },
+        },
+      });
+      if (error) return { error: error.message, needsConfirmation: false };
+      // If identities array is empty, user already exists
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        return { error: 'An account with this email already exists.', needsConfirmation: false };
+      }
+      return { error: null, needsConfirmation: true };
+    } catch {
+      return { error: 'An unexpected error occurred.', needsConfirmation: false };
+    }
+  };
+
+  const resetPassword = async (email: string): Promise<{ error: string | null }> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      });
+      if (error) return { error: error.message };
+      return { error: null };
+    } catch {
+      return { error: 'An unexpected error occurred.' };
+    }
+  };
+
   const signOut = async () => {
     try {
       setIsLoading(true);
@@ -133,6 +183,9 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
     session,
     isLoading,
     signInWithGoogle,
+    signInWithPassword,
+    signUpWithPassword,
+    resetPassword,
     signOut,
   };
 

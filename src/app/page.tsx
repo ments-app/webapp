@@ -9,7 +9,8 @@ import { CreatePostInput } from '@/components/posts/CreatePostInput';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import type { Post } from '@/api/posts';
 
-import { ArrowRight, Image as ImageIcon, VideoIcon, BarChart2, Plus, X } from 'lucide-react';
+import { ArrowRight, Image as ImageIcon, VideoIcon, BarChart2, Plus, X, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 function AuthenticatedHome() {
   const { user } = useAuth();
@@ -105,16 +106,36 @@ function SplashScreen() {
 
 const HomePage = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const { user, isLoading, signInWithGoogle } = useAuth();
+  const { user, isLoading, signInWithGoogle, signInWithPassword } = useAuth();
   const { loading: userDataLoading } = useUserData();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
   const handleGoogleSignIn = async () => {
-    console.log('Google sign-in clicked');
     await signInWithGoogle();
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    if (!email.trim() || !password) {
+      setAuthError('Please enter your email and password.');
+      return;
+    }
+    setAuthLoading(true);
+    const { error } = await signInWithPassword(email.trim(), password);
+    if (error) {
+      setAuthError(error);
+      setAuthLoading(false);
+    }
   };
 
   // Show branded splash while checking authentication or loading user data
@@ -218,10 +239,18 @@ const HomePage = () => {
                 Sign in to continue to Ments
               </p>
 
+              {authError && (
+                <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-600">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>{authError}</p>
+                </div>
+              )}
+
               {/* Google Sign In */}
               <button
                 onClick={handleGoogleSignIn}
-                className="group w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-base py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 hover:shadow-lg active:scale-[0.98] mb-6"
+                disabled={authLoading}
+                className="group w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-base py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 hover:shadow-lg active:scale-[0.98] mb-5 disabled:opacity-50"
               >
                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -234,27 +263,67 @@ const HomePage = () => {
               </button>
 
               {/* Divider */}
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-3 mb-5">
                 <div className="flex-1 h-px bg-neutral-200"></div>
-                <span className="text-xs text-neutral-400 font-medium">QUICK & SECURE</span>
+                <span className="text-xs text-neutral-400 font-medium">OR</span>
                 <div className="flex-1 h-px bg-neutral-200"></div>
               </div>
 
-              {/* Trust signals */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-neutral-500 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  Secure login
+              {/* Email + Password Form */}
+              <form onSubmit={handleEmailSignIn} className="space-y-4">
+                <div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email address"
+                    required
+                    className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3.5 text-neutral-900 placeholder-neutral-400 outline-none transition-colors focus:border-emerald-500 focus:bg-white text-sm"
+                  />
                 </div>
-                <div className="flex items-center gap-2 text-neutral-500 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  No passwords
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                    className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3.5 pr-11 text-neutral-900 placeholder-neutral-400 outline-none transition-colors focus:border-emerald-500 focus:bg-white text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-                <div className="flex items-center gap-2 text-neutral-500 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  Free forever
+
+                <div className="flex justify-end">
+                  <Link href="/forgot-password" className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline transition-colors">
+                    Forgot password?
+                  </Link>
                 </div>
-              </div>
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base py-3.5 px-6 rounded-xl transition-all duration-200 hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+                >
+                  {authLoading ? (
+                    <div className="h-5 w-5 mx-auto animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    'Sign in'
+                  )}
+                </button>
+              </form>
+
+              <p className="text-sm text-neutral-500 text-center mt-5">
+                Don&apos;t have an account?{' '}
+                <Link href="/register" className="font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors">
+                  Create account
+                </Link>
+              </p>
             </div>
 
             {/* Stats row below card */}

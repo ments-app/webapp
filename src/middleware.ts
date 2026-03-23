@@ -2,6 +2,31 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+/**
+ * Get the correct public origin, accounting for reverse proxy.
+ * Inlined here because middleware runs in Edge runtime.
+ */
+function getOrigin(req: NextRequest): string {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    const proto = forwardedProto.split(',')[0].trim();
+    return `${proto}://${host}`;
+  }
+
+  const host = req.headers.get('host');
+  if (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+    const proto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || 'https';
+    return `${proto}://${host}`;
+  }
+
+  return req.nextUrl.origin;
+}
+
 /* ──────────────────────────────────────────────────
    Lightweight in-memory rate limiter for API routes.
    Tracks request counts per IP in a sliding window.
@@ -110,13 +135,19 @@ export async function middleware(req: NextRequest) {
 
     // ── Protected Page Guard ──────────────────────────────
     // Redirect unauthenticated users away from pages that require login
+    // Public auth pages — always accessible
+    const PUBLIC_AUTH_PAGES = ['/register', '/forgot-password', '/reset-password'];
+    if (PUBLIC_AUTH_PAGES.some(p => pathname === p)) {
+      return supabaseResponse;
+    }
+
     const PROTECTED_PREFIXES = ['/messages', '/settings', '/create', '/profile/edit', '/startups', '/search', '/hub', '/posts', '/onboarding'];
     const pathname = req.nextUrl.pathname;
     const isProtectedPage = PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
 
     if (isProtectedPage && !user) {
-      const loginUrl = req.nextUrl.clone();
-      loginUrl.pathname = '/';
+      const origin = getOrigin(req);
+      const loginUrl = new URL('/', origin);
       const redirectTarget = `${pathname}${req.nextUrl.search}`;
       loginUrl.searchParams.set('redirect', redirectTarget);
       return NextResponse.redirect(loginUrl);
@@ -144,18 +175,13 @@ export async function middleware(req: NextRequest) {
             .single();
 
           if (!profile || !profile.is_onboarding_done) {
-            // User doesn't exist in DB or hasn't completed onboarding → redirect to onboarding
-            const onboardingUrl = req.nextUrl.clone();
-            onboardingUrl.pathname = '/onboarding';
-            onboardingUrl.search = '';
-            return NextResponse.redirect(onboardingUrl);
+            const origin = getOrigin(req);
+            return NextResponse.redirect(new URL('/onboarding', origin));
           }
 
           if (profile.account_status === 'deactivated') {
-            const redirectUrl = req.nextUrl.clone();
-            redirectUrl.pathname = '/reactivate';
-            redirectUrl.search = '';
-            return NextResponse.redirect(redirectUrl);
+            const origin = getOrigin(req);
+            return NextResponse.redirect(new URL('/reactivate', origin));
           }
 
           if (profile.account_status === 'deleted' || profile.account_status === 'suspended') {
